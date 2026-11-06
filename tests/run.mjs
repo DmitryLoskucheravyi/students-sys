@@ -83,8 +83,11 @@ async function runSuite(file, env) {
   try {
     await waitUntilUp();
     // Лише асинхронно: підставний Gemini живе в цьому ж процесі й має відповідати під час тесту.
+    // Python на Windows не розуміє TZ=Europe/Kyiv і рахував би час в UTC, тож браузер і тест розійшлися б.
+    const pythonEnv = { ...env };
+    if (process.platform === 'win32') delete pythonEnv.TZ;
     const code = await new Promise((resolve, reject) => {
-      const python = spawn(PYTHON, ['-I', '-X', 'utf8', path.join(root, 'tests', 'e2e', file)], { cwd: root, env, stdio: 'inherit' });
+      const python = spawn(PYTHON, ['-I', '-X', 'utf8', path.join(root, 'tests', 'e2e', file)], { cwd: root, env: pythonEnv, stdio: 'inherit' });
       python.on('error', reject);
       python.on('close', resolve);
     });

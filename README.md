@@ -41,7 +41,7 @@ npm test                          # усе разом зі збіркою
 
 ## Деплой
 
-Інтерфейс на Vercel, API на Render, база й файли домашніх на Aiven. Покроково: [DEPLOY.md](DEPLOY.md).
+Інтерфейс на Vercel, API на Render, база й файли домашніх на TiDB Cloud. Покроково: [DEPLOY.md](DEPLOY.md).
 
 ## ШІ-режим
 

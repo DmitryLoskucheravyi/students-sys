@@ -227,9 +227,12 @@ CREATE TABLE IF NOT EXISTS submission_files (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Вміст файлів домашніх у проді: диск безкоштовного хостингу стирається під час рестарту.
-CREATE TABLE IF NOT EXISTS file_blobs (
-  stored_name VARCHAR(80) PRIMARY KEY,
+-- Файл ділиться на частини: TiDB не приймає рядок більше 6 МБ.
+CREATE TABLE IF NOT EXISTS file_chunks (
+  stored_name VARCHAR(80) NOT NULL,
+  part INT NOT NULL,
   gzipped TINYINT(1) NOT NULL,
   stored_size INT NOT NULL,
-  data MEDIUMBLOB NOT NULL
+  data MEDIUMBLOB NOT NULL,
+  PRIMARY KEY (stored_name, part)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

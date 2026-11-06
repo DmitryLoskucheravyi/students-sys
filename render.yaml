@@ -37,9 +37,10 @@ services:
       - key: DB_PASSWORD
         sync: false
       - key: DB_NAME
-        value: defaultdb
-      - key: DB_SSL_CA
-        sync: false
+        value: students_sys
+      # TiDB Cloud Starter дає 5 ГБ: решта лишається для інших даних школи.
+      - key: DB_FILES_LIMIT_MB
+        value: "4000"
       # Потрібен лише для першого запуску на порожній базі.
       - key: INITIAL_MANAGER_PASSWORD
         sync: false

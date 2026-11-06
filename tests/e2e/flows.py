@@ -150,7 +150,7 @@ with sync_playwright() as pw:
 
     # --- Вчитель
     ctx, p = new(b, theme="dark"); login(p, "petro", "petro-pass-1")
-    check("вчитель бачить розклад", p.locator(".block").count() > 0)
+    expect(p.locator(".block").first).to_be_attached(timeout=10000); check("вчитель бачить розклад", True)
     shot(p, "13-teacher-schedule-dark")
     t = ctx
     tue_sessions = api(t, "GET", f"/sessions?from={tue}&to={tue}").json()
