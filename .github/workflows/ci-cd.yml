@@ -1,0 +1,106 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Новий push скасовує лише перевірки. Деплой, що вже йде, не переривається.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TZ: Europe/Kyiv
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ci-only-password
+      # Файли в тестах ідуть через S3-код, як у проді.
+      S3_ENDPOINT: http://127.0.0.1:9090
+      S3_REGION: us-east-1
+      S3_BUCKET: homework
+      S3_ACCESS_KEY_ID: ci-access-key
+      S3_SECRET_ACCESS_KEY: ci-secret-key
+      S3_CREATE_BUCKET: "true"
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-only-password
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pci-only-password"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: npm ci
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Build
+        run: npm run build
+      - name: Docker image builds
+        run: docker build -t students-sys:ci .
+      - name: Start S3 storage
+        run: |
+          docker run -d --name s3 -p 9090:9090 adobe/s3mock
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:9090/ && break; sleep 1; done
+      - name: Install browser
+        run: |
+          pip install -r tests/e2e/requirements.txt
+          python -m playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-screenshots
+          path: tests/e2e/shots
+          if-no-files-found: ignore
+
+  # Вмикається змінною репозиторію DEPLOY_ENABLED=true, коли хостинги налаштовані (див. DEPLOY.md).
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Deploy API to Render
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: curl -fsS -X POST "$HOOK&ref=$GITHUB_SHA" > /dev/null
+      - name: Wait for API
+        run: node scripts/wait-for-deploy.mjs "${{ vars.BACKEND_URL }}" "$GITHUB_SHA"
+      - name: Deploy site to Vercel
+        run: |
+          npm install --global vercel@latest
+          vercel pull --yes --environment=production
+          vercel build --prod
+          vercel deploy --prebuilt --prod
+      - name: Check live site
+        run: node scripts/smoke.mjs "${{ vars.PROD_URL }}"

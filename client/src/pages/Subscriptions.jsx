@@ -1,0 +1,257 @@
+import { useState } from 'react';
+import { api, useData } from '../api.js';
+import { Button, DatePicker, Empty, ErrorNote, Input, Loader, Modal, PageHead, Segmented, Select, Status, Stepper, useAction } from '../ui.jsx';
+import { IconEdit, IconList, IconPlus, IconTicket } from '../icons.jsx';
+import { addDays, dateTimeShort, lessonsWord, money, shortDate, todayISO } from '../fmt.js';
+
+export const subState = (s) => {
+  if (s.status === 'closed') return ['cancelled', 'Закрито'];
+  if (s.is_expired) return ['cancelled', 'Термін минув'];
+  if (s.lessons_left <= 0) return ['cancelled', 'Уроки закінчились'];
+  return s.lessons_left <= 1 ? ['warn', 'Закінчується'] : ['completed', 'Діє'];
+};
+
+export default function Subscriptions() {
+  const [tab, setTab] = useState('issued');
+  const subs = useData('/subscriptions');
+  const plans = useData('/plans');
+  const [issuing, setIssuing] = useState(false);
+  const [editingSub, setEditingSub] = useState(null);
+  const [history, setHistory] = useState(null);
+  const [editingPlan, setEditingPlan] = useState(null);
+
+  return (
+    <>
+      <PageHead title="Абонементи">
+        {tab === 'issued'
+          ? <Button icon={<IconPlus size={18} />} onClick={() => setIssuing(true)}>Видати абонемент</Button>
+          : <Button icon={<IconPlus size={18} />} onClick={() => setEditingPlan({})}>Новий абонемент</Button>}
+      </PageHead>
+      <div className="tabs">
+        <Segmented value={tab} onChange={setTab} options={[{ value: 'issued', label: 'Видані' }, { value: 'plans', label: 'Види' }]} />
+      </div>
+
+      {tab === 'issued' && (
+        <>
+          {subs.error && <ErrorNote text={subs.error} onRetry={subs.reload} />}
+          {!subs.data && subs.loading && <Loader />}
+          {subs.data && !subs.data.length && <Empty icon={<IconTicket size={36} />} title="Ще нікому не видано" />}
+          {subs.data?.length > 0 && (
+            <ul className="rows">
+              {subs.data.map((s) => {
+                const [kind, text] = subState(s);
+                return (
+                  <li key={s.id} className="row sub-row">
+                    <div className="row-main">
+                      <h3>{s.student_name}</h3>
+                      <p className="muted small">{s.name}, до {shortDate(s.expires_on)}</p>
+                    </div>
+                    <div className="sub-left"><strong>{s.lessons_left}</strong><small>із {s.lessons_total}</small></div>
+                    <div className="sub-price"><strong>{money(s.price_per_lesson)}</strong><small>за заняття</small></div>
+                    <Status kind={kind}>{text}</Status>
+                    <div className="row-actions">
+                      <Button variant="ghost" small icon={<IconList size={16} />} onClick={() => setHistory(s)}>Списання</Button>
+                      <Button variant="ghost" small icon={<IconEdit size={16} />} onClick={() => setEditingSub(s)}>Змінити</Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
+      )}
+
+      {tab === 'plans' && (
+        <>
+          {plans.error && <ErrorNote text={plans.error} onRetry={plans.reload} />}
+          {!plans.data && plans.loading && <Loader />}
+          {plans.data && !plans.data.length && <Empty icon={<IconTicket size={36} />} title="Створіть перший абонемент" />}
+          <ul className="plans">
+            {(plans.data ?? []).map((p) => (
+              <li key={p.id} className={`ticket ${p.is_active ? '' : 'is-off'}`}>
+                <div className="ticket-main">
+                  <h3>{p.name}</h3>
+                  <p className="ticket-count">{lessonsWord(p.lessons_count)}</p>
+                  <p className="small">{p.valid_days} днів</p>
+                </div>
+                <div className="ticket-stub">
+                  <strong>{money(p.price_per_lesson)}</strong>
+                  <small>за заняття</small>
+                  <small>разом {money(p.price_per_lesson * p.lessons_count)}</small>
+                  <Button variant="onred" small onClick={() => setEditingPlan(p)}>Змінити</Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {issuing && <IssueForm onClose={() => setIssuing(false)} onDone={() => { setIssuing(false); subs.reload(); plans.reload(); }} />}
+      {editingSub && <SubForm sub={editingSub} onClose={() => setEditingSub(null)} onDone={() => { setEditingSub(null); subs.reload(); }} />}
+      {history && <ChargesModal sub={history} onClose={() => setHistory(null)} />}
+      {editingPlan && <PlanForm plan={editingPlan} onClose={() => setEditingPlan(null)} onDone={() => { setEditingPlan(null); plans.reload(); }} />}
+    </>
+  );
+}
+
+/** Показує різницю між вартістю для учня та базовою вартістю абонемента. */
+function priceDelta(price, base) {
+  const d = Math.round((Number(price) - base) * 100) / 100;
+  if (!d) return 'Базова вартість';
+  return `${d > 0 ? '+' : '−'}${money(Math.abs(d))} до базової`;
+}
+
+function IssueForm({ onClose, onDone }) {
+  const people = useData('/users?role=student');
+  const plans = useData('/plans');
+  const [studentId, setStudentId] = useState(null);
+  const [planId, setPlanId] = useState(null);
+  const [price, setPrice] = useState('');
+  const [count, setCount] = useState('');
+  const [startsOn, setStartsOn] = useState(todayISO());
+  const [expiresOn, setExpiresOn] = useState('');
+  const [run, busy] = useAction();
+
+  const active = (plans.data ?? []).filter((p) => p.is_active);
+  const plan = active.find((p) => p.id === planId);
+
+  const pickPlan = (id) => {
+    const p = active.find((x) => x.id === id);
+    setPlanId(id);
+    setPrice(p.price_per_lesson);
+    setCount(p.lessons_count);
+    setExpiresOn(addDays(startsOn, p.valid_days));
+  };
+  const changeStart = (d) => {
+    setStartsOn(d);
+    if (plan) setExpiresOn(addDays(d, plan.valid_days));
+  };
+  const submit = async (e) => {
+    e.preventDefault();
+    const ok = await run(() => api('/subscriptions', { method: 'POST', body: {
+      student_id: studentId, plan_id: planId, price_per_lesson: Number(price), lessons_total: Number(count), starts_on: startsOn, expires_on: expiresOn,
+    } }), 'Абонемент видано');
+    if (ok) onDone();
+  };
+
+  return (
+    <Modal title="Видати абонемент" onClose={onClose}>
+      <form className="form" onSubmit={submit}>
+        <div className="form-row">
+          <Select label="Учень" value={studentId} onChange={setStudentId} options={(people.data ?? []).filter((u) => u.is_active).map((u) => ({ value: u.id, label: u.name }))} />
+          <Select label="Абонемент" value={planId} onChange={pickPlan} options={active.map((p) => ({ value: p.id, label: p.name, hint: `${lessonsWord(p.lessons_count)}, ${money(p.price_per_lesson)}` }))} />
+        </div>
+        {plan && (
+          <>
+            <div className="form-row">
+              <Stepper label="Вартість заняття" suffix="₴" step={10} value={price} onChange={setPrice} hint={priceDelta(price, plan.price_per_lesson)} />
+              <Stepper label="Уроків" value={count} onChange={setCount} min={1} max={500} />
+            </div>
+            <div className="form-row">
+              <DatePicker label="Початок" value={startsOn} onChange={changeStart} />
+              <DatePicker label="Закінчення" value={expiresOn} onChange={setExpiresOn} min={startsOn} />
+            </div>
+            <p className="total">Разом <strong>{money(Number(price) * Number(count))}</strong></p>
+          </>
+        )}
+        <div className="form-actions">
+          <Button variant="ghost" onClick={onClose}>Назад</Button>
+          <Button type="submit" busy={busy} disabled={!studentId || !planId}>Видати</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function SubForm({ sub, onClose, onDone }) {
+  const [price, setPrice] = useState(sub.price_per_lesson);
+  const [count, setCount] = useState(sub.lessons_total);
+  const [expiresOn, setExpiresOn] = useState(sub.expires_on);
+  const [status, setStatus] = useState(sub.status);
+  const [run, busy] = useAction();
+  const submit = async (e) => {
+    e.preventDefault();
+    const ok = await run(() => api(`/subscriptions/${sub.id}`, { method: 'PATCH', body: {
+      price_per_lesson: Number(price), lessons_total: Number(count), expires_on: expiresOn, status,
+    } }), 'Зміни збережено');
+    if (ok) onDone();
+  };
+  return (
+    <Modal title={`${sub.student_name}: ${sub.name}`} onClose={onClose}>
+      <form className="form" onSubmit={submit}>
+        <div className="form-row">
+          <Stepper label="Вартість заняття" suffix="₴" step={10} value={price} onChange={setPrice} hint="Діє на наступні заняття" />
+          <Stepper label="Уроків" value={count} onChange={setCount} min={Math.max(1, sub.lessons_used)} max={500} hint={`Використано ${sub.lessons_used}`} />
+        </div>
+        <DatePicker label="Закінчення" value={expiresOn} onChange={setExpiresOn} min={sub.starts_on} />
+        <Segmented label="Стан" value={status} onChange={setStatus} options={[{ value: 'active', label: 'Активний' }, { value: 'closed', label: 'Закритий' }]} />
+        <div className="form-actions">
+          <Button variant="ghost" onClick={onClose}>Назад</Button>
+          <Button type="submit" busy={busy}>Зберегти</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export function ChargesModal({ sub, onClose }) {
+  const { data, error, reload } = useData(`/subscriptions/${sub.id}/charges`);
+  return (
+    <Modal side title={`Списання: ${sub.name}`} onClose={onClose}>
+      {error && <ErrorNote text={error} onRetry={reload} />}
+      {!data && !error && <Loader />}
+      {data && !data.length && <Empty icon={<IconList size={36} />} title="Списань ще немає" />}
+      {data?.length > 0 && (
+        <>
+          <ul className="charges">
+            {data.map((c) => (
+              <li key={c.session_id}>
+                <span><strong>{c.title}</strong><small>{dateTimeShort(c.starts_at)}</small></span>
+                <span>{money(c.price_charged)}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="total">Разом <strong>{money(data.reduce((a, c) => a + Number(c.price_charged ?? 0), 0))}</strong></p>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+function PlanForm({ plan, onClose, onDone }) {
+  const isNew = !plan.id;
+  const [name, setName] = useState(plan.name ?? '');
+  const [count, setCount] = useState(plan.lessons_count ?? 8);
+  const [price, setPrice] = useState(plan.price_per_lesson ?? 400);
+  const [days, setDays] = useState(plan.valid_days ?? 30);
+  const [active, setActive] = useState(plan.is_active ?? 1);
+  const [run, busy] = useAction();
+  const submit = async (e) => {
+    e.preventDefault();
+    const body = { name, lessons_count: Number(count), price_per_lesson: Number(price), valid_days: Number(days), is_active: Boolean(active) };
+    const ok = await run(() => api(isNew ? '/plans' : `/plans/${plan.id}`, { method: isNew ? 'POST' : 'PATCH', body }), isNew ? 'Абонемент створено' : 'Зміни збережено');
+    if (ok) onDone();
+  };
+  return (
+    <Modal title={isNew ? 'Новий абонемент' : 'Редагувати абонемент'} onClose={onClose}>
+      <form className="form" onSubmit={submit}>
+        <Input label="Назва" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
+        <div className="form-row">
+          <Stepper label="Уроків" value={count} onChange={setCount} min={1} max={500} />
+          <Stepper label="Вартість заняття" suffix="₴" step={10} value={price} onChange={setPrice} hint={`Разом ${money(Number(price) * Number(count))}`} />
+        </div>
+        <Stepper label="Термін дії" suffix="днів" value={days} onChange={setDays} min={1} max={1095} step={5} />
+        {!isNew && (
+          <>
+            <Segmented label="Доступність" value={active ? 1 : 0} onChange={setActive} options={[{ value: 1, label: 'Можна видавати' }, { value: 0, label: 'Приховано' }]} />
+            <p className="muted small">Вже видані абонементи не зміняться.</p>
+          </>
+        )}
+        <div className="form-actions">
+          <Button variant="ghost" onClick={onClose}>Назад</Button>
+          <Button type="submit" busy={busy}>{isNew ? 'Створити' : 'Зберегти'}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}

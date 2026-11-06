@@ -1,0 +1,10 @@
+node_modules/
+client/dist/
+uploads/
+.env
+.env.*
+!.env.example
+*.log
+.vercel/
+tests/e2e/shots/
+__pycache__/

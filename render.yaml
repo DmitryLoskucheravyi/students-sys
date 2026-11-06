@@ -1,0 +1,57 @@
+# Render Blueprint: API у Docker. Інтерфейс живе на Vercel і ходить сюди через проксі /api.
+# Секрети мають sync: false: їх вводять у панелі Render, у репозиторій вони не потрапляють.
+services:
+  - type: web
+    name: students-sys
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt
+    numInstances: 1
+    healthCheckPath: /healthz
+    # Деплой запускає GitHub Actions після успішних тестів, а не кожен push.
+    autoDeployTrigger: "off"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      # Час школи: дати в базі зберігаються локальним часом.
+      - key: TZ
+        value: Europe/Kyiv
+      - key: COOKIE_SECURE
+        value: "true"
+      # Vercel і балансувальник Render стоять перед сервером.
+      - key: TRUST_PROXY
+        value: "2"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_SSL
+        value: "true"
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: defaultdb
+      - key: DB_SSL_CA
+        sync: false
+      # Потрібен лише для першого запуску на порожній базі.
+      - key: INITIAL_MANAGER_PASSWORD
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
