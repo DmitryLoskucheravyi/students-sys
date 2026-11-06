@@ -43,15 +43,5 @@ services:
       # Потрібен лише для першого запуску на порожній базі.
       - key: INITIAL_MANAGER_PASSWORD
         sync: false
-      - key: S3_ENDPOINT
-        sync: false
-      - key: S3_REGION
-        sync: false
-      - key: S3_BUCKET
-        sync: false
-      - key: S3_ACCESS_KEY_ID
-        sync: false
-      - key: S3_SECRET_ACCESS_KEY
-        sync: false
       - key: GEMINI_API_KEY
         sync: false

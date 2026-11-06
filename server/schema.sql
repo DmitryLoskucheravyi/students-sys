@@ -225,3 +225,11 @@ CREATE TABLE IF NOT EXISTS submission_files (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Вміст файлів домашніх у проді: диск безкоштовного хостингу стирається під час рестарту.
+CREATE TABLE IF NOT EXISTS file_blobs (
+  stored_name VARCHAR(80) PRIMARY KEY,
+  gzipped TINYINT(1) NOT NULL,
+  stored_size INT NOT NULL,
+  data MEDIUMBLOB NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

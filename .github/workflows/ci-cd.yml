@@ -24,13 +24,6 @@ jobs:
       DB_PORT: 3306
       DB_USER: root
       DB_PASSWORD: ci-only-password
-      # Файли в тестах ідуть через S3-код, як у проді.
-      S3_ENDPOINT: http://127.0.0.1:9090
-      S3_REGION: us-east-1
-      S3_BUCKET: homework
-      S3_ACCESS_KEY_ID: ci-access-key
-      S3_SECRET_ACCESS_KEY: ci-secret-key
-      S3_CREATE_BUCKET: "true"
     services:
       mysql:
         image: mysql:8.4
@@ -56,16 +49,26 @@ jobs:
         run: npm run build
       - name: Docker image builds
         run: docker build -t students-sys:ci .
-      - name: Start S3 storage
-        run: |
-          docker run -d --name s3 -p 9090:9090 adobe/s3mock
-          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:9090/ && break; sleep 1; done
       - name: Install browser
         run: |
           pip install -r tests/e2e/requirements.txt
           python -m playwright install --with-deps chromium
-      - name: End-to-end tests
+      - name: End-to-end tests (files in the database, as in production)
         run: npm run test:e2e
+      - name: Start S3 storage
+        run: |
+          docker run -d --name s3 -p 9090:9090 adobe/s3mock
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:9090/ && break; sleep 1; done
+      - name: File flows with optional S3 storage
+        env:
+          FILE_STORAGE: s3
+          S3_ENDPOINT: http://127.0.0.1:9090
+          S3_REGION: us-east-1
+          S3_BUCKET: homework
+          S3_ACCESS_KEY_ID: ci-access-key
+          S3_SECRET_ACCESS_KEY: ci-secret-key
+          S3_CREATE_BUCKET: "true"
+        run: npm run test:e2e -- flows
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

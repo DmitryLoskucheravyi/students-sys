@@ -141,7 +141,8 @@ with sync_playwright() as pw:
     lesson = next(l for l in lessons if l["title"] == "Тест-урок")
 
     # --- Сьогоднішнє заняття, яке вже почалося, щоб провести його (через API менеджера)
-    now = dt.datetime.now(); start = (now - dt.timedelta(hours=2))
+    # У межах сьогодні: абонемент видано сьогодні, і вчорашнє заняття він не покриває.
+    now = dt.datetime.now(); start = max(now - dt.timedelta(hours=2), now.replace(hour=0, minute=0, second=0, microsecond=0))
     r = api(ctx, "POST", "/schedules", data={"lesson_id": lesson["id"], "kind": "once", "date": start.strftime("%Y-%m-%d"), "time": start.strftime("%H:%M")})
     check("створено заняття в минулому для тесту", r.ok, r.text()[:120])
     past_id = r.json()["session_id"]

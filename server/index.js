@@ -8,12 +8,6 @@ import cookieParser from 'cookie-parser';
 import { HttpError } from './lib.js';
 import { ensureDatabase } from './setup.js';
 
-const production = process.env.NODE_ENV === 'production';
-// Краще впасти на старті, ніж прийняти домашні роботи й тихо втратити їх після рестарту.
-if (production && !process.env.S3_BUCKET && process.env.ALLOW_EPHEMERAL_UPLOADS !== 'true') {
-  throw new Error('Вкажіть S3_BUCKET: диск хостингу стирається. Для тимчасової перевірки: ALLOW_EPHEMERAL_UPLOADS=true.');
-}
-
 await ensureDatabase();
 
 // Роути імпортуються після створення бази: вони одразу використовують пул.

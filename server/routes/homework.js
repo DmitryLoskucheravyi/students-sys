@@ -6,14 +6,14 @@ import multer from 'multer';
 import { q, tx } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { HttpError, bad, conflict, dateTime, forbidden, id, int, notFound, nowStr, str } from '../lib.js';
-import { UPLOAD_DIR, openFile, persistFile, removeFile } from '../storage.js';
+import { MAX_FILE_MB, UPLOAD_DIR, openFile, persistFile, removeFile } from '../storage.js';
 
 export const homeworkRouter = Router();
 export const filesRouter = Router();
 homeworkRouter.use(requireAuth);
 filesRouter.use(requireAuth);
 
-const MAX_FILE = 200 * 1024 * 1024;
+const MAX_FILE = MAX_FILE_MB * 1024 * 1024;
 const MAX_FILES = 40;
 const BLOCKED_EXT = new Set(['.exe', '.bat', '.cmd', '.com', '.msi', '.scr', '.ps1', '.vbs', '.lnk', '.reg', '.dll', '.hta']);
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
@@ -45,7 +45,7 @@ function handleUpload(req, res, next) {
   upload(req, res, (err) => {
     if (!err) return next();
     if (err instanceof multer.MulterError) {
-      if (err.code === 'LIMIT_FILE_SIZE') return next(bad('Файл завеликий: максимум 200 МБ'));
+      if (err.code === 'LIMIT_FILE_SIZE') return next(bad(`Файл завеликий: максимум ${MAX_FILE_MB} МБ`));
       if (err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE') {
         return next(bad(`Забагато файлів: максимум ${MAX_FILES}`));
       }

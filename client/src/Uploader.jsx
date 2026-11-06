@@ -7,13 +7,35 @@ import { fileSize } from './fmt.js';
 
 const IMAGE = /\.(png|jpe?g|webp|gif)$/i;
 const SKIP_DIRS = /(^|\/)(node_modules|\.git|\.venv|__pycache__|dist|build)(\/|$)/;
-const MAX_FILE = 200 * 1024 * 1024;
+const MAX_FILE_MB = Number(import.meta.env.VITE_MAX_FILE_MB) || 10;
+const MAX_FILE = MAX_FILE_MB * 1024 * 1024;
+const SHRINK_FROM = 300 * 1024;
+const MAX_SIDE = 2560;
 
 const kindOf = (file) => {
   if (/\.zip$/i.test(file.name)) return 'archive';
   if (IMAGE.test(file.name)) return 'screenshot';
   return 'file';
 };
+
+/** Зменшує великий скрін до WebP. Якщо браузер не вміє або виграшу немає, лишає оригінал. */
+async function shrinkScreenshot(file) {
+  if (file.size < SHRINK_FROM || /\.gif$/i.test(file.name)) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.85));
+    if (blob?.type !== 'image/webp' || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' });
+  } catch {
+    return file;
+  }
+}
 
 /** Пакує папку в ZIP просто в браузері, без службових каталогів. */
 async function zipFolder(name, entries) {
@@ -53,32 +75,37 @@ export default function Uploader({ homeworkId, resubmit, canSendWithoutNew, onDo
   const [comment, setComment] = useState('');
   const [hover, setHover] = useState(false);
   const [zipping, setZipping] = useState(false);
+  const [shrinking, setShrinking] = useState(false);
   const [progress, setProgress] = useState(null);
   const filesRef = useRef(null);
   const folderRef = useRef(null);
   const shotsRef = useRef(null);
 
-  const addFiles = (list, forcedKind) => {
+  const addFiles = async (list, forcedKind) => {
+    setShrinking(true);
     const next = [];
-    for (const file of list) {
+    for (const original of list) {
+      const kind = forcedKind ?? kindOf(original);
+      const file = kind === 'screenshot' ? await shrinkScreenshot(original) : original;
       if (file.size > MAX_FILE) {
-        toast(`«${file.name}» більший за 200 МБ`, 'error');
+        toast(`«${file.name}» більший за ${MAX_FILE_MB} МБ`, 'error');
         continue;
       }
       next.push({
         id: crypto.randomUUID(),
         file,
-        kind: forcedKind ?? kindOf(file),
+        kind,
         url: IMAGE.test(file.name) ? URL.createObjectURL(file) : null,
       });
     }
     setItems((cur) => [...cur, ...next]);
+    setShrinking(false);
   };
 
   const addFolder = async (name, entries) => {
     setZipping(true);
     try {
-      addFiles([await zipFolder(name, entries)], 'archive');
+      await addFiles([await zipFolder(name, entries)], 'archive');
     } catch (e) {
       toast(e.message || 'Не вдалося запакувати папку', 'error');
     } finally {
@@ -156,7 +183,7 @@ export default function Uploader({ homeworkId, resubmit, canSendWithoutNew, onDo
   };
 
   const total = items.reduce((a, i) => a + i.file.size, 0);
-  const busy = progress !== null || zipping;
+  const busy = progress !== null || zipping || shrinking;
 
   return (
     <div className="uploader">
@@ -167,6 +194,7 @@ export default function Uploader({ homeworkId, resubmit, canSendWithoutNew, onDo
         <IconUpload size={30} />
         <p className="for-pointer"><strong>Перетягніть сюди файли або папку</strong><br /><span className="muted small">Скрін можна вставити через Ctrl+V</span></p>
         <p className="for-touch"><strong>Додайте файли, папку або скріни</strong></p>
+        <p className="muted small">До {MAX_FILE_MB} МБ на файл</p>
         <div className="drop-buttons">
           <Button variant="ghost" small icon={<IconFile size={18} />} onClick={() => filesRef.current.click()}>Файли</Button>
           <Button variant="ghost" small icon={<IconFolderZip size={18} />} onClick={() => folderRef.current.click()}>Папка в ZIP</Button>
@@ -178,6 +206,7 @@ export default function Uploader({ homeworkId, resubmit, canSendWithoutNew, onDo
       </div>
 
       {zipping && <p className="muted small" role="status">Пакую папку…</p>}
+      {shrinking && !zipping && <p className="muted small" role="status">Стискаю файли…</p>}
 
       {items.length > 0 && (
         <ul className="queue">

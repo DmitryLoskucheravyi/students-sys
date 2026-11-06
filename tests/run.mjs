@@ -109,6 +109,9 @@ const env = {
   PORT,
   HOST: '127.0.0.1',
   UPLOAD_DIR: uploads,
+  // За замовчуванням файли лежать у базі, як у проді. Низький ліміт дозволяє перевірити переповнення.
+  FILE_STORAGE: process.env.FILE_STORAGE || 'db',
+  DB_FILES_LIMIT_MB: '40',
   JWT_SECRET: 'test-secret-only-for-e2e',
   COOKIE_SECURE: 'false',
   GEMINI_API_KEY: 'test-key',

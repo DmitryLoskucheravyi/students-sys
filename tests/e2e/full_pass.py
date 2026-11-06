@@ -198,7 +198,8 @@ with sync_playwright() as pw:
 
     # --- Запити й виправлені баги
     sc, s = new(b); login(s, "nightstd", "nightpass1")
-    past = now - dt.timedelta(hours=3)
+    # У межах сьогодні: абонемент видано сьогодні, і вчорашнє заняття він не покриває.
+    past = max(now - dt.timedelta(hours=3), now.replace(hour=0, minute=0, second=0, microsecond=0))
     fut_day = next_mon + dt.timedelta(days=3)
     fut = once(fut_day, "12:00").json()["session_id"]
     pst = once(past.date(), past.strftime("%H:%M")).json()["session_id"]
