@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
 import { Button, DatePicker, Empty, ErrorNote, Input, Loader, Modal, PageHead, Segmented, Select, Status, Textarea, TimePicker, useAction } from '../ui.jsx';
-import { IconHomework, IconPlus } from '../icons.jsx';
+import { IconHomework, IconPlus, IconSpark } from '../icons.jsx';
 import { WEEKDAYS, addDays, dateTimeShort, nowLocal, shortDate, todayISO } from '../fmt.js';
 import { TopicPicker } from './HomeworkTopics.jsx';
 import { MyQuizzes, QuizList } from './Quizzes.jsx';
@@ -33,7 +33,12 @@ export default function Homework() {
     <>
       <PageHead title="Завдання">
         {!isStudent && tab === 'homework' && <HomeworkAdd />}
-        {tab === 'quizzes' && <Button icon={<IconPlus size={18} />} onClick={() => navigate('/quizzes/new')}>Новий тест</Button>}
+        {tab === 'quizzes' && (
+          <>
+            <Button variant="ghost" icon={<IconSpark size={18} />} onClick={() => navigate('/quizzes/new?import=1')}>Тест із ШІ</Button>
+            <Button icon={<IconPlus size={18} />} onClick={() => navigate('/quizzes/new')}>Новий тест</Button>
+          </>
+        )}
       </PageHead>
       {isManager && (
         <div className="tabs-row">

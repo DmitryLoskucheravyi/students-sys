@@ -167,7 +167,7 @@ function Shell() {
         <div className="rail-top">
           <NavLink to="/" className="wordmark" aria-label="Be Smart School, на головну">
             <span className="wordmark-full">
-              <span>Be</span>
+              <span className="wordmark-be">BE</span>
               <span className="wordmark-stack"><span>Smart</span><span>School</span></span>
             </span>
             <span className="wordmark-short" aria-hidden="true">BS</span>

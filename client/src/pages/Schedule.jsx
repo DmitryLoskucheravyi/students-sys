@@ -632,6 +632,9 @@ function HomeworkForm({ session, onCancel, onDone }) {
   );
 }
 
+/** Посилання без протоколу й www, щоб кабінет уміщався в кнопку. */
+const shortUrl = (url) => url.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '');
+
 /**
  * Місце чи посилання прямо в картці заняття. Зміна діє лише на це заняття: інші й сам урок не змінюються.
  * Enter зберігає, Esc скасовує, порожнє поле повертає місце з уроку.
@@ -640,7 +643,11 @@ function PlaceField({ session, canEdit, onSaved }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState('');
   const [run, busy] = useAction();
+  const inputRef = useRef(null);
+  // Кабінети вчителя цього заняття як готові варіанти. Задовгі посилання поле не вмістить.
+  const rooms = (session.teacher_rooms ?? []).filter((r) => r.url.length <= 200);
   const open = () => { setValue(session.location ?? ''); setEditing(true); };
+  const pick = (url) => { setValue(url); inputRef.current?.focus(); };
   const save = async (e) => {
     e.preventDefault();
     const ok = await run(() => api(`/sessions/${session.id}/location`, { method: 'PATCH', body: { location: value } }), 'Місце збережено');
@@ -649,9 +656,22 @@ function PlaceField({ session, canEdit, onSaved }) {
   if (editing) {
     return (
       <form className="place-edit" onSubmit={save}>
-        <input className="input" autoFocus aria-label="Місце або посилання" placeholder="Кабінет або посилання" maxLength={200}
+        <input ref={inputRef} className="input" autoFocus aria-label="Місце або посилання" placeholder="Кабінет або посилання" maxLength={200}
           value={value} onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setEditing(false); } }} />
+        {rooms.length > 0 && (
+          <div className="place-rooms" role="group" aria-label="Кабінети вчителя">
+            <span className="small muted">Кабінети вчителя:</span>
+            {rooms.map((r) => (
+              <button key={r.id} type="button" className={`place-room ${value.trim() === r.url ? 'is-on' : ''}`}
+                aria-pressed={value.trim() === r.url} title={r.url} onClick={() => pick(r.url)}>
+                <strong>{r.service}</strong>
+                <span>{shortUrl(r.url)}</span>
+                {r.is_default && <small>основний</small>}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="place-edit-actions">
           <Button variant="ghost" small onClick={() => setEditing(false)}>Скасувати</Button>
           <Button type="submit" small busy={busy}>Зберегти</Button>

@@ -139,6 +139,11 @@ sessionsRouter.get('/:id', async (req, res) => {
     'SELECT id, title, due_at FROM homework WHERE session_id=? ORDER BY due_at',
     [sessionId]
   );
+  // Кабінети вчителя заняття: підказки, коли персонал міняє місце. Учневі не потрібні.
+  session.teacher_rooms = req.user.role === 'student' || !session.teacher_id
+    ? []
+    : (await q('SELECT id, service, url, is_default FROM teacher_rooms WHERE teacher_id=? ORDER BY is_default DESC, position, id', [session.teacher_id]))
+      .map((r) => ({ ...r, is_default: Boolean(r.is_default) }));
   session.requests =
     req.user.role === 'student'
       ? await q(

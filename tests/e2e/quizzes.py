@@ -1,4 +1,4 @@
-"""Тести: створення вручну й зі ШІ, картинки, відкриття учневі з темами, проходження, сповіщення."""
+"""Тести: створення вручну й із відповіді зовнішнього ШІ, картинки, відкриття учневі з темами, проходження, сповіщення."""
 import base64, os, pathlib, sys
 from playwright.sync_api import sync_playwright, expect
 
@@ -12,7 +12,8 @@ def check(name, cond, extra=""):
     print(("PASS " if cond else "FAIL ") + name + (f"  [{extra}]" if extra else ""), flush=True)
 
 def new(b, w=1360, h=860, theme="light", touch=False):
-    ctx = b.new_context(viewport={"width": w, "height": h}, locale="uk-UA", color_scheme=theme, has_touch=touch, is_mobile=touch)
+    ctx = b.new_context(viewport={"width": w, "height": h}, locale="uk-UA", color_scheme=theme, has_touch=touch, is_mobile=touch,
+                        permissions=["clipboard-read", "clipboard-write"])
     p = ctx.new_page()
     p.on("console", lambda m: console.append(f"{m.type}: {m.text}") if m.type == "error" and "status of 4" not in m.text else None)
     p.on("pageerror", lambda e: console.append(f"pageerror: {e}"))
@@ -45,6 +46,12 @@ with sync_playwright() as pw:
     expect(m.locator(".quiz-row", has_text="React: основи")).to_be_visible(); check("вкладка «Тести» показує тести", "tab=quizzes" in m.url)
 
     # 2. Новий тест вручну: картинка, одна й кілька правильних
+    m.get_by_role("button", name="Тест із ШІ").click(); m.wait_for_url("**/quizzes/new?import=1")
+    ai = m.locator(".modal"); expect(ai).to_contain_text("Скопіюйте промпт"); check("«Тест із ШІ» одразу відкриває вставку", True)
+    ai.get_by_label("Відповідь ШІ").fill("Назва: Швидкий\n\n? Два плюс два?\n+ 4\n- 3\n- 5")
+    ai.get_by_role("button", name="Розставити питання").click()
+    check("назва з відповіді ШІ підставилась", m.get_by_label("Назва тесту").input_value() == "Швидкий" and m.locator(".q-card").count() == 1)
+    m.goto(f"{BASE}/homework?tab=quizzes"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Новий тест").click(); m.wait_for_url("**/quizzes/new")
     m.get_by_label("Назва тесту").fill("JS: типи даних")
     c1 = m.locator(".q-card").nth(0)
@@ -64,12 +71,41 @@ with sync_playwright() as pw:
     for i, t in enumerate(["string", "number", "object", "array"]): c2.get_by_label(f"Питання 2, варіант {i + 1}").fill(t)
     c2.locator(".q-option").nth(0).locator(".check").click(); c2.locator(".q-option").nth(1).locator(".check").click()
 
-    # ШІ додає питання; негодяще відкинуто
-    m.get_by_role("button", name="Питання зі ШІ").click(); ai = m.locator(".modal")
-    ai.get_by_label("Матеріал").fill("typeof null повертає object. Хибні значення: 0, порожній рядок.")
-    ai.get_by_role("button", name="Скласти питання").click(); m.wait_for_selector(".modal", state="detached")
-    expect(m.locator(".q-card")).to_have_count(4); check("ШІ додав 2 придатні питання з 3", True)
-    expect(m.locator(".q-card").nth(3).locator(".q-option.is-correct")).to_have_count(2); check("ШІ зберіг кілька правильних", True)
+    # Відповідь зовнішнього ШІ: копіюємо промпт, вставляємо відповідь, негодяще пропущено з причиною
+    m.get_by_role("button", name="Вставити з ШІ").click(); ai = m.locator(".modal")
+    ai.get_by_role("button", name="Скопіювати промпт").click(); toast(m, "Промпт скопійовано")
+    copied = m.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
+    check("промпт скопійовано з форматом", "? Текст першого питання" in copied and "«+ » для правильного" in copied)
+    ai.get_by_role("button", name="Показати").click()
+    check("промпт можна переглянути", ai.get_by_label("Текст промпту").input_value() == copied)
+    expect(ai.get_by_role("button", name="Розставити питання")).to_be_disabled()
+    ai.get_by_label("Відповідь ШІ").fill("Я не зрозумів завдання")
+    expect(ai.locator(".qi-result.is-empty")).to_be_visible(); check("без питань показує підказку", True)
+    ai.get_by_label("Відповідь ШІ").fill("""Ось тест:
+
+Назва: Інша назва
+
+**? Що повертає typeof null?**
++ object
+- null
+- undefined
+
+? Зайве питання
++ так
+- ні
+
+? Які значення хибні?
++ 0
++ порожній рядок
+- "0"
+- []""")
+    expect(ai.locator(".qi-result")).to_contain_text("Знайдено 2 питання")
+    expect(ai.locator(".qi-skipped")).to_contain_text("Питання 2"); check("пропущене питання з причиною", "щонайменше 3" in ai.locator(".qi-skipped").inner_text())
+    shot(m, "q0-import")
+    ai.get_by_role("button", name="Розставити питання").click(); m.wait_for_selector(".modal", state="detached")
+    expect(m.locator(".q-card")).to_have_count(4); check("з відповіді додано 2 придатні питання з 3", True)
+    expect(m.locator(".q-card").nth(3).locator(".q-option.is-correct")).to_have_count(2); check("кілька правильних розставлено", True)
+    check("назву, задану вручну, не перезаписано", m.get_by_label("Назва тесту").input_value() == "JS: типи даних")
     shot(m, "q1-editor", full=True)
     m.get_by_role("button", name="Створити тест").click(); toast(m, "Тест створено")
     m.wait_for_url("**/quizzes/*"); m.wait_for_load_state("networkidle")

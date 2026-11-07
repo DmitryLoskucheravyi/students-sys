@@ -334,8 +334,9 @@ img { display: block; max-width: 100%; }
   background-size: 34px 34px;
   display: flex; align-items: flex-end;
 }
-/* Лого збирається в три кроки: BS, букви виїжджають убік, School виїжджає з-під Smart */
+/* Лого збирається в чотири кроки: BS, букви виїжджають убік, BE встає вертикально на висоту двох рядків, School виїжджає з-під Smart */
 .bs-logo {
+  --ease-turn: cubic-bezier(0.45, 1.35, 0.4, 1);
   position: relative; z-index: 1; display: flex; align-items: flex-start; gap: 0.3em;
   color: #fff; font: 800 clamp(36px, 12vw, 54px)/1 var(--display); letter-spacing: -0.045em;
   animation: bs-gap 0.6s 0.65s var(--ease) both;
@@ -349,7 +350,19 @@ img { display: block; max-width: 100%; }
 .bs-stack { display: flex; flex-direction: column; }
 .bs-stack .bs-word { position: relative; z-index: 1; }
 .bs-under { display: block; overflow: hidden; padding-right: 0.09em; margin-right: -0.09em; }
-.bs-under > span { display: block; animation: bs-drop 0.55s 1.25s var(--ease) both; }
+.bs-under > span { display: block; animation: bs-drop 0.55s 2s var(--ease) both; }
+/*
+ * BE встає: обертається на -90° навколо лівого верхнього кута, збільшується до висоти Smart+School
+ * і зсувається вниз. Обгортка водночас звужується від'ємним відступом, і Smart School під'їжджає ближче.
+ * --be-w ширина BE у рядок, --be-s масштаб під висоту великих літер двох рядків. Заміряно для Unbounded.
+ */
+.bs-be { --be-w: 1.608em; --be-s: 1.17; --be-trim: 0.15em; display: inline-flex; flex: none;
+  margin-right: calc(var(--be-s) * 1em - var(--be-w) - var(--be-trim) - 0.15em);
+  animation: bs-be-room 0.9s 1.3s var(--ease-turn) both; }
+.bs-be-in { transform-origin: 0 0; transform: translate(calc(var(--be-trim) * -1), 1.94em) rotate(-90deg) scale(var(--be-s));
+  animation: bs-turn 0.9s 1.3s var(--ease-turn) both; }
+@keyframes bs-be-room { from { margin-right: 0; } }
+@keyframes bs-turn { from { transform: none; } }
 @keyframes bs-gap { from { gap: 0.02em; } }
 @keyframes bs-rise { from { opacity: 0; transform: translateY(45%); } }
 @keyframes bs-open { from { grid-template-columns: 0fr; } }
@@ -359,7 +372,7 @@ img { display: block; max-width: 100%; }
 .plane { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .plane-trail { fill: none; stroke: #fff; stroke-opacity: 0.75; stroke-width: 3.5; stroke-dasharray: 2 11; stroke-linecap: round; }
 @media (prefers-reduced-motion: reduce) {
-  .bs-logo, .bs-word b, .bs-tail, .bs-tail > span, .bs-under > span { animation: none; }
+  .bs-logo, .bs-word b, .bs-tail, .bs-tail > span, .bs-under > span, .bs-be, .bs-be-in { animation: none; }
 }
 .login-form { position: relative; justify-self: center; width: min(100%, 400px); padding: 24px 16px; display: flex; flex-direction: column; gap: 16px; }
 .login-form h1 { font: 700 28px/1.1 var(--display); letter-spacing: -0.03em; margin-bottom: 6px; }
@@ -543,6 +556,16 @@ img { display: block; max-width: 100%; }
 .place-view .icon-btn { flex: none; margin: -8px -8px -8px 0; }
 .place-edit { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .place-edit-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.place-rooms { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.place-room {
+  display: inline-flex; align-items: baseline; gap: 6px; max-width: 100%; min-width: 0; padding: 5px 10px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer;
+}
+.place-room strong { font-weight: 600; color: var(--red); flex: none; }
+.place-room span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; color: var(--muted); }
+.place-room small { flex: none; font-size: 11.5px; color: var(--muted); }
+.place-room.is-on { border-color: var(--red); background: var(--red-soft); }
+.place-room:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
 .section-head h3 { margin-bottom: 0; }
 .sheet .small svg { vertical-align: -3px; }
@@ -849,6 +872,8 @@ button.stop:active { transform: scale(0.94); }
   .rail-top { display: block; }
   .wordmark { font-size: 25px; padding: 4px 10px 26px; }
   .wordmark-stack { flex-direction: column; gap: 0; }
+  /* BE вертикально на висоту двох рядків: 2.1em / ширина BE ≈ 1.32 */
+  .wordmark-be { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 1.32em; line-height: 0.76; letter-spacing: -0.03em; align-self: stretch; text-align: center; }
   .rail-nav { position: static; z-index: auto; flex: 1; flex-direction: column; gap: 2px; padding: 0; background: none; overflow: visible; }
   .rail-nav a {
     flex: none; min-height: 0; flex-direction: row; justify-content: flex-start; gap: 12px;
@@ -1060,6 +1085,24 @@ button.stop:active { transform: scale(0.94); }
 .q-options-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
 .quiz-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .quiz-save { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+
+/* Тест із відповіді ШІ: три кроки */
+.qi-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; counter-reset: qi; }
+.qi-steps > li { position: relative; display: grid; gap: 10px; padding-left: 40px; min-width: 0; counter-increment: qi; }
+.qi-steps > li::before {
+  content: counter(qi); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700; font-size: 14px; background: var(--red-soft); color: var(--red);
+}
+.qi-steps > li:not(:last-child)::after { content: ''; position: absolute; left: 13.500px; top: 34px; bottom: -12px; width: 1px; background: var(--line); }
+.qi-steps strong { display: block; line-height: 28px; }
+.qi-steps p { margin: 0; }
+.qi-copy { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.qi-prompt { height: auto; min-height: 220px; padding: 10px 12px; font: 13px/1.5 ui-monospace, Consolas, monospace; resize: vertical; white-space: pre-wrap; overflow: auto; }
+.qi-result { display: grid; gap: 6px; padding: 12px 14px; border-radius: 12px; background: var(--left-ok-bg); color: var(--left-ok-ink); }
+.qi-result.is-empty { background: var(--left-low-bg); color: var(--left-low-ink); }
+.qi-result p { margin: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 600; }
+.qi-result p.small { font-weight: 500; }
+.qi-skipped { margin: 0; padding-left: 18px; display: grid; gap: 2px; color: var(--ink); overflow-wrap: anywhere; }
 
 /* Перегляд питань менеджером */
 .q-preview > li { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 10px; counter-increment: q; }

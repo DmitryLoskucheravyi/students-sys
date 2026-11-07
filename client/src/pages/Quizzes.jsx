@@ -1,15 +1,12 @@
 import { useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, uploadForm, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
-import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Select, Status, Stepper, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
-import { IconClose, IconDown, IconEdit, IconImage, IconLeft, IconPlus, IconQuiz, IconRestore, IconRight, IconSpark, IconTick, IconTrash, IconUp, IconUser } from '../icons.jsx';
+import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Select, Status, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
+import { IconClose, IconCopy, IconDown, IconEdit, IconImage, IconLeft, IconPlus, IconQuiz, IconRestore, IconRight, IconSpark, IconTick, IconTrash, IconUp, IconUser } from '../icons.jsx';
 import { dateTimeShort, nowLocal, plural, time } from '../fmt.js';
 import { TopicChips, TopicPicker } from './HomeworkTopics.jsx';
-
-const MIN_OPTIONS = 3;
-const MAX_OPTIONS = 6;
-const MAX_QUESTIONS = 40;
+import { MAX_OPTIONS, MAX_QUESTIONS, MIN_OPTIONS, QUIZ_PROMPT, parseQuizAnswer } from '../quizImport.js';
 
 /** Перерахувати лічильник сповіщень у навігації. */
 export const notify = () => window.dispatchEvent(new Event('bs:notify'));
@@ -87,7 +84,7 @@ export function MyQuizzes() {
   );
 }
 
-/* Редактор тесту: вручну або з чернетки ШІ */
+/* Редактор тесту: вручну або з відповіді зовнішнього ШІ */
 export function QuizEditor() {
   const { id } = useParams();
   const isNew = !id;
@@ -102,14 +99,16 @@ function QuizForm({ quiz }) {
   const [title, setTitle] = useState(quiz?.title ?? '');
   const [description, setDescription] = useState(quiz?.description ?? '');
   const [questions, setQuestions] = useState(() => (quiz ? fromServer(quiz.questions) : [blankQuestion()]));
-  const [aiOpen, setAiOpen] = useState(false);
+  const [params] = useSearchParams();
+  const [aiOpen, setAiOpen] = useState(!quiz && params.get('import') === '1');
   const [run, busy] = useAction();
   const done = quiz?.assignments?.filter((a) => a.submitted_at).length ?? 0;
 
   const setQ = (k, patch) => setQuestions((list) => list.map((x) => (x.key === k ? { ...x, ...patch } : x)));
   const move = (i, d) => setQuestions((list) => { const next = [...list]; const [x] = next.splice(i, 1); next.splice(i + d, 0, x); return next; });
   const remove = (k) => setQuestions((list) => list.filter((x) => x.key !== k));
-  const addDraft = (draft) => {
+  const addDraft = (draft, draftTitle) => {
+    if (draftTitle && !title.trim()) setTitle(draftTitle);
     const pristine = (x) => !x.text.trim() && !x.image && x.options.every((o) => !o.text.trim());
     setQuestions((list) => [...list.filter((x) => !pristine(x)), ...draft.map((x) => ({
       key: key(), text: x.text, image: null, options: x.options.map((o) => ({ key: key(), text: o.text, correct: o.correct })),
@@ -130,7 +129,7 @@ function QuizForm({ quiz }) {
     <>
       <Link to={quiz ? `/quizzes/${quiz.id}` : '/homework?tab=quizzes'} className="back"><IconLeft size={18} /> {quiz ? quiz.title : 'Тести'}</Link>
       <PageHead title={quiz ? 'Редагувати тест' : 'Новий тест'}>
-        <Button variant="ghost" icon={<IconSpark size={18} />} onClick={() => setAiOpen(true)}>Питання зі ШІ</Button>
+        <Button variant="ghost" icon={<IconSpark size={18} />} onClick={() => setAiOpen(true)}>Вставити з ШІ</Button>
       </PageHead>
       {done > 0 && <p className="note small">Тест уже пройшли: {done}. Їхні бали не зміняться, нові учні проходитимуть оновлений варіант.</p>}
       <form className="quiz-form" onSubmit={save}>
@@ -153,7 +152,7 @@ function QuizForm({ quiz }) {
           </div>
         </div>
       </form>
-      {aiOpen && <QuizAi title={title} onClose={() => setAiOpen(false)} onDone={(draft) => { addDraft(draft); setAiOpen(false); }} />}
+      {aiOpen && <QuizImport onClose={() => setAiOpen(false)} onDone={(draft, t) => { addDraft(draft, t); setAiOpen(false); }} />}
     </>
   );
 }
@@ -215,24 +214,84 @@ function QuestionEditor({ q, n, total, onChange, onMove, onRemove }) {
   );
 }
 
-function QuizAi({ title, onClose, onDone }) {
+/** Промпт для будь-якого ШІ й розбір його відповіді: питання, варіанти й правильні відповіді стають на місця. */
+function QuizImport({ onClose, onDone }) {
   const [text, setText] = useState('');
-  const [count, setCount] = useState(10);
-  const [run, busy] = useAction();
-  const go = async (e) => {
-    e.preventDefault();
-    const r = await run(() => api('/quizzes/draft', { method: 'POST', body: { text, title: title || 'Тест', count } }));
-    if (r) onDone(r.questions);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const { toast } = useUI();
+  const promptRef = useRef(null);
+  const result = text.trim() ? parseQuizAnswer(text) : null;
+  const found = result?.questions.length ?? 0;
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(QUIZ_PROMPT);
+    } catch {
+      // Без доступу до буфера: показати промпт виділеним, щоб скопіювати вручну.
+      setShowPrompt(true);
+      requestAnimationFrame(() => { promptRef.current?.focus(); promptRef.current?.select(); });
+      toast('Не вдалося скопіювати. Промпт виділено, натисніть Ctrl+C', 'error');
+      return;
+    }
+    toast('Промпт скопійовано');
   };
+  const submit = (e) => {
+    e.preventDefault();
+    if (found) onDone(result.questions, result.title);
+  };
+
   return (
-    <Modal title="Питання зі ШІ" onClose={onClose}>
-      <form className="form" onSubmit={go}>
-        <p className="muted small">Вставте конспект чи матеріал уроку. ШІ складе питання з варіантами, а ви перевірите їх перед збереженням.</p>
-        <Textarea label="Матеріал" required rows={9} maxLength={30000} value={text} onChange={(e) => setText(e.target.value)} />
-        <Stepper label="Скільки питань" value={count} onChange={setCount} min={1} max={MAX_QUESTIONS} />
+    <Modal title="Тест із ШІ" onClose={onClose}>
+      <form className="form quiz-import" onSubmit={submit}>
+        <ol className="qi-steps">
+          <li>
+            <div>
+              <strong>Скопіюйте промпт</strong>
+              <p className="muted small">У ньому лише формат відповіді. Матеріал уроку додасте в чаті самі.</p>
+            </div>
+            <div className="qi-copy">
+              <Button icon={<IconCopy size={18} />} onClick={copy}>Скопіювати промпт</Button>
+              <Button variant="ghost" small aria-expanded={showPrompt} onClick={() => setShowPrompt(!showPrompt)}>{showPrompt ? 'Сховати' : 'Показати'}</Button>
+            </div>
+            {showPrompt && <textarea ref={promptRef} className="input qi-prompt" readOnly rows={10} value={QUIZ_PROMPT} aria-label="Текст промпту" />}
+          </li>
+          <li>
+            <div>
+              <strong>Надішліть його в будь-який ШІ</strong>
+              <p className="muted small">ChatGPT, Gemini, Claude чи інший. Після промпту вставте конспект або тему уроку.</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <strong>Вставте відповідь ШІ сюди</strong>
+            </div>
+            <Textarea label="Відповідь ШІ" rows={9} maxLength={60000} value={text} onChange={(e) => setText(e.target.value)}
+              placeholder={'Назва: …\n\n? Питання\n+ правильний варіант\n- неправильний варіант'} />
+          </li>
+        </ol>
+        {result && (
+          <div className={`qi-result ${found ? '' : 'is-empty'}`} role="status">
+            <p>
+              {found
+                ? <><IconTick size={16} /> Знайдено {questionsWord(found)}{result.title && <> · «{result.title}»</>}</>
+                : 'Не знайдено жодного питання. Перевірте, що відповідь у форматі з промпту.'}
+            </p>
+            {result.skipped.length > 0 && (
+              <>
+                <p className="small">Пропущено {result.skipped.length}:</p>
+                <ul className="qi-skipped small">
+                  {result.skipped.slice(0, 8).map((s) => (
+                    <li key={s.n}><strong>Питання {s.n}</strong>{s.text && <> «{s.text.length > 60 ? `${s.text.slice(0, 60)}…` : s.text}»</>}: {s.reason}</li>
+                  ))}
+                  {result.skipped.length > 8 && <li>і ще {result.skipped.length - 8}</li>}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Назад</Button>
-          <Button type="submit" busy={busy} disabled={!text.trim()} icon={<IconSpark size={18} />}>{busy ? 'Складаю питання…' : 'Скласти питання'}</Button>
+          <Button type="submit" disabled={!found} icon={<IconTick size={18} />}>Розставити питання</Button>
         </div>
       </form>
     </Modal>

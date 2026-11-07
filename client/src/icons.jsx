@@ -50,3 +50,4 @@ export const IconQuiz = (p) => <I {...p}><rect x="4" y="3" width="16" height="18
 export const IconBell = (p) => <I {...p}><path d="M6 16.500V11a6 6 0 0 1 12 0v5.500l1.500 2h-15z"/><A d="M10 20.500a2 2 0 0 0 4 0"/></I>;
 export const IconAlert = (p) => <I {...p}><path d="M12 4l9 16H3z"/><A d="M12 10v4.500M12 17.300h.01"/></I>;
 export const IconHourglass = (p) => <I {...p}><path d="M7 3.500h10M7 20.500h10M8 3.500c0 4.500 8 4.500 8 8.500s-8 4-8 8.500M16 3.500c0 4.500-8 4.500-8 8.500s8 4 8 8.500"/><A d="M10 18.500h4"/></I>;
+export const IconCopy = (p) => <I {...p}><rect x="8.500" y="8.500" width="12" height="12" rx="2"/><A d="M15.500 5.500V5A1.500 1.500 0 0 0 14 3.500H5A1.500 1.500 0 0 0 3.500 5v9A1.500 1.500 0 0 0 5 15.500h.5"/></I>;

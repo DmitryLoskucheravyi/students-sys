@@ -2,17 +2,15 @@ import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { unlink } from 'node:fs/promises';
 import multer from 'multer';
-import rateLimit from 'express-rate-limit';
 import { q, tx } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
-import { MAX_OPTIONS, MAX_QUESTIONS, MIN_OPTIONS, draftQuiz } from '../ai.js';
-import { bad, conflict, dateTime, forbidden, id, int, notFound, nowStr, str } from '../lib.js';
+import { bad, conflict, dateTime, forbidden, id, notFound, nowStr, str } from '../lib.js';
 import { UPLOAD_DIR, openFile, persistFile, removeFile } from '../storage.js';
 import { parseTopics, saveTopics, topicsOf } from '../topics.js';
 import { contentDisposition, imageMime, readHead } from './homework.js';
 
 /*
- * Тести. Менеджер створює тест (вручну або чернеткою від ШІ) і відкриває його учневі окремо.
+ * Тести. Менеджер створює тест (вручну або вставляє відповідь зовнішнього ШІ, її розбирає клієнт) і відкриває його учневі окремо.
  * Учень проходить один раз; бал рахується на сервері й зберігається в призначенні.
  */
 export const quizzesRouter = Router();
@@ -20,6 +18,9 @@ export const notificationsRouter = Router();
 quizzesRouter.use(requireAuth);
 notificationsRouter.use(requireAuth);
 
+export const MAX_QUESTIONS = 40;
+export const MIN_OPTIONS = 3;
+export const MAX_OPTIONS = 6;
 const MAX_IMAGE_MB = 5;
 const IMAGE_NAME = /^[0-9a-f-]{36}\.bin$/;
 
@@ -196,23 +197,6 @@ quizzesRouter.get('/images/:name', async (req, res) => {
   res.setHeader('Content-Disposition', contentDisposition('image', true));
   stream.on('error', () => res.destroy());
   stream.pipe(res);
-});
-
-/* ШІ: чернетка питань, яку людина переглядає й зберігає сама */
-const aiLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  limit: 30,
-  keyGenerator: (req) => `user-${req.user.id}`,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Забагато запитів до ШІ. Спробуйте за годину.' },
-});
-
-quizzesRouter.post('/draft', requireRole('manager'), aiLimit, async (req, res) => {
-  const text = str(req.body?.text, 'Текст', { max: 30000 });
-  const title = str(req.body?.title, 'Назва тесту', { max: 160, required: false }) ?? 'Тест';
-  const count = req.body?.count == null || req.body.count === '' ? 10 : int(req.body.count, 'Кількість питань', { min: 1, max: MAX_QUESTIONS });
-  res.json({ questions: await draftQuiz(text, title, count) });
 });
 
 /* Призначення: учень, курс і теми */

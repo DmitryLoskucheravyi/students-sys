@@ -67,7 +67,9 @@ export default function Login({ onLogin }) {
       <div className="login-art">
         <PaperPlane />
         <p className="bs-logo" role="img" aria-label="Be Smart School">
-          <span className="bs-word" aria-hidden="true"><b>B</b><span className="bs-tail"><span>e</span></span></span>
+          <span className="bs-be" aria-hidden="true">
+            <span className="bs-word bs-be-in"><b>B</b><span className="bs-tail"><span>E</span></span></span>
+          </span>
           <span className="bs-stack" aria-hidden="true">
             <span className="bs-word"><b>S</b><span className="bs-tail"><span>mart</span></span></span>
             <span className="bs-under"><span>School</span></span>

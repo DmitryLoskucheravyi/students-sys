@@ -23,15 +23,6 @@ const DRAFT = {
   ],
 };
 
-// Друге питання негодяще (два варіанти): сервер має його відкинути.
-const QUIZ_DRAFT = {
-  questions: [
-    { text: 'Що повертає typeof null?', options: [{ text: 'object', correct: true }, { text: 'null', correct: false }, { text: 'undefined', correct: false }] },
-    { text: 'Зайве питання', options: [{ text: 'так', correct: true }, { text: 'ні', correct: false }] },
-    { text: 'Які з цих значень хибні?', options: [{ text: '0', correct: true }, { text: '""', correct: true }, { text: '"0"', correct: false }, { text: '[]', correct: false }] },
-  ],
-};
-
 /** Підставний Gemini: сценарій задає слово в тексті, а ключ перевіряється, як у справжнього. */
 function startFakeGemini() {
   const server = createServer((req, res) => {
@@ -49,7 +40,6 @@ function startFakeGemini() {
       if (prompt.includes('СЦЕНАРІЙ_БИТИЙ')) return text('{"steps": [');
       if (prompt.includes('СЦЕНАРІЙ_ПОРОЖНЬО')) return text('{"steps": []}');
       if (prompt.includes('СЦЕНАРІЙ_РЕЗЕРВ') && req.url.includes('gemini-flash-latest')) return reply(503, {});
-      if (prompt.startsWith('Тест:')) return text(JSON.stringify(QUIZ_DRAFT));
       return text(JSON.stringify(DRAFT));
     });
   });

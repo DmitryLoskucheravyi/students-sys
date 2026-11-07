@@ -29,7 +29,7 @@ def over(p): return p.evaluate("document.documentElement.scrollWidth - window.in
 with sync_playwright() as pw:
     b = pw.chromium.launch(headless=True)
 
-    # --- Логотип: три кроки анімації
+    # --- Логотип: кроки анімації
     c, p = new(b)
     p.goto(BASE, wait_until="commit"); p.wait_for_selector(".bs-logo")
     p.wait_for_timeout(350)
@@ -43,10 +43,15 @@ with sync_playwright() as pw:
     p.wait_for_timeout(700)
     tail_mid = p.locator(".bs-tail").first.bounding_box()["width"]
     check("букви виїжджають убік", tail_mid > tail_early + 10, str(tail_mid))
-    p.wait_for_timeout(1100)
+    p.wait_for_timeout(1700)
     school_after = p.evaluate("new DOMMatrix(getComputedStyle(document.querySelector('.bs-under > span')).transform).m42")
     check("School виїхав на своє місце", abs(school_after) < 1, str(school_after))
     smart = p.locator(".bs-stack .bs-word").bounding_box(); school = p.locator(".bs-under").bounding_box()
+    be = p.locator(".bs-be-in").bounding_box(); stack = p.locator(".bs-stack").bounding_box()
+    check("BE стоїть вертикально на висоту Smart і School", be["height"] > be["width"] * 1.5 and abs(be["y"] + be["height"] - stack["y"] - stack["height"]) < stack["height"] * 0.08
+          and be["x"] + be["width"] < stack["x"], f"{be} {stack}")
+    check("BE написано великими", p.locator(".bs-be").text_content().strip() == "BE")
+    p.locator(".login-art").screenshot(path=str(OUT / "logo-final.png"))
     check("School стоїть точно під Smart", abs(smart["x"] - school["x"]) < 1 and school["y"] >= smart["y"] + smart["height"] - 1, f"{smart} {school}")
     p.wait_for_timeout(2600)
     plane_box = p.locator(".plane g").last.bounding_box()
