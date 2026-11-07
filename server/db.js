@@ -26,18 +26,24 @@ export const pool = mysql.createPool({
   enableKeepAlive: true,
 });
 
+/** Зсув у форматі MySQL: хвилини на схід від UTC перетворює на +02:00. */
+export function formatOffset(minutes) {
+  const abs = Math.abs(minutes);
+  return `${minutes < 0 ? '-' : '+'}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`;
+}
+
 /**
- * Запити використовують NOW() і CURDATE(), а база в хмарі живе в UTC. Коли задано TZ,
- * кожне з'єднання переводимо на час школи. Числовий пояс ставимо першим, бо таблиць
- * із назвами поясів у MySQL може не бути; команди йдуть чергою раніше за будь-який запит.
+ * Запити використовують NOW() і CURDATE(), а база в хмарі живе в UTC, тож перед запитом
+ * з'єднання переходить на час школи. Назву поясу передавати не можна: хмарний TiDB приймає
+ * Europe/Kyiv, але падає на читанні таблиць. Зсув звіряємо щоразу, бо з'єднання живе довго
+ * і може пережити перехід на літній час. Команда стає в чергу раніше за сам запит.
  */
 if (process.env.TZ) {
-  pool.on('connection', (conn) => {
-    const minutes = -new Date().getTimezoneOffset();
-    const abs = Math.abs(minutes);
-    const offset = `${minutes < 0 ? '-' : '+'}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`;
+  pool.on('acquire', (conn) => {
+    const offset = formatOffset(-new Date().getTimezoneOffset());
+    if (conn.schoolOffset === offset) return;
+    conn.schoolOffset = offset;
     conn.query('SET time_zone = ?', [offset], () => {});
-    conn.query('SET time_zone = ?', [process.env.TZ], () => {});
   });
 }
 

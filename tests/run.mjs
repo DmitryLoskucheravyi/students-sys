@@ -47,7 +47,7 @@ function startFakeGemini() {
 }
 
 async function dropTestDb(env) {
-  const conn = await mysql.createConnection({ host: env.DB_HOST || '127.0.0.1', port: Number(env.DB_PORT || 3306), user: env.DB_USER || 'root', password: env.DB_PASSWORD ?? '' });
+  const conn = await mysql.createConnection({ host: env.DB_HOST || '127.0.0.1', port: Number(env.DB_PORT || 3306), user: env.DB_USER || 'root', password: env.DB_PASSWORD ?? '', ...(env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: true } } : {}) });
   await conn.query(`DROP DATABASE IF EXISTS \`${TEST_DB}\``);
   await conn.end();
 }
