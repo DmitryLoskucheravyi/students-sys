@@ -64,7 +64,7 @@ export default function RoadmapAi({ course, onClose, onDone }) {
           </div>
           <p className="ai-note">Текст обробляє Google Gemini. Не вставляйте особисті дані учнів.</p>
           {busy && (
-            <div className="ai-thinking" role="status"><IconSpark size={22} /> Gemini складає етапи. Це може тривати до хвилини.</div>
+            <div className="ai-thinking" role="status"><IconSpark size={22} /> Gemini складає етапи. Зазвичай це кілька секунд, інколи до півтори хвилини.</div>
           )}
           <div className="form-actions">
             <Button variant="ghost" onClick={onClose}>Назад</Button>

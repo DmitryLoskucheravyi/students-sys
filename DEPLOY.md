@@ -28,8 +28,8 @@ Aiven закрив безкоштовну MySQL для нових сервісі
 На [aistudio.google.com/apikey](https://aistudio.google.com/apikey) створи ключ.
 
 Перевір умови безкоштовного тарифу: Google може використовувати надіслані тексти для покращення моделей.
-Форма в застосунку попереджає про це вчителів. Сервер пробує `gemini-flash-latest`, а потім
-`gemini-flash-lite-latest`. Інші моделі можна задати змінною `GEMINI_MODELS` через кому.
+Форма в застосунку попереджає про це вчителів. Сервер пробує `gemini-flash-lite-latest`, потім
+`gemini-flash-latest` і `gemini-2.5-flash`. Інші моделі можна задати змінною `GEMINI_MODELS` через кому.
 
 ### 3. API: Render
 
