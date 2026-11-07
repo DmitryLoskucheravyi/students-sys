@@ -108,7 +108,7 @@ with sync_playwright() as pw:
     shot(p, "09-lessons")
     p.get_by_role("button", name="Новий урок").click(); p.wait_for_load_state("networkidle")
     p.get_by_label("Назва").fill("Тест-урок"); choose(p, "Курс", "Тест-курс")
-    check("форма уроку без вчителя й учнів", p.locator(".modal").get_by_label("Вчитель").count() == 0 and p.locator(".modal").get_by_label("Учні").count() == 0)
+    check("форма уроку без вчителя й учнів", p.locator(".modal").get_by_label("Вчитель", exact=True).count() == 0 and p.locator(".modal").get_by_label("Учні").count() == 0)
     shot(p, "10-lesson-form")
     p.locator(".modal").get_by_role("button", name="Створити").click(); toast(p, "Урок створено")
     # після створення одразу відкривається постановка: тут обирають вчителя, учнів і час

@@ -11,6 +11,18 @@ CREATE TABLE IF NOT EXISTS users (
   INDEX idx_users_role (role, is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Кабінети вчителя: сервіс (Zoom, Google Meet...) і посилання. Обираються під час постановки в розклад.
+CREATE TABLE IF NOT EXISTS teacher_rooms (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  teacher_id INT NOT NULL,
+  service VARCHAR(60) NOT NULL,
+  url VARCHAR(300) NOT NULL,
+  is_default TINYINT(1) NOT NULL DEFAULT 0,   -- підставляється, коли вчителя ставлять у розклад
+  position INT NOT NULL DEFAULT 0,
+  FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_rooms_teacher (teacher_id, position)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Курс: зміст навчання і роадмап. З абонементом не пов'язаний.
 CREATE TABLE IF NOT EXISTS courses (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -108,7 +120,8 @@ CREATE TABLE IF NOT EXISTS subscription_writeoffs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Урок — шаблон: назва, курс, тривалість, місце. Хто веде, хто вчиться і коли — у lesson_schedules.
--- teacher_id і lesson_students лишилися від старої моделі: з них переноситься склад під час міграції.
+-- teacher_id: вчитель за замовчуванням, підставляється під час постановки в розклад.
+-- lesson_students лишилася від старої моделі: з неї переноситься склад під час міграції.
 CREATE TABLE IF NOT EXISTS lessons (
   id INT AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(120) NOT NULL,
@@ -141,6 +154,7 @@ CREATE TABLE IF NOT EXISTS lesson_schedules (
   kind ENUM('weekly','once') NOT NULL,
   weekday TINYINT NULL,            -- старі записи: один день, 1 = Пн ... 7 = Нд
   weekdays VARCHAR(20) NULL,       -- дні постановки через кому, напр. "1,4"
+  room_id INT NULL,                -- кабінет вчителя: його посилання стає місцем занять
   start_time TIME NOT NULL,
   start_date DATE NOT NULL,
   end_date DATE NULL,
@@ -149,6 +163,7 @@ CREATE TABLE IF NOT EXISTS lesson_schedules (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE,
   FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (room_id) REFERENCES teacher_rooms(id) ON DELETE SET NULL,
   INDEX idx_schedules_teacher (teacher_id, is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

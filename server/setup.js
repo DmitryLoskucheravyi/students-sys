@@ -36,6 +36,13 @@ async function migrate(conn, { hadRoster, hadSchedules }) {
     await conn.query('UPDATE lesson_schedules sc JOIN lessons l ON l.id = sc.lesson_id SET sc.teacher_id = l.teacher_id');
     await conn.query(`UPDATE lesson_schedules SET weekdays = CAST(weekday AS CHAR) WHERE kind = 'weekly' AND weekday IS NOT NULL`);
   }
+  if (!(await columnInfo(conn, 'teacher_rooms', 'is_default'))) {
+    await conn.query('ALTER TABLE teacher_rooms ADD COLUMN is_default TINYINT(1) NOT NULL DEFAULT 0');
+  }
+  if (!(await columnInfo(conn, 'lesson_schedules', 'room_id'))) {
+    await conn.query('ALTER TABLE lesson_schedules ADD COLUMN room_id INT NULL');
+    await conn.query('ALTER TABLE lesson_schedules ADD CONSTRAINT fk_schedules_room FOREIGN KEY (room_id) REFERENCES teacher_rooms(id) ON DELETE SET NULL');
+  }
   if (!(await columnInfo(conn, 'lesson_sessions', 'location'))) {
     await conn.query('ALTER TABLE lesson_sessions ADD COLUMN location VARCHAR(200) NULL');
   }

@@ -42,7 +42,7 @@ with sync_playwright() as pw:
     m.goto(f"{BASE}/lessons"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Новий урок").click()
     modal = m.locator(".modal")
-    check("у формі уроку немає вчителя й учнів", modal.get_by_label("Вчитель").count() == 0 and modal.get_by_label("Учні").count() == 0)
+    check("у формі уроку немає учнів, є лише вчитель за замовчуванням", modal.get_by_label("Учні").count() == 0 and modal.get_by_label("Вчитель", exact=True).count() == 0 and modal.get_by_label("Вчитель за замовчуванням").count() == 1)
     m.get_by_label("Назва").fill("Шаблон-урок"); m.get_by_label("Місце").fill("https://zoom.us/j/555 кабінет 3")
     modal.get_by_role("button", name="Створити").click(); toast(m, "Урок створено")
     expect(m.get_by_text("Додати в розклад").first).to_be_visible(); check("після створення відкривається постановка в розклад", True)
@@ -325,6 +325,77 @@ with sync_playwright() as pw:
     check("учень не бачить пункт «Статистика»", sp_.get_by_role("link", name="Статистика").count() == 0)
     sp_.goto(f"{BASE}/stats"); sp_.wait_for_load_state("networkidle")
     check("учень не відкриває сторінку статистики", sp_.locator(".stat-tile").count() == 0)
+
+    # 13. Кабінети вчителя й значення за замовчуванням
+    m.goto(f"{BASE}/people"); m.wait_for_load_state("networkidle")
+    m.locator(".segmented label", has_text="Вчителі").click()
+    m.get_by_role("button", name="Новий вчитель").click()
+    md = m.locator(".modal")
+    md.get_by_label("Ім'я та прізвище").fill("Кабінетна Вчителька"); md.get_by_label("Логін").fill("roomteach")
+    md.get_by_role("button", name="Додати кабінет").click()
+    md.get_by_label("Посилання 1").fill("https://zoom.us/j/111")
+    md.get_by_role("button", name="Додати кабінет").click()
+    choose(m, "Сервіс кабінету 2", "Інше", md)
+    md.get_by_label("Назва сервісу 2").fill("Webex"); md.get_by_label("Посилання 2").fill("https://webex.com/meet/abc")
+    md.get_by_role("button", name="Зробити основним").click()
+    expect(md.locator(".room.is-main")).to_contain_text("Сервіс кабінету 2")
+    check("другий кабінет позначено основним", md.locator(".room.is-main").get_by_label("Назва сервісу 2").input_value() == "Webex")
+    m.screenshot(path=str(OUT / "teacher-rooms.png"))
+    md.get_by_role("button", name="Створити").click(); toast(m, "Акаунт створено")
+    m.locator(".modal").get_by_role("button", name="Готово").click()
+    rt = next(u for u in api(mc, "GET", "/users?role=teacher").json() if u["login"] == "roomteach")
+    check("кабінети збережено разом із вчителем", [(r["service"], r["is_default"]) for r in rt["rooms"]] == [("Zoom", False), ("Webex", True)], str(rt["rooms"]))
+    expect(m.locator(".person-row", has_text="Кабінетна Вчителька")).to_contain_text("Кабінети: Zoom, Webex"); check("кабінети видно у списку вчителів", True)
+    zoom_id, webex_id = rt["rooms"][0]["id"], rt["rooms"][1]["id"]
+    bad_rooms = [api(mc, "PATCH", f"/users/{rt['id']}", data={"rooms": r}).status for r in (
+        [{"service": "X", "url": "javascript:alert(1)"}], [{"service": "", "url": "https://a.b"}], [{"service": "Z", "url": "https://a.b"}] * 11, "x")]
+    check("небезпечне посилання, порожній сервіс, понад 10 кабінетів відхилено", all(s == 400 for s in bad_rooms), str(bad_rooms))
+    check("кабінет іншому вчителю не передати", api(mc, "PATCH", f"/users/{teacher}", data={"rooms": [{"id": zoom_id, "service": "Zoom", "url": "https://x.y"}]}).status == 400)
+    check("у учня кабінетів немає", api(mc, "PATCH", f"/users/{ann}", data={"rooms": []}).status == 400)
+
+    # Урок із вчителем за замовчуванням: форма постановки підставляє вчителя й основний кабінет
+    m.goto(f"{BASE}/lessons"); m.wait_for_load_state("networkidle")
+    m.get_by_role("button", name="Новий урок").click()
+    m.get_by_label("Назва").fill("Кабінетний урок")
+    choose(m, "Вчитель за замовчуванням", "Кабінетна Вчителька")
+    m.locator(".modal").get_by_role("button", name="Створити").click(); toast(m, "Урок створено")
+    sf = m.locator(".modal", has_text="Додати в розклад")
+    expect(sf.get_by_label("Вчитель", exact=True)).to_contain_text("Кабінетна Вчителька"); check("вчитель підставився з уроку", True)
+    expect(sf.get_by_label("Кабінет", exact=True)).to_contain_text("Webex"); check("підставився основний кабінет вчителя", True)
+    m.screenshot(path=str(OUT / "schedule-defaults.png"))
+    sf.get_by_label("Учні").click(); m.get_by_role("option", name="Аня Перша").click(); m.keyboard.press("Escape")
+    sf.locator(".weekdays button", has_text="Сб").click()
+    sf.get_by_label("Час", exact=True).click(); m.locator(".timepick-col").first.get_by_role("button", name="09", exact=True).click(); m.locator(".timepick-col").nth(1).get_by_role("button", name="00", exact=True).click()
+    sf.get_by_role("button", name="Додати", exact=True).click(); toast(m, "Додано в розклад")
+    rlesson = next(l for l in api(mc, "GET", "/lessons").json() if l["title"] == "Кабінетний урок")
+    check("урок пам'ятає вчителя за замовчуванням", rlesson["default_teacher_id"] == rt["id"] and rlesson["default_teacher_name"] == "Кабінетна Вчителька")
+    rp = next(x for x in api(mc, "GET", "/schedules").json() if x["lesson_id"] == rlesson["id"])
+    check("постановка з вчителем і основним кабінетом", rp["teacher_id"] == rt["id"] and rp["room_id"] == webex_id and rp["room_service"] == "Webex", str(rp))
+    rsess = next(s for s in wk(mc) if s["schedule_id"] == rp["id"])
+    check("посилання кабінету стало місцем заняття", rsess["location"] == "https://webex.com/meet/abc" and rsess["room_service"] == "Webex", str(rsess["location"]))
+
+    # Вчитель змінив посилання кабінету: усі заняття бачать нове
+    rooms_now = [{"id": zoom_id, "service": "Zoom", "url": "https://zoom.us/j/111"}, {"id": webex_id, "service": "Webex", "url": "https://webex.com/meet/new", "is_default": True}]
+    api(mc, "PATCH", f"/users/{rt['id']}", data={"rooms": rooms_now})
+    check("нове посилання кабінету одразу в занятті", api(mc, "GET", f"/sessions/{rsess['id']}").json()["location"] == "https://webex.com/meet/new")
+    # Посилання окремого заняття сильніше за кабінет, а порожнє повертає кабінет
+    api(mc, "PATCH", f"/sessions/{rsess['id']}/location", data={"location": "https://meet.google.com/one-off"})
+    one = api(mc, "GET", f"/sessions/{rsess['id']}").json()
+    check("посилання заняття сильніше за кабінет", one["location"] == "https://meet.google.com/one-off" and one["room_service"] is None)
+    api(mc, "PATCH", f"/sessions/{rsess['id']}/location", data={"location": ""})
+    check("очищене посилання повертає кабінет", api(mc, "GET", f"/sessions/{rsess['id']}").json()["location"] == "https://webex.com/meet/new")
+    # Кабінет обирається явно, чужий відхиляється, новий вчитель приносить свій основний кабінет
+    check("можна обрати інший кабінет вчителя", api(mc, "PATCH", f"/schedules/{rp['id']}", data={"room_id": zoom_id}).json()["room_id"] == zoom_id)
+    check("кабінет іншого вчителя не обрати", api(mc, "PATCH", f"/schedules/{rp['id']}", data={"room_id": 999999}).status == 400)
+    switched = api(mc, "PATCH", f"/schedules/{rp['id']}", data={"teacher_id": teacher2})
+    check("новий вчитель без кабінетів: кабінет знято", switched.ok and switched.json()["room_id"] is None, switched.text()[:120])
+    back_r = api(mc, "PATCH", f"/schedules/{rp['id']}", data={"teacher_id": rt["id"]}).json()
+    check("повернення вчителя повертає його основний кабінет", back_r["room_id"] == webex_id)
+    # Видалений кабінет: заняття падають назад на місце з уроку
+    api(mc, "PATCH", f"/users/{rt['id']}", data={"rooms": [rooms_now[0]]})
+    after_del = api(mc, "GET", f"/schedules/{rp['id']}").json()
+    check("після видалення кабінету постановка без кабінету, а основним став той, що лишився", after_del["room_id"] is None and next(u for u in api(mc, "GET", "/users?role=teacher").json() if u["id"] == rt["id"])["rooms"][0]["is_default"] is True)
+    check("кабінети бачить лише менеджер", api(tc, "GET", "/users").status == 403)
 
     # 12. Роадмап: дорога на всю ширину
     web = next(c for c in api(mc, "GET", "/courses").json() if c["title"] == "Веброзробка")

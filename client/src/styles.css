@@ -505,6 +505,15 @@ img { display: block; max-width: 100%; }
 .sheet-when { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .sheet-when strong { font-weight: 600; font-size: 16px; }
 .sheet h3 { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14.5px; margin-bottom: 8px; }
+.room-tag { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 5px; background: var(--red-soft); color: var(--red); font-size: 12.5px; font-weight: 600; }
+.rooms { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rooms legend { padding: 0; margin-bottom: 6px; }
+.room { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; border: 1.5px solid var(--line); }
+.room.is-main { border-color: var(--red); }
+.room-head { display: flex; align-items: flex-end; gap: 6px; }
+.room-head .field { flex: 1; }
+.room-main { font-size: 12.5px; color: var(--red); font-weight: 500; }
+.room > .btn { align-self: flex-start; }
 .charge-amount { display: inline-flex; align-items: center; gap: 2px; flex: none; }
 .attend-list { display: flex; flex-direction: column; gap: 12px; }
 .attend-row { display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }

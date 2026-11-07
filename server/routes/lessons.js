@@ -9,13 +9,14 @@ export const schedulesRouter = Router();
 lessonsRouter.use(requireAuth);
 schedulesRouter.use(requireAuth);
 
-/* Урок — шаблон: назва, курс, тривалість, місце. Без людей і без часу. */
+/* Урок — шаблон: назва, курс, тривалість, місце й вчитель за замовчуванням. Учнів і часу в уроці немає. */
 
 const LESSON_SELECT = `
   SELECT l.id, l.title, l.course_id, l.duration_min, l.location, l.note, l.is_active, l.created_at,
-         c.title AS course_title
+         c.title AS course_title, l.teacher_id AS default_teacher_id, dt.name AS default_teacher_name
     FROM lessons l
-    LEFT JOIN courses c ON c.id = l.course_id`;
+    LEFT JOIN courses c ON c.id = l.course_id
+    LEFT JOIN users dt ON dt.id = l.teacher_id`;
 
 lessonsRouter.get('/', requireRole('manager', 'teacher'), async (req, res) => {
   const isTeacher = req.user.role === 'teacher';
@@ -32,9 +33,11 @@ lessonsRouter.get('/', requireRole('manager', 'teacher'), async (req, res) => {
 /** Поля, яких немає в запиті, лишаються як були. */
 async function parseLesson(b, cur = {}) {
   const pick = (k) => (Object.prototype.hasOwnProperty.call(b, k) ? b[k] : cur[k]);
+  const teacherRaw = Object.prototype.hasOwnProperty.call(b, 'default_teacher_id') ? b.default_teacher_id : cur.teacher_id;
   const lesson = {
     title: str(pick('title'), 'Назва', { max: 120 }),
     course_id: pick('course_id') ? id(pick('course_id'), 'Курс') : null,
+    teacher_id: teacherRaw ? id(teacherRaw, 'Вчитель за замовчуванням') : null,
     duration_min: int(pick('duration_min') ?? 60, 'Тривалість', { min: 10, max: 480 }),
     location: str(pick('location'), 'Місце', { max: 200, required: false }),
     note: str(pick('note'), 'Нотатка', { max: 500, required: false }),
@@ -42,6 +45,10 @@ async function parseLesson(b, cur = {}) {
   if (lesson.course_id) {
     const [c] = await q('SELECT id FROM courses WHERE id=?', [lesson.course_id]);
     if (!c) throw bad('Курс не знайдено');
+  }
+  if (lesson.teacher_id && lesson.teacher_id !== cur.teacher_id) {
+    const [t] = await q(`SELECT id FROM users WHERE id=? AND role='teacher' AND is_active=1`, [lesson.teacher_id]);
+    if (!t) throw bad('Вчителя не знайдено');
   }
   return lesson;
 }
@@ -107,8 +114,11 @@ lessonsRouter.post('/:id/restore', requireRole('manager'), async (req, res) => {
 
 const CONFLICT_HORIZON_DAYS = 182;
 
-/** Вимкнених, які вже в постановці, лишаємо: інакше постановку не відредагувати. */
-async function parsePeople(b, scheduleId = 0, cur = { teacher_id: null }) {
+/**
+ * Вчитель, кабінет і учні постановки. Вимкнених, які вже в постановці, лишаємо: інакше її не відредагувати.
+ * Кабінет без явного вибору: основний кабінет вчителя (для нової постановки чи нового вчителя), інакше поточний.
+ */
+async function parsePeople(b, scheduleId = 0, cur = { teacher_id: null, room_id: null }) {
   const has = (k) => Object.prototype.hasOwnProperty.call(b, k);
   const teacherRaw = has('teacher_id') ? b.teacher_id : cur.teacher_id;
   const teacherId = teacherRaw ? id(teacherRaw, 'Вчитель') : null;
@@ -116,6 +126,16 @@ async function parsePeople(b, scheduleId = 0, cur = { teacher_id: null }) {
   if (teacherId && teacherId !== cur.teacher_id) {
     const [t] = await q(`SELECT id FROM users WHERE id=? AND role='teacher' AND is_active=1`, [teacherId]);
     if (!t) throw bad('Вчителя не знайдено');
+  }
+  let roomId;
+  if (has('room_id')) roomId = b.room_id ? id(b.room_id, 'Кабінет') : null;
+  else if (teacherId && (!scheduleId || teacherId !== cur.teacher_id)) {
+    const [main] = await q('SELECT id FROM teacher_rooms WHERE teacher_id=? ORDER BY is_default DESC, position, id LIMIT 1', [teacherId]);
+    roomId = main?.id ?? null;
+  } else roomId = teacherId ? cur.room_id : null;
+  if (roomId) {
+    const [room] = await q('SELECT teacher_id FROM teacher_rooms WHERE id=?', [roomId]);
+    if (!room || room.teacher_id !== teacherId) throw bad('Кабінет не належить цьому вчителю');
   }
   if (studentIds.length) {
     const found = await q(
@@ -125,7 +145,7 @@ async function parsePeople(b, scheduleId = 0, cur = { teacher_id: null }) {
     );
     if (found.length !== studentIds.length) throw bad('Деяких учнів не знайдено');
   }
-  return { teacherId, studentIds };
+  return { teacherId, studentIds, roomId };
 }
 
 async function saveRoster(t, scheduleId, studentIds) {
@@ -139,10 +159,12 @@ const PLACEMENT_SELECT = `
   SELECT sc.id, sc.lesson_id, sc.kind, sc.weekday, sc.weekdays, sc.start_date, sc.end_date, sc.teacher_id,
          TIME_FORMAT(COALESCE(TIME(se.starts_at), sc.start_time), '%H:%i') AS time,
          DATE(se.starts_at) AS once_date,
-         l.title, l.duration_min, l.course_id, u.name AS teacher_name
+         l.title, l.duration_min, l.course_id, u.name AS teacher_name,
+         sc.room_id, r.service AS room_service, r.url AS room_url
     FROM lesson_schedules sc
     JOIN lessons l ON l.id = sc.lesson_id
     LEFT JOIN users u ON u.id = sc.teacher_id
+    LEFT JOIN teacher_rooms r ON r.id = sc.room_id
     LEFT JOIN lesson_sessions se ON sc.kind = 'once' AND se.schedule_id = sc.id`;
 
 async function withRoster(rows) {
@@ -187,7 +209,7 @@ schedulesRouter.post('/', requireRole('manager'), async (req, res) => {
   const [lesson] = await q('SELECT * FROM lessons WHERE id=? AND is_active=1', [lessonId]);
   if (!lesson) throw bad('Урок не знайдено');
   const time = hhmm(b.time);
-  const { teacherId, studentIds } = await parsePeople(b);
+  const { teacherId, studentIds, roomId } = await parsePeople(b);
 
   if (b.kind === 'once') {
     const date = isoDate(b.date);
@@ -196,7 +218,7 @@ schedulesRouter.post('/', requireRole('manager'), async (req, res) => {
     await assertNoConflicts({ teacherId, studentIds, slots: [{ start, end }] });
     const created = await tx(async (t) => {
       const r = await t('INSERT INTO lesson_schedules SET ?', [{
-        lesson_id: lessonId, teacher_id: teacherId, kind: 'once', start_time: time, start_date: date,
+        lesson_id: lessonId, teacher_id: teacherId, room_id: roomId, kind: 'once', start_time: time, start_date: date,
       }]);
       await saveRoster(t, r.insertId, studentIds);
       const s = await t(
@@ -231,7 +253,7 @@ schedulesRouter.post('/', requireRole('manager'), async (req, res) => {
 
   const scheduleId = await tx(async (t) => {
     const r = await t('INSERT INTO lesson_schedules SET ?', [{
-      lesson_id: lessonId, teacher_id: teacherId, kind: 'weekly', weekday: weekdays[0], weekdays: weekdays.join(','),
+      lesson_id: lessonId, teacher_id: teacherId, room_id: roomId, kind: 'weekly', weekday: weekdays[0], weekdays: weekdays.join(','),
       start_time: time, start_date: startDate, end_date: endDate,
     }]);
     await saveRoster(t, r.insertId, studentIds);
@@ -246,7 +268,7 @@ schedulesRouter.patch('/:id', requireRole('manager'), async (req, res) => {
   const scheduleId = id(req.params.id);
   const [cur] = await q('SELECT * FROM lesson_schedules WHERE id=?', [scheduleId]);
   if (!cur) throw notFound('Розклад не знайдено');
-  const { teacherId, studentIds } = await parsePeople(req.body ?? {}, scheduleId, cur);
+  const { teacherId, studentIds, roomId } = await parsePeople(req.body ?? {}, scheduleId, cur);
   await tx(async (t) => {
     const future = await t(
       `SELECT starts_at, ends_at FROM lesson_sessions WHERE schedule_id=? AND status='scheduled' AND starts_at > NOW()`,
@@ -256,7 +278,7 @@ schedulesRouter.patch('/:id', requireRole('manager'), async (req, res) => {
       { teacherId, studentIds, slots: future.map((s) => ({ start: s.starts_at, end: s.ends_at })), excludeScheduleId: scheduleId },
       t
     );
-    await t('UPDATE lesson_schedules SET teacher_id=? WHERE id=?', [teacherId, scheduleId]);
+    await t('UPDATE lesson_schedules SET teacher_id=?, room_id=? WHERE id=?', [teacherId, roomId, scheduleId]);
     await saveRoster(t, scheduleId, studentIds);
   });
   const [row] = await withRoster(await q(`${PLACEMENT_SELECT} WHERE sc.id=?`, [scheduleId]));

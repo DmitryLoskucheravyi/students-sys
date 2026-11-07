@@ -246,7 +246,7 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot }) {
                     )}
                   </button>
                   {link && (
-                    <a className="block-link" href={link} target="_blank" rel="noopener noreferrer" aria-label={`Перейти за посиланням: ${s.title}`} title="Перейти за посиланням">
+                    <a className="block-link" href={link} target="_blank" rel="noopener noreferrer" aria-label={`Перейти за посиланням: ${s.title}`} title={s.room_service ? `Перейти: ${s.room_service}` : 'Перейти за посиланням'}>
                       <IconExternal size={15} />
                     </a>
                   )}
@@ -598,7 +598,13 @@ function PlaceField({ session, canEdit, onSaved }) {
   }
   return (
     <span className="place-view">
-      {session.location ? <span><Linkify text={session.location} />{session.own_location && <small className="muted"> · лише це заняття</small>}</span> : <span className="muted">Місце не вказано</span>}
+      {session.location ? (
+        <span>
+          {session.room_service && <strong className="room-tag">{session.room_service}</strong>}
+          <Linkify text={session.location} />
+          {session.own_location && <small className="muted"> · лише це заняття</small>}
+        </span>
+      ) : <span className="muted">Місце не вказано</span>}
       {canEdit && <IconButton label="Змінити місце" onClick={open}><IconEdit size={16} /></IconButton>}
     </span>
   );
@@ -609,16 +615,27 @@ function usePeopleOptions(current = { teacherId: null, studentIds: [] }) {
   const people = useData('/users');
   const list = people.data ?? [];
   const label = (u) => (u.is_active ? u.name : `${u.name} (вимкнений)`);
+  const roomsOf = (teacherId) => list.find((u) => u.id === teacherId)?.rooms ?? [];
   return {
     teachers: list.filter((u) => u.role === 'teacher' && (u.is_active || u.id === current.teacherId)).map((u) => ({ value: u.id, label: label(u) })),
     pupils: list.filter((u) => u.role === 'student' && (u.is_active || current.studentIds.includes(u.id))).map((u) => ({ value: u.id, label: label(u) })),
+    roomsOf,
+    // Основний кабінет вчителя: його підставляємо, доки не обрали інший.
+    mainRoom: (teacherId) => { const rooms = roomsOf(teacherId); return (rooms.find((r) => r.is_default) ?? rooms[0])?.id ?? null; },
   };
 }
 
-function PeopleFields({ teacherId, setTeacherId, students, setStudents, options }) {
+/** `room` = undefined означає «основний кабінет вчителя»; null — без кабінету. */
+function PeopleFields({ teacherId, setTeacherId, students, setStudents, room, setRoom, options }) {
+  const rooms = options.roomsOf(teacherId);
+  const effectiveRoom = room === undefined ? options.mainRoom(teacherId) : room;
   return (
     <>
-      <Select label="Вчитель" value={teacherId} onChange={setTeacherId} clearable="Без вчителя" placeholder="Без вчителя" options={options.teachers} />
+      <Select label="Вчитель" value={teacherId} onChange={(v) => { setTeacherId(v); setRoom(undefined); }} clearable="Без вчителя" placeholder="Без вчителя" options={options.teachers} />
+      {teacherId && rooms.length > 0 && (
+        <Select label="Кабінет" value={effectiveRoom} onChange={setRoom} clearable="Без кабінету" placeholder="Без кабінету"
+          options={rooms.map((r) => ({ value: r.id, label: r.service, hint: r.url }))} />
+      )}
       <Select label="Учні" multiple value={students} onChange={setStudents} options={options.pupils} placeholder="Оберіть учнів" />
     </>
   );
@@ -629,19 +646,23 @@ function PlacementForm({ scheduleId, onCancel, onDone }) {
   const { data: placement } = useData(`/schedules/${scheduleId}`);
   const [teacherId, setTeacherId] = useState(undefined);
   const [students, setStudents] = useState(undefined);
+  // Поки вчителя не змінили, лишається поточний кабінет постановки.
+  const [room, setRoom] = useState('keep');
   const [run, busy] = useAction();
   const options = usePeopleOptions({ teacherId: placement?.teacher_id ?? null, studentIds: placement?.students.map((s) => s.id) ?? [] });
   if (!placement) return <Loader />;
   const tId = teacherId === undefined ? placement.teacher_id : teacherId;
   const sIds = students === undefined ? placement.students.map((s) => s.id) : students;
+  const roomValue = room === 'keep' ? placement.room_id : room;
   const go = async (e) => {
     e.preventDefault();
-    if (await run(() => api(`/schedules/${scheduleId}`, { method: 'PATCH', body: { teacher_id: tId, student_ids: sIds } }), 'Склад збережено')) onDone();
+    const roomId = roomValue === undefined ? options.mainRoom(tId) : roomValue;
+    if (await run(() => api(`/schedules/${scheduleId}`, { method: 'PATCH', body: { teacher_id: tId, student_ids: sIds, room_id: roomId } }), 'Склад збережено')) onDone();
   };
   return (
     <form className="sheet-form" onSubmit={go}>
       <h3>Склад</h3>
-      <PeopleFields teacherId={tId} setTeacherId={setTeacherId} students={sIds} setStudents={setStudents} options={options} />
+      <PeopleFields teacherId={tId} setTeacherId={setTeacherId} students={sIds} setStudents={setStudents} room={roomValue} setRoom={setRoom} options={options} />
       {placement.kind === 'weekly' && <p className="muted small">Зміна діє на всі майбутні заняття. Минулі й списання не зміняться.</p>}
       <FormActions onCancel={onCancel} action="Зберегти" busy={busy} />
     </form>
@@ -653,9 +674,12 @@ export function ScheduleForm({ preset = {}, onClose, onDone }) {
   const today = todayISO();
   const { data: lessons, loading } = useData('/lessons');
   const options = usePeopleOptions();
-  const [teacherId, setTeacherId] = useState(null);
+  // undefined: вчитель за замовчуванням з уроку і його основний кабінет, доки не обрали вручну.
+  const [teacherPick, setTeacherPick] = useState(undefined);
+  const [room, setRoom] = useState(undefined);
   const [students, setStudents] = useState([]);
-  const [lessonId, setLessonId] = useState(preset.lessonId ?? null);
+  const [lessonId, setLessonIdRaw] = useState(preset.lessonId ?? null);
+  const setLessonId = (v) => { setLessonIdRaw(v); if (teacherPick === undefined) setRoom(undefined); };
   const [kind, setKind] = useState(preset.date ? 'once' : 'weekly');
   const [weekdays, setWeekdays] = useState(preset.date ? [weekdayOf(preset.date)] : []);
   const [date, setDate] = useState(preset.date ?? today);
@@ -665,10 +689,13 @@ export function ScheduleForm({ preset = {}, onClose, onDone }) {
   const [run, busy] = useAction();
 
   const active = (lessons ?? []).filter((l) => l.is_active);
+  const lesson = active.find((l) => l.id === lessonId);
+  const teacherId = teacherPick === undefined ? lesson?.default_teacher_id ?? null : teacherPick;
+  const roomId = room === undefined ? options.mainRoom(teacherId) : room;
 
   const submit = async (e) => {
     e.preventDefault();
-    const people = { teacher_id: teacherId, student_ids: students };
+    const people = { teacher_id: teacherId, student_ids: students, room_id: roomId };
     const body = kind === 'once'
       ? { lesson_id: lessonId, kind, date, time: t, ...people }
       : { lesson_id: lessonId, kind, weekdays, time: t, start_date: startDate, end_date: endDate || null, ...people };
@@ -684,7 +711,7 @@ export function ScheduleForm({ preset = {}, onClose, onDone }) {
         <form className="form" onSubmit={submit}>
           <Select label="Урок" value={lessonId} onChange={setLessonId} placeholder="Оберіть урок"
             options={active.map((l) => ({ value: l.id, label: l.title, hint: [l.course_title, `${l.duration_min} хв`].filter(Boolean).join(', ') }))} />
-          <PeopleFields teacherId={teacherId} setTeacherId={setTeacherId} students={students} setStudents={setStudents} options={options} />
+          <PeopleFields teacherId={teacherId} setTeacherId={setTeacherPick} students={students} setStudents={setStudents} room={room} setRoom={setRoom} options={options} />
           <Segmented label="Як часто" value={kind} onChange={setKind} options={[
             { value: 'weekly', label: 'Постійно', icon: <IconRepeat size={18} /> },
             { value: 'once', label: 'Одноразово', icon: <IconOnce size={18} /> },

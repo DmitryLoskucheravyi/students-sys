@@ -11,11 +11,14 @@ requestsRouter.use(requireRole('manager', 'teacher'));
 
 const SESSION_SELECT = `
   SELECT se.id, se.lesson_id, se.schedule_id, se.starts_at, se.ends_at, se.original_starts_at, se.status, se.cancel_reason,
-         l.title, COALESCE(se.location, l.location) AS location, se.location AS own_location, l.note, sc.teacher_id, l.course_id,
+         l.title, COALESCE(se.location, rm.url, l.location) AS location, se.location AS own_location,
+         CASE WHEN se.location IS NULL THEN rm.service END AS room_service,
+         l.note, sc.teacher_id, l.course_id,
          c.title AS course_title, u.name AS teacher_name, sc.kind
     FROM lesson_sessions se
     JOIN lessons l ON l.id = se.lesson_id
     JOIN lesson_schedules sc ON sc.id = se.schedule_id
+    LEFT JOIN teacher_rooms rm ON rm.id = sc.room_id
     LEFT JOIN users u ON u.id = sc.teacher_id
     LEFT JOIN courses c ON c.id = l.course_id`;
 

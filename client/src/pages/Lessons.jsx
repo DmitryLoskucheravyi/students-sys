@@ -25,7 +25,7 @@ export default function Lessons() {
 
   const active = (data ?? []).filter((l) => l.is_active);
   const archived = (data ?? []).filter((l) => !l.is_active);
-  const meta = (l) => [l.course_title, `${l.duration_min} хв`].filter(Boolean).join(', ');
+  const meta = (l) => [l.course_title, `${l.duration_min} хв`, l.default_teacher_name].filter(Boolean).join(', ');
 
   return (
     <>
@@ -86,8 +86,11 @@ export default function Lessons() {
 function LessonForm({ lesson, onClose, onDone }) {
   const isNew = !lesson.id;
   const courses = useData('/courses');
+  const people = useData('/users?role=teacher');
   const [title, setTitle] = useState(lesson.title ?? '');
   const [courseId, setCourseId] = useState(lesson.course_id ?? null);
+  const [teacherId, setTeacherId] = useState(lesson.default_teacher_id ?? null);
+  const teachers = (people.data ?? []).filter((u) => u.is_active || u.id === lesson.default_teacher_id).map((u) => ({ value: u.id, label: u.name }));
   const [duration, setDuration] = useState(lesson.duration_min ?? 60);
   const [location, setLocation] = useState(lesson.location ?? '');
   const [note, setNote] = useState(lesson.note ?? '');
@@ -95,7 +98,7 @@ function LessonForm({ lesson, onClose, onDone }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    const body = { title, course_id: courseId, duration_min: Number(duration), location, note };
+    const body = { title, course_id: courseId, default_teacher_id: teacherId, duration_min: Number(duration), location, note };
     const r = await run(() => api(isNew ? '/lessons' : `/lessons/${lesson.id}`, { method: isNew ? 'POST' : 'PATCH', body }), isNew ? 'Урок створено' : 'Зміни збережено');
     if (r) onDone(isNew ? r : null);
   };
@@ -104,14 +107,17 @@ function LessonForm({ lesson, onClose, onDone }) {
     <Modal title={isNew ? 'Новий урок' : 'Редагувати урок'} onClose={onClose}>
       <form className="form" onSubmit={submit}>
         <Input label="Назва" required maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} />
-        <Select label="Курс" value={courseId} onChange={setCourseId} clearable="Без курсу" placeholder="Без курсу"
-          options={(courses.data ?? []).map((c) => ({ value: c.id, label: c.title }))} />
+        <div className="form-row">
+          <Select label="Курс" value={courseId} onChange={setCourseId} clearable="Без курсу" placeholder="Без курсу"
+            options={(courses.data ?? []).map((c) => ({ value: c.id, label: c.title }))} />
+          <Select label="Вчитель за замовчуванням" value={teacherId} onChange={setTeacherId} clearable="Не вказано" placeholder="Не вказано" options={teachers} />
+        </div>
         <div className="form-row">
           <Stepper label="Тривалість" suffix="хв" value={duration} onChange={setDuration} min={10} max={480} step={15} />
           <Input label="Місце" placeholder="Кабінет або посилання" maxLength={200} value={location} onChange={(e) => setLocation(e.target.value)} />
         </div>
         <Textarea label="Нотатка" rows={2} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
-        {isNew && <p className="muted small">Вчителя, учнів і час обираєте, коли ставите урок у розклад.</p>}
+        {isNew && <p className="muted small">Учнів і час обираєте, коли ставите урок у розклад. Вчитель підставиться звідси, його можна змінити.</p>}
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Назад</Button>
           <Button type="submit" busy={busy}>{isNew ? 'Створити' : 'Зберегти'}</Button>

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { q } from '../db.js';
+import { q, tx } from '../db.js';
 import { hashPassword, requireRole, validatePassword } from '../auth.js';
 import { bad, conflict, id, notFound, str } from '../lib.js';
 
@@ -7,6 +7,48 @@ export const usersRouter = Router();
 usersRouter.use(requireRole('manager'));
 
 const FIELDS = 'id, role, name, login, phone, is_active, created_at';
+const MAX_ROOMS = 10;
+
+/** Кабінети вчителя: сервіс і посилання. Посилання лише http(s), бо його відкривають учні. */
+function parseRooms(raw) {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw)) throw bad('«Кабінети»: потрібен список');
+  if (raw.length > MAX_ROOMS) throw bad(`Максимум ${MAX_ROOMS} кабінетів`);
+  const rooms = raw.map((r, i) => {
+    const service = str(r?.service, `Сервіс кабінету ${i + 1}`, { max: 60 });
+    const url = str(r?.url, `Посилання кабінету ${i + 1}`, { max: 300 });
+    let parsed;
+    try { parsed = new URL(url); } catch { /* перевірка нижче */ }
+    if (!parsed || !['http:', 'https:'].includes(parsed.protocol)) throw bad(`Кабінет ${i + 1}: посилання має починатися з https://`);
+    return { id: r?.id ? id(r.id, 'Кабінет') : null, service, url, is_default: Boolean(r?.is_default) };
+  });
+  // Основний кабінет рівно один: якщо не позначено або позначено кілька, береться перший позначений чи перший у списку.
+  const main = Math.max(0, rooms.findIndex((r) => r.is_default));
+  return rooms.map((r, i) => ({ ...r, is_default: i === main }));
+}
+
+/** Замінює список: наявні кабінети оновлюються (розклад, що на них посилається, бачить нове посилання), решта додаються. */
+async function saveRooms(t, teacherId, rooms) {
+  const current = (await t('SELECT id FROM teacher_rooms WHERE teacher_id=?', [teacherId])).map((r) => r.id);
+  const keep = rooms.filter((r) => r.id).map((r) => r.id);
+  if (keep.some((rid) => !current.includes(rid))) throw bad('Кабінет не належить цьому вчителю');
+  const removed = current.filter((rid) => !keep.includes(rid));
+  if (removed.length) await t('DELETE FROM teacher_rooms WHERE id IN (?)', [removed]);
+  for (const [i, r] of rooms.entries()) {
+    if (r.id) await t('UPDATE teacher_rooms SET service=?, url=?, is_default=?, position=? WHERE id=?', [r.service, r.url, r.is_default ? 1 : 0, i, r.id]);
+    else await t('INSERT INTO teacher_rooms (teacher_id, service, url, is_default, position) VALUES (?,?,?,?,?)', [teacherId, r.service, r.url, r.is_default ? 1 : 0, i]);
+  }
+}
+
+async function withRooms(rows) {
+  const teachers = rows.filter((u) => u.role === 'teacher').map((u) => u.id);
+  const rooms = teachers.length
+    ? await q('SELECT id, teacher_id, service, url, is_default FROM teacher_rooms WHERE teacher_id IN (?) ORDER BY position, id', [teachers])
+    : [];
+  return rows.map((u) => (u.role === 'teacher'
+    ? { ...u, rooms: rooms.filter((r) => r.teacher_id === u.id).map(({ teacher_id: _t, is_default: d, ...r }) => ({ ...r, is_default: Boolean(d) })) }
+    : u));
+}
 
 usersRouter.get('/', async (req, res) => {
   const role = req.query.role;
@@ -24,7 +66,7 @@ usersRouter.get('/', async (req, res) => {
       ORDER BY is_active DESC, name`,
     role ? [role] : []
   );
-  res.json(rows);
+  res.json(await withRooms(rows));
 });
 
 function parseLogin(v) {
@@ -44,12 +86,18 @@ usersRouter.post('/', async (req, res) => {
   const login = parseLogin(req.body.login);
   const phone = str(req.body.phone, 'Телефон', { max: 30, required: false });
   const password = validatePassword(req.body.password);
+  const rooms = role === 'teacher' ? parseRooms(req.body.rooms) ?? [] : [];
+  if (rooms.some((r) => r.id)) throw bad('Новий кабінет не може мати id');
   await assertLoginFree(login);
   const hash = await hashPassword(password);
-  const r = await q('INSERT INTO users (role, name, login, password_hash, phone) VALUES (?,?,?,?,?)', [
-    role, name, login, hash, phone,
-  ]);
-  const [row] = await q(`SELECT ${FIELDS} FROM users WHERE id=?`, [r.insertId]);
+  const userId = await tx(async (t) => {
+    const r = await t('INSERT INTO users (role, name, login, password_hash, phone) VALUES (?,?,?,?,?)', [
+      role, name, login, hash, phone,
+    ]);
+    await saveRooms(t, r.insertId, rooms);
+    return r.insertId;
+  });
+  const [row] = await withRooms(await q(`SELECT ${FIELDS} FROM users WHERE id=?`, [userId]));
   res.status(201).json(row);
 });
 
@@ -66,7 +114,12 @@ usersRouter.patch('/:id', async (req, res) => {
   const phone = b.phone !== undefined ? str(b.phone, 'Телефон', { max: 30, required: false }) : u.phone;
   const login = b.login !== undefined ? parseLogin(b.login) : u.login;
   if (login !== u.login) await assertLoginFree(login, u.id);
-  await q('UPDATE users SET name=?, phone=?, login=? WHERE id=?', [name, phone, login, u.id]);
+  const rooms = parseRooms(b.rooms);
+  if (rooms !== undefined && u.role !== 'teacher') throw bad('Кабінети бувають лише у вчителя');
+  await tx(async (t) => {
+    await t('UPDATE users SET name=?, phone=?, login=? WHERE id=?', [name, phone, login, u.id]);
+    if (rooms !== undefined) await saveRooms(t, u.id, rooms);
+  });
 
   if (b.is_active !== undefined) {
     const active = b.is_active ? 1 : 0;
@@ -83,7 +136,7 @@ usersRouter.patch('/:id', async (req, res) => {
     // token_version розлогінює користувача одразу
     await q('UPDATE users SET is_active=?, token_version=token_version+1 WHERE id=?', [active, u.id]);
   }
-  res.json(await managed(u.id));
+  res.json((await withRooms([await managed(u.id)]))[0]);
 });
 
 usersRouter.post('/:id/password', async (req, res) => {
