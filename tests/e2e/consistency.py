@@ -75,6 +75,16 @@ with sync_playwright() as pw:
         if used() != 0 or get(f"/sessions/{sess}")["status"] != "scheduled": bad.append("повернення")
     check("списання уроку читається одразу після запису", not bad, str(bad[:4]))
     print(f"середнє коло прогресу (9 запитів на запис і читання): {sum(spent) / len(spent):.2f} с")
+
+    # Ліміт на логін не залежить від IP. Останній блок: він вичерпує лічильники цього сервера.
+    guest = pw.request.new_context(base_url=BASE)
+    attempt = lambda login, pwd="wrong-password": guest.post("/api/auth/login", data={"login": login, "password": pwd})
+    codes = [attempt("seqstud").status for _ in range(15)]
+    locked = attempt("SeqStud")
+    check("15 невдалих спроб блокують логін незалежно від регістру", codes == [401] * 15 and locked.status == 429 and "цього логіна" in locked.text(), str(locked.status))
+    check("заблокований логін не приймає навіть правильний пароль", attempt("seqstud", "seqpass123").status == 429)
+    check("інший логін не заблоковано", attempt("seqteach", "seqpass123").ok)
+    guest.dispose()
     m.dispose()
 
 fails = [n for n, ok in results if not ok]

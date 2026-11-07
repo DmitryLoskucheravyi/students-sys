@@ -69,10 +69,22 @@ const loginLimit = rateLimit({
   message: { error: 'Забагато спроб входу. Спробуйте за 15 хвилин.' },
 });
 
+// Через проксі Vercel IP відвідувача ненадійний, тому окремо рахуємо спроби на сам логін.
+// Це захищає пароль, навіть якщо запити приходять із різних адрес.
+const accountLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 15,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => `login-${String(req.body?.login ?? '').trim().toLowerCase().slice(0, 40)}`,
+  standardHeaders: false,
+  legacyHeaders: false,
+  message: { error: 'Забагато невдалих спроб для цього логіна. Спробуйте за 15 хвилин.' },
+});
+
 // Хеш для порівняння, коли логіна не існує: час відповіді не видає, чи є такий користувач.
 const dummyHash = bcrypt.hashSync('not-a-real-password', 10);
 
-authRouter.post('/login', loginLimit, async (req, res) => {
+authRouter.post('/login', loginLimit, accountLimit, async (req, res) => {
   const login = str(req.body?.login, 'Логін', { max: 40 }).toLowerCase();
   const password = String(req.body?.password ?? '');
   const [u] = await q('SELECT * FROM users WHERE login=? AND is_active=1', [login]);
