@@ -120,6 +120,8 @@ img { display: block; max-width: 100%; }
 .rail a:focus-visible, .rail button:focus-visible { outline-color: #fff; outline-offset: -3px; }
 .rail-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .rail-top-tools { display: flex; align-items: center; gap: 6px; }
+.rail-resizer, .wordmark-short { display: none; }
+.wordmark-full { display: contents; }
 .wordmark { display: flex; gap: 0.3em; font: 800 clamp(14px, 4.4vw, 18px)/1.05 var(--display); letter-spacing: -0.035em; white-space: nowrap; }
 .wordmark-stack { display: flex; gap: 0.3em; }
 .rail-nav {
@@ -410,15 +412,19 @@ img { display: block; max-width: 100%; }
 .week-body { position: relative; }
 .week-hours { position: relative; }
 .week-hours span { position: absolute; right: 8px; font-size: 12px; color: var(--muted); transform: translateY(-1px); }
-/* Клітинка: кожні пів години, одна клітинка 28 пікселів */
+.week-hours span.is-compact { font-size: 10px; line-height: 1; transform: translateY(2px); opacity: 0.8; }
+/* Лінії годин: година вгорі товща, пів години тонша. Ранні години низькі, без проміжної лінії. */
+.hour-rows { position: absolute; top: 0; right: 0; left: 56px; z-index: 1; display: flex; flex-direction: column; pointer-events: none; }
+.hour-rows i { flex: none; border-top: 1px solid var(--grid-strong); background: linear-gradient(transparent calc(50% - 0.5px), var(--grid) calc(50% - 0.5px), var(--grid) calc(50% + 0.5px), transparent calc(50% + 0.5px)); }
+.hour-rows i.is-compact { background: none; border-top-color: var(--grid); }
+/* Клітинка зошита: вертикальні лінії колонок */
 .week-col {
   position: relative; border-left: 1px solid var(--grid-strong);
-  background-image:
-    linear-gradient(var(--grid-strong) 1px, transparent 1px),
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 100% var(--hour), 100% calc(var(--hour) / 2), calc(var(--hour) / 2) 100%;
+  background-image: linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: calc(var(--hour) / 2) 100%;
 }
+.week-col .block { z-index: 2; }
+.page:has(.week) { max-width: none; }
 .week-col:last-child { border-right: 1px solid var(--grid-strong); }
 .week-col.is-today { background-color: var(--red-soft); }
 .week-col.can-add { cursor: copy; }
@@ -810,12 +816,12 @@ button.stop:active { transform: scale(0.94); }
   .stop .stop-ring { inset: -7px; width: 70px; height: 70px; }
   .road-row { min-height: 120px; padding-bottom: 28px; }
   .road-text { padding-top: 10px; }
-  .shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); padding-bottom: 0; }
+  .shell { display: grid; padding-bottom: 0; }
   .rail { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; padding: 22px 0 16px 16px; }
   .rail-top { display: block; }
   .wordmark { font-size: 25px; padding: 4px 10px 26px; }
   .wordmark-stack { flex-direction: column; gap: 0; }
-  .rail-nav { position: static; flex: 1; flex-direction: column; gap: 2px; padding: 0; background: none; overflow: visible; }
+  .rail-nav { position: static; z-index: auto; flex: 1; flex-direction: column; gap: 2px; padding: 0; background: none; overflow: visible; }
   .rail-nav a {
     flex: none; min-height: 0; flex-direction: row; justify-content: flex-start; gap: 12px;
     padding: 11px 14px; border-radius: 10px 0 0 10px; font-size: 15px; font-weight: 500;
@@ -828,6 +834,30 @@ button.stop:active { transform: scale(0.94); }
   .rail-user-text small { opacity: 0.85; font-size: 12.5px; }
   .rail-tools { display: flex; gap: 4px; padding-left: 4px; }
   .theme-btn { width: 40px; height: 40px; }
+
+  /* Ширина панелі змінюється перетягуванням краю; подвійний клік згортає до іконок */
+  .shell { grid-template-columns: var(--rail-w, 232px) minmax(0, 1fr); }
+  .rail-resizer {
+    display: block; position: absolute; top: 0; bottom: 0; right: -5px; z-index: 6; width: 10px;
+    cursor: col-resize; touch-action: none;
+  }
+  .rail-resizer::after { content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: transparent; transition: background-color 0.15s; }
+  .rail-resizer:hover::after, .rail-resizer:focus-visible::after, body.is-resizing .rail-resizer::after { background: var(--red); }
+  .rail-resizer:focus-visible { outline: none; }
+  body.is-resizing { cursor: col-resize; user-select: none; }
+  .rail { min-width: 0; }
+  .rail-nav a span, .rail-user-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wordmark-full { display: flex; gap: 0.3em; }
+  .shell.is-collapsed .rail { padding-left: 10px; }
+  .shell.is-collapsed .wordmark { padding: 4px 0 26px; justify-content: center; }
+  .shell.is-collapsed .wordmark-full { display: none; }
+  .shell.is-collapsed .wordmark-short { display: block; }
+  .shell.is-collapsed .rail-nav a { justify-content: center; padding: 11px 0; margin-right: 10px; border-radius: 10px; }
+  .shell.is-collapsed .rail-nav a span { display: none; }
+  .shell.is-collapsed .rail-foot { padding-right: 10px; align-items: center; }
+  .shell.is-collapsed .rail-user { padding: 4px; }
+  .shell.is-collapsed .rail-user-text { display: none; }
+  .shell.is-collapsed .rail-tools { flex-direction: column; padding-left: 0; }
 
   .page { padding: 34px 40px 60px; max-width: 1240px; }
   .page-head { gap: 16px; margin-bottom: 22px; }

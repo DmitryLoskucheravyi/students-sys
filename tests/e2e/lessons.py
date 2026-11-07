@@ -118,7 +118,7 @@ with sync_playwright() as pw:
     m.goto(BASE); m.wait_for_load_state("networkidle")
     if next_week.isocalendar()[1] != today.isocalendar()[1]:
         m.get_by_label("Наступний тиждень").click(); m.wait_for_load_state("networkidle")
-    m.evaluate(f"document.querySelector('.week').scrollTop = 16 * 88")
+    m.evaluate("document.querySelector('.week').scrollTop = 10 * 16 + 6 * 88")
     m.locator(".week-col").nth(0).locator(".block", has_text="Шаблон-урок").first.click(); m.wait_for_selector(".sheet")
     m.get_by_role("button", name="Змінити місце").click()
     field = m.get_by_label("Місце або посилання")
@@ -243,7 +243,7 @@ with sync_playwright() as pw:
     m.goto(BASE); m.wait_for_load_state("networkidle")
     if old_week < today - dt.timedelta(days=today.weekday()):
         m.get_by_label("Попередній тиждень").click(); m.wait_for_load_state("networkidle")
-    m.evaluate("document.querySelector('.week').scrollTop = 7 * 88")
+    m.evaluate("document.querySelector('.week').scrollTop = 0")
     m.locator(".block", has_text="Збіг").filter(has_text="08:00").first.click(); m.wait_for_selector(".sheet")
     m.get_by_role("button", name="Провести").click()
     expect(m.locator(".attend-note")).to_contain_text("почнеться"); check("форма пояснює, що абонемент почнеться пізніше", True)
@@ -396,6 +396,43 @@ with sync_playwright() as pw:
     after_del = api(mc, "GET", f"/schedules/{rp['id']}").json()
     check("після видалення кабінету постановка без кабінету, а основним став той, що лишився", after_del["room_id"] is None and next(u for u in api(mc, "GET", "/users?role=teacher").json() if u["id"] == rt["id"])["rooms"][0]["is_default"] is True)
     check("кабінети бачить лише менеджер", api(tc, "GET", "/users").status == 403)
+
+    # 14. Розклад на всю ширину, ранні години низькі, бокова панель тягнеться й згортається
+    c, p = new(b, 1440, 900); login(p, "manager", "manager123"); p.wait_for_selector(".week")
+    page_w = p.locator(".page").bounding_box()["width"]; week_w = p.locator(".week").bounding_box()["width"]
+    check("розклад на всю ширину сторінки", week_w >= page_w - 90, f"{week_w} із {page_w}")
+    early_blk = p.evaluate("""(() => { const rows = [...document.querySelectorAll('.hour-rows i')].map(e => e.getBoundingClientRect().height);
+      return { early: rows.slice(0, 10).reduce((a, b) => a + b, 0), hour10: rows[10] }; })()""")
+    check("ніч і ранок (00-10) займають менше, ніж дві звичайні години", early_blk["early"] < 2 * early_blk["hour10"], str(early_blk))
+    rail = p.locator(".rail"); handle = p.locator(".rail-resizer")
+    w0 = rail.bounding_box()["width"]
+    hb = handle.bounding_box(); p.mouse.move(hb["x"] + hb["width"] / 2, hb["y"] + 300); p.mouse.down(); p.mouse.move(hb["x"] + 80, hb["y"] + 300, steps=6); p.mouse.up()
+    w1 = rail.bounding_box()["width"]
+    check("панель розширюється перетягуванням", w1 > w0 + 60, f"{w0} → {w1}")
+    p.wait_for_timeout(700); hb = handle.bounding_box(); p.mouse.move(hb["x"] + 4, hb["y"] + 300); p.mouse.down(); p.mouse.move(hb["x"] - 200, hb["y"] + 300, steps=6); p.mouse.up()
+    check("панель не вужча за 180 px", abs(rail.bounding_box()["width"] - 180) <= 1, str(rail.bounding_box()["width"]))
+    p.wait_for_timeout(700); hb = handle.bounding_box(); p.mouse.move(hb["x"] + 4, hb["y"] + 300); p.mouse.down(); p.mouse.move(hb["x"] + 900, hb["y"] + 300, steps=6); p.mouse.up()
+    check("панель не ширша за 380 px", abs(rail.bounding_box()["width"] - 380) <= 1, str(rail.bounding_box()["width"]))
+    handle.dblclick(); p.wait_for_timeout(150)
+    check("подвійний клік згортає до іконок", rail.bounding_box()["width"] <= 80 and p.locator(".rail-nav a span").first.is_hidden() and p.locator(".wordmark-short").is_visible())
+    check("у згорнутій панелі назви в підказках", p.locator(".rail-nav a").first.get_attribute("title") == "Розклад")
+    p.screenshot(path=str(OUT / "rail-collapsed.png"))
+    p.locator(".rail-nav a", has=p.locator("text=Уроки")).click(); p.wait_for_load_state("networkidle")
+    check("згорнута навігація працює", p.url.endswith("/lessons"))
+    p.reload(); p.wait_for_selector(".rail")
+    check("згорнутий стан пам'ятається після перезавантаження", p.locator(".rail").bounding_box()["width"] <= 80)
+    p.locator(".rail-resizer").dblclick(); p.wait_for_timeout(150)
+    check("подвійний клік розгортає на збережену ширину", abs(p.locator(".rail").bounding_box()["width"] - 380) <= 1)
+    p.locator(".rail-resizer").focus(); p.keyboard.press("ArrowLeft"); p.keyboard.press("ArrowLeft")
+    check("ширина змінюється стрілками з клавіатури", abs(p.locator(".rail").bounding_box()["width"] - 348) <= 1)
+    p.keyboard.press("Enter"); check("Enter згортає", p.locator(".rail").bounding_box()["width"] <= 80)
+    p.keyboard.press("Enter")
+    check("сторінка без прокрутки вбік", over(p) <= 0)
+    p.screenshot(path=str(OUT / "schedule-full-width.png"))
+    c.close()
+    c, p = new(b, 390, 800); login(p, "manager", "manager123")
+    check("на телефоні ручки немає, панель як була", p.locator(".rail-resizer").is_hidden() and over(p) <= 0)
+    c.close()
 
     # 12. Роадмап: дорога на всю ширину
     web = next(c for c in api(mc, "GET", "/courses").json() if c["title"] == "Веброзробка")

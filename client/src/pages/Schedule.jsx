@@ -8,7 +8,17 @@ import { WEEKDAYS, addDays, dateTimeShort, mondayOf, money, nowLocal, parseDate,
 
 // Висота години: блок на годину вміщує назву, час, вчителя й учнів.
 const HOUR_PX = 88;
+// Години до 10:00 низькі: ніч і ранок займають мало місця, але заняття там видно й можна відкрити.
+const COMPACT_UNTIL = 10;
+const COMPACT_PX = 16;
 const DAY_MIN = 24 * 60;
+const COMPACT_MIN = COMPACT_UNTIL * 60;
+const COMPACT_Y = COMPACT_UNTIL * COMPACT_PX;
+/** Хвилина доби → пікселі від верху сітки. */
+const yOf = (min) => (min <= COMPACT_MIN ? (min / 60) * COMPACT_PX : COMPACT_Y + ((min - COMPACT_MIN) / 60) * HOUR_PX);
+/** Пікселі від верху сітки → хвилина доби. */
+const minuteAt = (y) => (y <= COMPACT_Y ? (y / COMPACT_PX) * 60 : COMPACT_MIN + ((y - COMPACT_Y) / HOUR_PX) * 60);
+const DAY_PX = yOf(DAY_MIN);
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const currentMinute = () => {
   const now = new Date();
@@ -198,12 +208,12 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot }) {
     } else if (shown.length) {
       hour = Math.min(...shown.map(startHour)) - (single ? 0.5 : 1);
     }
-    box.current.scrollTop = Math.max(0, hour) * HOUR_PX;
+    box.current.scrollTop = yOf(Math.max(0, hour) * 60);
   }, [ready, daysKey, days, single, sessions, today]);
 
   const clickSlot = (e, day) => {
     if (!onSlot || e.target !== e.currentTarget) return;
-    const h = Math.min(23, Math.floor(e.nativeEvent.offsetY / HOUR_PX));
+    const h = Math.min(23, Math.floor(minuteAt(e.nativeEvent.offsetY) / 60));
     onSlot(day, `${String(h).padStart(2, '0')}:00`);
   };
 
@@ -220,17 +230,22 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot }) {
           ))}
         </div>
       )}
-      <div className="week-body" style={{ height: HOURS.length * HOUR_PX }}>
+      <div className="week-body" style={{ height: DAY_PX }}>
+        {/* Лінії годин окремим шаром: години до 10:00 нижчі, тож фон-візерунок тут не підходить */}
+        <div className="hour-rows" aria-hidden="true">
+          {HOURS.map((h) => <i key={h} className={h < COMPACT_UNTIL ? 'is-compact' : ''} style={{ height: yOf((h + 1) * 60) - yOf(h * 60) }} />)}
+        </div>
         <div className="week-hours">
-          {HOURS.map((h) => <span key={h} style={{ top: h * HOUR_PX }}>{String(h).padStart(2, '0')}:00</span>)}
+          {HOURS.map((h) => <span key={h} className={h < COMPACT_UNTIL ? 'is-compact' : ''} style={{ top: yOf(h * 60) }}>{String(h).padStart(2, '0')}:00</span>)}
         </div>
         {days.map((d) => (
           <div key={d} className={`week-col ${d === today ? 'is-today' : ''} ${onSlot ? 'can-add' : ''}`} onClick={(e) => clickSlot(e, d)}>
             {layoutDay(sessionsOfDay(sessions, d)).map(({ s, lane, lanes }) => {
               const from = s.starts_at.slice(0, 10) === d ? minutes(s.starts_at) : 0;
               const to = s.ends_at.slice(0, 10) === d ? minutes(s.ends_at) : DAY_MIN;
-              const top = Math.min((from / 60) * HOUR_PX, ((DAY_MIN / 60) * HOUR_PX) - (single ? 40 : 30));
-              const height = Math.max(single ? 40 : 30, ((to - from) / 60) * HOUR_PX - 2);
+              const minH = single ? 40 : 30;
+              const top = Math.min(yOf(from), DAY_PX - minH);
+              const height = Math.max(minH, yOf(to) - yOf(from) - 2);
               // Посилання відкривається прямо з сітки; для скасованого заняття воно вже не потрібне.
               const link = s.status !== 'cancelled' ? firstUrl(s.location) : null;
               const names = s.students?.map((x) => x.name).join(', ');
@@ -253,7 +268,7 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot }) {
                 </div>
               );
             })}
-            {d === today && <i className="now-line" style={{ top: (nowMin / 60) * HOUR_PX }} />}
+            {d === today && <i className="now-line" style={{ top: yOf(nowMin) }} />}
           </div>
         ))}
       </div>
