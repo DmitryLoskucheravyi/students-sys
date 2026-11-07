@@ -36,6 +36,9 @@ async function migrate(conn, { hadRoster, hadSchedules }) {
     await conn.query('UPDATE lesson_schedules sc JOIN lessons l ON l.id = sc.lesson_id SET sc.teacher_id = l.teacher_id');
     await conn.query(`UPDATE lesson_schedules SET weekdays = CAST(weekday AS CHAR) WHERE kind = 'weekly' AND weekday IS NOT NULL`);
   }
+  if (!(await columnInfo(conn, 'lesson_sessions', 'location'))) {
+    await conn.query('ALTER TABLE lesson_sessions ADD COLUMN location VARCHAR(200) NULL');
+  }
   if (hadSchedules && !hadRoster) {
     await conn.query(
       `INSERT IGNORE INTO schedule_students (schedule_id, student_id)

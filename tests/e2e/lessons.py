@@ -112,6 +112,34 @@ with sync_playwright() as pw:
     m.screenshot(path=str(OUT / "sheet-people.png"))
     m.get_by_label("Закрити").click()
 
+    # 5б. Посилання змінюється прямо в картці і лише для цього заняття
+    group = sorted((s for s in wk(mc) if s["schedule_id"] == pA), key=lambda s: s["starts_at"])
+    first, second = group[0], group[1]
+    m.goto(BASE); m.wait_for_load_state("networkidle")
+    if next_week.isocalendar()[1] != today.isocalendar()[1]:
+        m.get_by_label("Наступний тиждень").click(); m.wait_for_load_state("networkidle")
+    m.evaluate(f"document.querySelector('.week').scrollTop = 16 * 56")
+    m.locator(".week-col").nth(0).locator(".block", has_text="Шаблон-урок").first.click(); m.wait_for_selector(".sheet")
+    m.get_by_role("button", name="Змінити місце").click()
+    field = m.get_by_label("Місце або посилання")
+    expect(field).to_have_value("https://zoom.us/j/555 кабінет 3"); check("поле відкривається з поточним посиланням", True)
+    field.fill("https://zoom.us/j/999?pwd=abc"); field.press("Enter"); toast(m, "Місце збережено")
+    expect(m.locator(".facts a.text-link")).to_have_attribute("href", "https://zoom.us/j/999?pwd=abc"); check("нове посилання одразу клікабельне в картці", True)
+    expect(m.locator(".facts")).to_contain_text("лише це заняття"); check("видно, що посилання лише для цього заняття", True)
+    m.screenshot(path=str(OUT / "sheet-place-edit.png"))
+    m.get_by_role("button", name="Змінити місце").click(); m.get_by_label("Місце або посилання").fill("щось інше"); m.get_by_label("Місце або посилання").press("Escape")
+    check("Esc скасовує без збереження", "zoom.us/j/999" in m.locator(".facts").inner_text() and m.locator(".modal").count() == 1)
+    m.get_by_label("Закрити").click()
+    loc = lambda sid: api(mc, "GET", f"/sessions/{sid}").json()["location"]
+    check("змінилось лише це заняття", loc(first["id"]) == "https://zoom.us/j/999?pwd=abc" and loc(second["id"]) == "https://zoom.us/j/555 кабінет 3", f"{loc(first['id'])} | {loc(second['id'])}")
+    check("урок-шаблон не змінився", next(l for l in api(mc, "GET", "/lessons").json() if l["id"] == lesson["id"])["location"] == "https://zoom.us/j/555 кабінет 3")
+    check("вчитель цього заняття може змінити місце", api(tc, "PATCH", f"/sessions/{second['id']}/location", data={"location": "Кабінет 7"}).ok and loc(second["id"]) == "Кабінет 7")
+    check("інший вчитель не може", api(t2c, "PATCH", f"/sessions/{second['id']}/location", data={"location": "x"}).status == 403)
+    check("учень не може", api(ac, "PATCH", f"/sessions/{second['id']}/location", data={"location": "x"}).status == 403)
+    check("задовге значення відхилено", api(mc, "PATCH", f"/sessions/{second['id']}/location", data={"location": "x" * 201}).status == 400)
+    check("порожнє значення повертає місце з уроку", api(mc, "PATCH", f"/sessions/{second['id']}/location", data={"location": ""}).ok and loc(second["id"]) == "https://zoom.us/j/555 кабінет 3")
+    check("учень бачить нове посилання свого заняття", api(ac, "GET", f"/sessions/{first['id']}").json()["location"] == "https://zoom.us/j/999?pwd=abc")
+
     # 6. Накладки під час зміни складу
     r = api(mc, "PATCH", f"/schedules/{pB}", data={"teacher_id": teacher})
     check("вчитель без накладки призначається", r.ok, r.text()[:100])

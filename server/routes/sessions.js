@@ -11,7 +11,7 @@ requestsRouter.use(requireRole('manager', 'teacher'));
 
 const SESSION_SELECT = `
   SELECT se.id, se.lesson_id, se.schedule_id, se.starts_at, se.ends_at, se.original_starts_at, se.status, se.cancel_reason,
-         l.title, l.location, l.note, sc.teacher_id, l.course_id,
+         l.title, COALESCE(se.location, l.location) AS location, se.location AS own_location, l.note, sc.teacher_id, l.course_id,
          c.title AS course_title, u.name AS teacher_name, sc.kind
     FROM lesson_sessions se
     JOIN lessons l ON l.id = se.lesson_id
@@ -203,6 +203,19 @@ sessionsRouter.post('/:id/reschedule', requireRole('manager', 'teacher'), async 
     await applyReschedule(s, startsAt, t);
     await closePendingRequests(sessionId, 0, req.user.id, t);
   });
+  res.json({ ok: true });
+});
+
+/**
+ * Місце чи посилання лише цього заняття: інші заняття й сам урок не змінюються.
+ * Порожнє значення повертає місце з уроку.
+ */
+sessionsRouter.patch('/:id/location', requireRole('manager', 'teacher'), async (req, res) => {
+  const sessionId = id(req.params.id);
+  const s = await loadSession(sessionId);
+  assertStaffOf(req.user, s);
+  const location = str(req.body?.location, 'Місце', { max: 200, required: false });
+  await q('UPDATE lesson_sessions SET location=? WHERE id=?', [location, sessionId]);
   res.json({ ok: true });
 });
 

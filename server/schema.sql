@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS lesson_sessions (
   ends_at DATETIME NOT NULL,
   status ENUM('scheduled','completed','cancelled') NOT NULL DEFAULT 'scheduled',
   cancel_reason VARCHAR(300) NULL,
+  location VARCHAR(200) NULL,      -- місце чи посилання лише цього заняття; порожньо: місце з уроку
   completed_at DATETIME NULL,
   FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE,
   FOREIGN KEY (schedule_id) REFERENCES lesson_schedules(id) ON DELETE CASCADE,

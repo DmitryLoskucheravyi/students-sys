@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth, useIsMobile } from '../session.jsx';
 import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Segmented, Select, Status, TimePicker, Textarea, WeekdayPicker, useAction, useUI } from '../ui.jsx';
-import { IconBan, IconClock, IconClose, IconHomework, IconLeft, IconList, IconLesson, IconMove, IconOnce, IconPeople, IconPin, IconPlus, IconRepeat, IconRestore, IconRight, IconTick, IconTicket, IconUser } from '../icons.jsx';
+import { IconBan, IconClock, IconClose, IconEdit, IconHomework, IconLeft, IconList, IconLesson, IconMove, IconOnce, IconPeople, IconPin, IconPlus, IconRepeat, IconRestore, IconRight, IconTick, IconTicket, IconUser } from '../icons.jsx';
 import { WEEKDAYS, addDays, dateTimeShort, mondayOf, money, nowLocal, parseDate, time, todayISO, weekTitle, weekdayDayMonth, weekdayOf } from '../fmt.js';
 
 const HOUR_PX = 56;
@@ -333,7 +333,12 @@ function SessionSheet({ id, onClose, onChange }) {
           <dl className="facts">
             <div><dt><IconUser size={18} /><span className="sr">Вчитель</span></dt><dd>{s.teacher_name ?? 'Без вчителя'}</dd></div>
             {s.course_title && <div><dt><IconLesson size={18} /><span className="sr">Курс</span></dt><dd>{s.course_title}</dd></div>}
-            {s.location && <div><dt><IconPin size={18} /><span className="sr">Місце</span></dt><dd><Linkify text={s.location} /></dd></div>}
+            {(s.location || canManage) && (
+              <div>
+                <dt><IconPin size={18} /><span className="sr">Місце</span></dt>
+                <dd><PlaceField session={s} canEdit={canManage} onSaved={() => { reload(); onChange(); }} /></dd>
+              </div>
+            )}
             <div><dt>{s.kind === 'weekly' ? <IconRepeat size={18} /> : <IconOnce size={18} />}<span className="sr">Тип</span></dt><dd>{s.kind === 'weekly' ? 'Постійний урок' : 'Одноразовий урок'}</dd></div>
           </dl>
           {s.note && <p className="note"><Linkify text={s.note} /></p>}
@@ -516,6 +521,42 @@ function HomeworkForm({ session, onCancel, onDone }) {
       </div>
       <FormActions onCancel={onCancel} action="Задати" busy={busy} />
     </form>
+  );
+}
+
+/**
+ * Місце чи посилання прямо в картці заняття. Зміна діє лише на це заняття: інші й сам урок не змінюються.
+ * Enter зберігає, Esc скасовує, порожнє поле повертає місце з уроку.
+ */
+function PlaceField({ session, canEdit, onSaved }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const [run, busy] = useAction();
+  const open = () => { setValue(session.location ?? ''); setEditing(true); };
+  const save = async (e) => {
+    e.preventDefault();
+    const ok = await run(() => api(`/sessions/${session.id}/location`, { method: 'PATCH', body: { location: value } }), 'Місце збережено');
+    if (ok) { setEditing(false); onSaved(); }
+  };
+  if (editing) {
+    return (
+      <form className="place-edit" onSubmit={save}>
+        <input className="input" autoFocus aria-label="Місце або посилання" placeholder="Кабінет або посилання" maxLength={200}
+          value={value} onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setEditing(false); } }} />
+        <div className="place-edit-actions">
+          <Button variant="ghost" small onClick={() => setEditing(false)}>Скасувати</Button>
+          <Button type="submit" small busy={busy}>Зберегти</Button>
+        </div>
+        <small className="muted">Лише для цього заняття. Порожньо: місце з уроку.</small>
+      </form>
+    );
+  }
+  return (
+    <span className="place-view">
+      {session.location ? <span><Linkify text={session.location} />{session.own_location && <small className="muted"> · лише це заняття</small>}</span> : <span className="muted">Місце не вказано</span>}
+      {canEdit && <IconButton label="Змінити місце" onClick={open}><IconEdit size={16} /></IconButton>}
+    </span>
   );
 }
 
