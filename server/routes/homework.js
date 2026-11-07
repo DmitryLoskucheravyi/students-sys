@@ -100,7 +100,7 @@ const HW_SELECT = `
          l.title AS lesson_title, l.teacher_id, u.name AS teacher_name, c.title AS course_title
     FROM homework h
     JOIN lessons l ON l.id = h.lesson_id
-    JOIN users u ON u.id = l.teacher_id
+    LEFT JOIN users u ON u.id = l.teacher_id
     LEFT JOIN courses c ON c.id = l.course_id`;
 
 async function loadHomework(homeworkId) {

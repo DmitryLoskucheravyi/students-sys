@@ -12,6 +12,13 @@ export async function ensureDatabase() {
     );
     await conn.query(`USE \`${dbName}\``);
     await conn.query(await readFile(new URL('./schema.sql', import.meta.url), 'utf8'));
+    // Старі бази: урок раніше вимагав вчителя одразу, тепер його додають пізніше.
+    const [[col]] = await conn.query(
+      `SELECT IS_NULLABLE AS nullable FROM information_schema.columns
+        WHERE table_schema = ? AND table_name = 'lessons' AND column_name = 'teacher_id'`,
+      [dbName]
+    );
+    if (col?.nullable === 'NO') await conn.query('ALTER TABLE lessons MODIFY teacher_id INT NULL');
     const [[{ n }]] = await conn.query(`SELECT COUNT(*) n FROM users WHERE role='manager'`);
     if (n === 0) {
       const production = process.env.NODE_ENV === 'production';

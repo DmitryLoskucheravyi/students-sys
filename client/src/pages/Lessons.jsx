@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
 import { Button, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageHead, Select, Stepper, Textarea, useAction, useUI } from '../ui.jsx';
-import { IconArchive, IconCalendar, IconClose, IconEdit, IconLesson, IconOnce, IconPlus, IconRepeat, IconRestore } from '../icons.jsx';
+import { IconArchive, IconCalendar, IconClose, IconEdit, IconLesson, IconOnce, IconPeople, IconPlus, IconRepeat, IconRestore, IconUser } from '../icons.jsx';
 import { WEEKDAYS, shortDate, studentsWord } from '../fmt.js';
 import { ScheduleForm } from './Schedule.jsx';
 
@@ -12,6 +12,7 @@ export default function Lessons() {
   const { data, loading, error, reload } = useData('/lessons');
   const [editing, setEditing] = useState(null);
   const [scheduling, setScheduling] = useState(null);
+  const [staffing, setStaffing] = useState(null);
   const [run] = useAction();
   const { confirm } = useUI();
 
@@ -47,9 +48,12 @@ export default function Lessons() {
               <div className="row-main">
                 <h3>{l.title}</h3>
                 <p className="muted small">
-                  {[l.course_title, l.teacher_name, `${l.duration_min} хв`, l.location].filter(Boolean).join(', ')}
+                  {[l.course_title, `${l.duration_min} хв`, l.location].filter(Boolean).join(', ')}
                 </p>
-                <p className="small">{l.students.length ? l.students.map((s) => s.name).join(', ') : <span className="muted">Без учнів</span>}</p>
+                <p className="small lesson-people">
+                  <span title="Вчитель"><IconUser size={16} />{l.teacher_name ? l.teacher_name : <span className="text-red">Без вчителя</span>}</span>
+                  <span title="Учні"><IconPeople size={16} />{l.students.length ? l.students.map((s) => s.name).join(', ') : <span className="muted">Без учнів</span>}</span>
+                </p>
               </div>
               <div className="slot-list">
                 {l.schedules.map((s) => (
@@ -65,6 +69,7 @@ export default function Lessons() {
               </div>
               {isManager && (
                 <div className="row-actions">
+                  <Button variant="ghost" small icon={<IconPeople size={16} />} onClick={() => setStaffing(l)}>Склад</Button>
                   <Button variant="ghost" small icon={<IconCalendar size={16} />} onClick={() => setScheduling(l)}>В розклад</Button>
                   <IconButton label="Редагувати" onClick={() => setEditing(l)}><IconEdit size={20} /></IconButton>
                   <IconButton label="Архівувати" onClick={() => archive(l)}><IconArchive size={20} /></IconButton>
@@ -82,7 +87,7 @@ export default function Lessons() {
               <li key={l.id} className="row">
                 <div className="row-main">
                   <h3>{l.title}</h3>
-                  <p className="muted small">{l.teacher_name}, {studentsWord(l.students.length)}</p>
+                  <p className="muted small">{l.teacher_name ?? 'Без вчителя'}, {studentsWord(l.students.length)}</p>
                 </div>
                 {isManager && <Button variant="ghost" small icon={<IconRestore size={16} />} onClick={() => restore(l)}>Повернути</Button>}
               </li>
@@ -93,36 +98,28 @@ export default function Lessons() {
       {editing && <LessonForm lesson={editing} onClose={() => setEditing(null)} onDone={(created) => {
         setEditing(null);
         reload();
-        if (created) setScheduling(created);
+        if (created) setStaffing(created);
       }} />}
+      {staffing && <PeopleForm lesson={staffing} onClose={() => setStaffing(null)} onDone={() => { setStaffing(null); reload(); }} />}
       {scheduling && <ScheduleForm preset={{ lessonId: scheduling.id }} onClose={() => setScheduling(null)} onDone={() => { setScheduling(null); reload(); }} />}
     </>
   );
 }
 
+/* Урок — окрема сутність: назва, курс, тривалість. Вчитель і учні додаються окремо, у «Складі». */
 function LessonForm({ lesson, onClose, onDone }) {
   const isNew = !lesson.id;
-  const people = useData('/users');
   const courses = useData('/courses');
   const [title, setTitle] = useState(lesson.title ?? '');
   const [courseId, setCourseId] = useState(lesson.course_id ?? null);
-  const [teacherId, setTeacherId] = useState(lesson.teacher_id ?? null);
-  const [students, setStudents] = useState(lesson.students?.map((s) => s.id) ?? []);
   const [duration, setDuration] = useState(lesson.duration_min ?? 60);
   const [location, setLocation] = useState(lesson.location ?? '');
   const [note, setNote] = useState(lesson.note ?? '');
   const [run, busy] = useAction();
 
-  const list = people.data ?? [];
-  const teachers = list.filter((u) => u.role === 'teacher' && u.is_active).map((u) => ({ value: u.id, label: u.name }));
-  // Вимкненого учня, який уже в уроці, теж показуємо: інакше його не прибрати зі складу.
-  const inLesson = new Set(lesson.students?.map((s) => s.id));
-  const pupils = list.filter((u) => u.role === 'student' && (u.is_active || inLesson.has(u.id)))
-    .map((u) => ({ value: u.id, label: u.is_active ? u.name : `${u.name} (вимкнений)` }));
-
   const submit = async (e) => {
     e.preventDefault();
-    const body = { title, course_id: courseId, teacher_id: teacherId, student_ids: students, duration_min: Number(duration), location, note };
+    const body = { title, course_id: courseId, duration_min: Number(duration), location, note };
     const r = await run(() => api(isNew ? '/lessons' : `/lessons/${lesson.id}`, { method: isNew ? 'POST' : 'PATCH', body }), isNew ? 'Урок створено' : 'Зміни збережено');
     if (r) onDone(isNew ? r : null);
   };
@@ -131,20 +128,50 @@ function LessonForm({ lesson, onClose, onDone }) {
     <Modal title={isNew ? 'Новий урок' : 'Редагувати урок'} onClose={onClose}>
       <form className="form" onSubmit={submit}>
         <Input label="Назва" required maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} />
-        <div className="form-row">
-          <Select label="Вчитель" value={teacherId} onChange={setTeacherId} options={teachers} />
-          <Select label="Курс" value={courseId} onChange={setCourseId} clearable="Без курсу" placeholder="Без курсу"
-            options={(courses.data ?? []).map((c) => ({ value: c.id, label: c.title }))} />
-        </div>
-        <Select label="Учні" multiple value={students} onChange={setStudents} options={pupils} placeholder="Оберіть учнів" />
+        <Select label="Курс" value={courseId} onChange={setCourseId} clearable="Без курсу" placeholder="Без курсу"
+          options={(courses.data ?? []).map((c) => ({ value: c.id, label: c.title }))} />
         <div className="form-row">
           <Stepper label="Тривалість" suffix="хв" value={duration} onChange={setDuration} min={10} max={480} step={15} />
           <Input label="Місце" placeholder="Кабінет або посилання" maxLength={200} value={location} onChange={(e) => setLocation(e.target.value)} />
         </div>
         <Textarea label="Нотатка" rows={2} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+        {isNew && <p className="muted small">Вчителя й учнів додасте одразу після створення.</p>}
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Назад</Button>
-          <Button type="submit" busy={busy} disabled={!teacherId}>{isNew ? 'Створити' : 'Зберегти'}</Button>
+          <Button type="submit" busy={busy}>{isNew ? 'Створити' : 'Зберегти'}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function PeopleForm({ lesson, onClose, onDone }) {
+  const people = useData('/users');
+  const [teacherId, setTeacherId] = useState(lesson.teacher_id ?? null);
+  const [students, setStudents] = useState(lesson.students?.map((s) => s.id) ?? []);
+  const [run, busy] = useAction();
+
+  const list = people.data ?? [];
+  // Вимкнених, які вже в уроці, теж показуємо: інакше їх не прибрати зі складу.
+  const inLesson = new Set(lesson.students?.map((s) => s.id));
+  const label = (u) => (u.is_active ? u.name : `${u.name} (вимкнений)`);
+  const teachers = list.filter((u) => u.role === 'teacher' && (u.is_active || u.id === lesson.teacher_id)).map((u) => ({ value: u.id, label: label(u) }));
+  const pupils = list.filter((u) => u.role === 'student' && (u.is_active || inLesson.has(u.id))).map((u) => ({ value: u.id, label: label(u) }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const ok = await run(() => api(`/lessons/${lesson.id}`, { method: 'PATCH', body: { teacher_id: teacherId, student_ids: students } }), 'Склад збережено');
+    if (ok) onDone();
+  };
+
+  return (
+    <Modal title={`Склад: ${lesson.title}`} onClose={onClose}>
+      <form className="form" onSubmit={submit}>
+        <Select label="Вчитель" value={teacherId} onChange={setTeacherId} clearable="Без вчителя" placeholder="Без вчителя" options={teachers} />
+        <Select label="Учні" multiple value={students} onChange={setStudents} options={pupils} placeholder="Оберіть учнів" />
+        <div className="form-actions">
+          <Button variant="ghost" onClick={onClose}>Пізніше</Button>
+          <Button type="submit" busy={busy}>Зберегти</Button>
         </div>
       </form>
     </Modal>

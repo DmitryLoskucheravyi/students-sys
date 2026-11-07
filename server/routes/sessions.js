@@ -15,7 +15,7 @@ const SESSION_SELECT = `
          c.title AS course_title, u.name AS teacher_name, sc.kind
     FROM lesson_sessions se
     JOIN lessons l ON l.id = se.lesson_id
-    JOIN users u ON u.id = l.teacher_id
+    LEFT JOIN users u ON u.id = l.teacher_id
     JOIN lesson_schedules sc ON sc.id = se.schedule_id
     LEFT JOIN courses c ON c.id = l.course_id`;
 

@@ -67,8 +67,16 @@ with sync_playwright() as pw:
       for (let i = 0; i < 8; i++) { await new Promise(r => setTimeout(r, 40)); out.push(c.getBoundingClientRect().height); }
       await new Promise(r => setTimeout(r, 400)); out.push(c.getBoundingClientRect().height); return out; }""")
     check("розгортання анімоване", len({round(x) for x in h}) >= 4 and h[0] < h[-1], str([round(x) for x in h]))
-    path_before = m.locator(".road-todo").last.get_attribute("d")
-    check("дорога підлаштувалась під висоту рядка", "M" in path_before)
+    # Кожен відрізок дороги має закінчуватись точно в центрі наступного кружка, навіть після розгортання.
+    gaps = m.evaluate("""() => {
+      const rows = [...document.querySelectorAll('.road-row')];
+      return [...document.querySelectorAll('.road-bed path')].map((p, i) => {
+        const end = Number(p.getAttribute('d').trim().split(/[ ,]+/).pop());
+        const stop = rows[i + 1].querySelector('.stop');
+        return Math.abs(end - (rows[i + 1].offsetTop + stop.offsetTop + stop.offsetHeight / 2));
+      });
+    }""")
+    check("дорога підлаштувалась під висоту рядків", gaps and max(gaps) < 1.5, str([round(g, 1) for g in gaps]))
 
     # Прогрес: підпункти закривають етап, ring
     student_id = next(s["id"] for s in api(mc, "GET", f"/courses/{web['id']}").json()["students"] if s["name"] == "Марко Шевчук")

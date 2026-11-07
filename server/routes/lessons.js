@@ -12,7 +12,7 @@ const LESSON_SELECT = `
   SELECT l.*, c.title AS course_title, u.name AS teacher_name
     FROM lessons l
     LEFT JOIN courses c ON c.id = l.course_id
-    JOIN users u ON u.id = l.teacher_id`;
+    LEFT JOIN users u ON u.id = l.teacher_id`;
 
 async function withDetails(lessons) {
   if (!lessons.length) return [];
@@ -51,18 +51,27 @@ lessonsRouter.get('/', requireRole('manager', 'teacher'), async (req, res) => {
   res.json(await withDetails(rows));
 });
 
-async function parseLesson(b, lessonId = 0) {
+/**
+ * Урок — окрема сутність: спершу назва, курс і тривалість, а вчителя й учнів додають пізніше.
+ * Поля, яких немає в запиті, лишаються як були: форма уроку не стирає склад, і навпаки.
+ */
+async function parseLesson(b, lessonId = 0, cur = { student_ids: [] }) {
+  const has = (k) => Object.prototype.hasOwnProperty.call(b, k);
+  const pick = (k) => (has(k) ? b[k] : cur[k]);
+  const teacherId = pick('teacher_id');
   const lesson = {
-    title: str(b.title, 'Назва', { max: 120 }),
-    course_id: b.course_id ? id(b.course_id, 'Курс') : null,
-    teacher_id: id(b.teacher_id, 'Вчитель'),
-    duration_min: int(b.duration_min, 'Тривалість', { min: 10, max: 480 }),
-    location: str(b.location, 'Місце', { max: 200, required: false }),
-    note: str(b.note, 'Нотатка', { max: 500, required: false }),
+    title: str(pick('title'), 'Назва', { max: 120 }),
+    course_id: pick('course_id') ? id(pick('course_id'), 'Курс') : null,
+    teacher_id: teacherId ? id(teacherId, 'Вчитель') : null,
+    duration_min: int(pick('duration_min') ?? 60, 'Тривалість', { min: 10, max: 480 }),
+    location: str(pick('location'), 'Місце', { max: 200, required: false }),
+    note: str(pick('note'), 'Нотатка', { max: 500, required: false }),
   };
-  const studentIds = idList(b.student_ids ?? [], 'Учні');
-  const [t] = await q(`SELECT id FROM users WHERE id=? AND role='teacher' AND is_active=1`, [lesson.teacher_id]);
-  if (!t) throw bad('Вчителя не знайдено');
+  const studentIds = idList(pick('student_ids') ?? [], 'Учні');
+  if (lesson.teacher_id && lesson.teacher_id !== cur.teacher_id) {
+    const [t] = await q(`SELECT id FROM users WHERE id=? AND role='teacher' AND is_active=1`, [lesson.teacher_id]);
+    if (!t) throw bad('Вчителя не знайдено');
+  }
   if (lesson.course_id) {
     const [c] = await q('SELECT id FROM courses WHERE id=?', [lesson.course_id]);
     if (!c) throw bad('Курс не знайдено');
@@ -94,9 +103,10 @@ lessonsRouter.post('/', requireRole('manager'), async (req, res) => {
 
 lessonsRouter.patch('/:id', requireRole('manager'), async (req, res) => {
   const lessonId = id(req.params.id);
-  const [cur] = await q('SELECT id FROM lessons WHERE id=?', [lessonId]);
+  const [cur] = await q('SELECT * FROM lessons WHERE id=?', [lessonId]);
   if (!cur) throw notFound('Урок не знайдено');
-  const { lesson, studentIds } = await parseLesson(req.body ?? {}, lessonId);
+  cur.student_ids = (await q('SELECT student_id FROM lesson_students WHERE lesson_id=?', [lessonId])).map((r) => r.student_id);
+  const { lesson, studentIds } = await parseLesson(req.body ?? {}, lessonId, cur);
 
   await tx(async (t) => {
     // Новий склад, вчитель і тривалість поширюються на майбутні заняття — перевіряємо їх наперед.

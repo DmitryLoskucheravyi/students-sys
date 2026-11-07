@@ -7,9 +7,11 @@ import { IconDown, IconEdit, IconLeft, IconPlus, IconRoadmap, IconSpark, IconTic
 import { CourseForm } from './Courses.jsx';
 import RoadmapAi from './RoadmapAi.jsx';
 
-/** Центр кружка від верху рядка; має збігатися з .stop у styles.css. */
-const STOP_CENTER = 30;
-const STOP_RADIUS = 22;
+/** Геометрія дороги. Центр і радіус кружка мають збігатися з .stop у styles.css. */
+const ROAD = {
+  mobile: { x: [26, 74], center: 30, radius: 22 },
+  wide: { x: [70, 310], center: 34, radius: 28 },
+};
 const MAX_PIPS = 10;
 
 /** Кільце навколо кружка: частка пройдених підпунктів. */
@@ -38,7 +40,7 @@ function SubToggle({ open, done, total, onClick, label }) {
 /** Звивиста дорога. Висота рядків залежить від підпунктів, тому точки вимірюємо з DOM. */
 function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, onToggleSub }) {
   const mobile = useIsMobile();
-  const X = mobile ? [22, 56] : [36, 92];
+  const { x: X, center: STOP_CENTER, radius: STOP_RADIUS } = mobile ? ROAD.mobile : ROAD.wide;
   const listRef = useRef(null);
   const [ys, setYs] = useState([]);
   const [overrides, setOverrides] = useState({});
@@ -48,35 +50,33 @@ function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, onToggle
     if (!el) return undefined;
     const measure = () => setYs([...el.children].map((row) => row.offsetTop + STOP_CENTER));
     measure();
-    // Спрацьовує щокадру під час розгортання, тому лінія рухається разом із рядками.
+    // Спрацьовує щокадру під час розгортання, тому дорога рухається разом із рядками.
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [steps.length]);
+  }, [steps.length, STOP_CENTER]);
 
   const firstOpen = steps.findIndex((s) => !doneIds.has(s.id));
   const px = (i) => X[i % 2];
-  const segments = ys.length === steps.length
-    ? steps.slice(0, -1).map((s, i) => {
-        const [x0, y0, x1, y1] = [px(i), ys[i], px(i + 1), ys[i + 1]];
-        const mid = (y1 - y0) / 2;
-        return {
-          id: s.id,
-          d: `M${x0} ${y0} C${x0} ${y0 + mid}, ${x1} ${y1 - mid}, ${x1} ${y1}`,
-          done: doneIds.has(s.id) && doneIds.has(steps[i + 1].id),
-        };
-      })
+  const curve = (x0, y0, x1, y1) => {
+    const mid = (y1 - y0) / 2;
+    return `M${x0} ${y0} C${x0} ${y0 + mid}, ${x1} ${y1 - mid}, ${x1} ${y1}`;
+  };
+  const ready = ys.length === steps.length && steps.length > 0;
+  const segments = ready
+    ? steps.slice(0, -1).map((s, i) => ({
+        id: s.id,
+        d: curve(px(i), ys[i], px(i + 1), ys[i + 1]),
+        done: doneIds.has(s.id) && doneIds.has(steps[i + 1].id),
+      }))
     : [];
 
   return (
-    <div className="road">
+    <div className="road" style={{ '--road-text': `${X[1] + STOP_RADIUS + (mobile ? 18 : 40)}px` }}>
       <svg className="road-line" width="100%" height="100%" aria-hidden="true">
-        {segments.map((s) => (
-          <g key={s.id}>
-            <path d={s.d} className="road-todo" />
-            <path d={s.d} pathLength="1" className={`road-done ${s.done ? 'is-done' : ''}`} />
-          </g>
-        ))}
+        <g className="road-bed">{segments.map((s) => <path key={s.id} d={s.d} />)}</g>
+        <g>{segments.map((s) => <path key={s.id} d={s.d} pathLength="1" className={`road-done ${s.done ? 'is-done' : ''}`} />)}</g>
+        <g className="road-mark">{segments.map((s) => <path key={s.id} d={s.d} />)}</g>
       </svg>
       <ol ref={listRef} className="road-list">
         {steps.map((s, i) => {

@@ -70,7 +70,7 @@ export default function Homework() {
               <Link className="row row-link" to={`/homework/${h.id}`}>
                 <div className="row-main">
                   <h3>{h.title}</h3>
-                  <p className="muted small">{h.lesson_title}, {h.teacher_name}</p>
+                  <p className="muted small">{[h.lesson_title, h.teacher_name].filter(Boolean).join(', ')}</p>
                 </div>
                 <span className="small muted">до {dateTimeShort(h.due_at)}</span>
                 <span className="small">Здали {h.submitted_count} із {h.students_count}</span>
@@ -102,7 +102,7 @@ function NewHomework({ onClose, onDone }) {
     <Modal title="Задати домашнє" onClose={onClose}>
       <form className="form" onSubmit={submit}>
         <Select label="Урок" value={lessonId} onChange={setLessonId}
-          options={(lessons.data ?? []).filter((l) => l.is_active).map((l) => ({ value: l.id, label: l.title, hint: l.teacher_name }))} />
+          options={(lessons.data ?? []).filter((l) => l.is_active).map((l) => ({ value: l.id, label: l.title, hint: l.teacher_name ?? 'без вчителя' }))} />
         <Input label="Назва" required maxLength={160} value={title} onChange={(e) => setTitle(e.target.value)} />
         <Textarea label="Завдання" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
         <div className="form-row">

@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS lessons (
   id INT AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(120) NOT NULL,
   course_id INT NULL,
-  teacher_id INT NOT NULL,
+  teacher_id INT NULL,
   duration_min INT NOT NULL DEFAULT 60,
   location VARCHAR(200) NULL,
   note VARCHAR(500) NULL,

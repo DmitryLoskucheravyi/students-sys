@@ -42,7 +42,8 @@ export async function assertNoConflicts(
   if (!slots.length) return;
   const minStart = slots.reduce((a, s) => (s.start < a ? s.start : a), slots[0].start);
   const maxEnd = slots.reduce((a, s) => (s.end > a ? s.end : a), slots[0].end);
-  const busy = await q(
+  // Урок без вчителя перевіряємо лише на накладки учнів.
+  const busy = !teacherId ? [] : await q(
     `SELECT se.starts_at, se.ends_at, l.title, l.teacher_id, u.name AS teacher_name
        FROM lesson_sessions se
        JOIN lessons l ON l.id = se.lesson_id

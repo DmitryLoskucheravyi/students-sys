@@ -35,7 +35,7 @@ export default function HomeworkDetail() {
         {!isStudent && <IconButton label="Видалити" onClick={remove}><IconTrash size={20} /></IconButton>}
       </PageHead>
       <p className={`small ${late ? 'text-red' : 'muted'}`}>Здати до {dateTimeShort(hw.due_at)}</p>
-      <p className="muted small">{hw.lesson_title}, {hw.teacher_name}</p>
+      <p className="muted small">{[hw.lesson_title, hw.teacher_name].filter(Boolean).join(', ')}</p>
       {hw.description && <p className="task">{hw.description}</p>}
 
       {isStudent ? <StudentWork hw={hw} onChange={reload} /> : <Submissions hw={hw} onChange={reload} />}

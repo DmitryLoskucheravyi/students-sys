@@ -236,7 +236,7 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot }) {
                   style={{ top, height, left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}
                   onClick={() => onOpen(s.id)}>
                   <strong>{s.title}</strong>
-                  <small>{time(s.starts_at)}–{time(s.ends_at)}{isMoved(s) ? ', перенесено' : ''}{single && !isMoved(s) ? `, ${s.teacher_name}` : ''}</small>
+                  <small>{time(s.starts_at)}–{time(s.ends_at)}{isMoved(s) ? ', перенесено' : ''}{single && !isMoved(s) ? `, ${s.teacher_name ?? 'без вчителя'}` : ''}</small>
                 </button>
               );
             })}
@@ -316,7 +316,7 @@ function SessionSheet({ id, onClose, onChange }) {
           {s.status === 'cancelled' && s.cancel_reason && <p className="muted small"><IconBan size={16} /> {s.cancel_reason}</p>}
 
           <dl className="facts">
-            <div><dt><IconUser size={18} /><span className="sr">Вчитель</span></dt><dd>{s.teacher_name}</dd></div>
+            <div><dt><IconUser size={18} /><span className="sr">Вчитель</span></dt><dd>{s.teacher_name ?? 'Без вчителя'}</dd></div>
             {s.course_title && <div><dt><IconLesson size={18} /><span className="sr">Курс</span></dt><dd>{s.course_title}</dd></div>}
             {s.location && <div><dt><IconPin size={18} /><span className="sr">Місце</span></dt><dd>{s.location}</dd></div>}
             <div><dt>{s.kind === 'weekly' ? <IconRepeat size={18} /> : <IconOnce size={18} />}<span className="sr">Тип</span></dt><dd>{s.kind === 'weekly' ? 'Постійний урок' : 'Одноразовий урок'}</dd></div>
@@ -531,7 +531,7 @@ export function ScheduleForm({ preset = {}, onClose, onDone }) {
       ) : (
         <form className="form" onSubmit={submit}>
           <Select label="Урок" value={lessonId} onChange={setLessonId} placeholder="Оберіть урок"
-            options={active.map((l) => ({ value: l.id, label: l.title, hint: `${l.teacher_name}, ${l.duration_min} хв` }))} />
+            options={active.map((l) => ({ value: l.id, label: l.title, hint: `${l.teacher_name ?? 'без вчителя'}, ${l.duration_min} хв` }))} />
           <Segmented label="Як часто" value={kind} onChange={setKind} options={[
             { value: 'weekly', label: 'Постійно', icon: <IconRepeat size={18} /> },
             { value: 'once', label: 'Одноразово', icon: <IconOnce size={18} /> },
