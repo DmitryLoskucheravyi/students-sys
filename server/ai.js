@@ -4,8 +4,8 @@ import { HttpError } from './lib.js';
 
 export const MAX_STEPS = 30;
 export const MAX_SUBSTEPS = 20;
-// Три спроби разом мають укластися в ліміт проксі Vercel.
-const TIMEOUT_MS = 30_000;
+// Усі спроби разом мають укластися в ліміт проксі Vercel.
+const TIMEOUT_MS = 25_000;
 
 const SCHEMA = {
   type: 'OBJECT',
@@ -78,7 +78,7 @@ function parseAnswer(data) {
 export async function draftRoadmap(text, courseTitle) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new HttpError(503, 'ШІ-режим не налаштовано: на сервері немає GEMINI_API_KEY.');
-  const models = (process.env.GEMINI_MODELS || 'gemini-flash-lite-latest,gemini-flash-latest,gemini-2.5-flash').split(',').map((m) => m.trim()).filter(Boolean);
+  const models = (process.env.GEMINI_MODELS || 'gemini-flash-lite-latest,gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.5-flash').split(',').map((m) => m.trim()).filter(Boolean);
 
   // Безкоштовна квота в кожної моделі своя, тому після відмови пробуємо наступну.
   let limited = false;
