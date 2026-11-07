@@ -29,7 +29,7 @@ def over(p): return p.evaluate("document.documentElement.scrollWidth - window.in
 with sync_playwright() as pw:
     b = pw.chromium.launch(headless=True)
 
-    # --- Логотип: кроки анімації
+    # --- Заставка входу: кроки анімації лого, книга, цифри
     c, p = new(b)
     p.goto(BASE, wait_until="commit"); p.wait_for_selector(".bs-logo")
     p.wait_for_timeout(350)
@@ -53,10 +53,23 @@ with sync_playwright() as pw:
     check("BE написано великими", p.locator(".bs-be").text_content().strip() == "BE")
     p.locator(".login-art").screenshot(path=str(OUT / "logo-final.png"))
     check("School стоїть точно під Smart", abs(smart["x"] - school["x"]) < 1 and school["y"] >= smart["y"] + smart["height"] - 1, f"{smart} {school}")
-    p.wait_for_timeout(2600)
-    plane_box = p.locator(".plane g").last.bounding_box()
+    # Цифрова книга: керуємо часом її анімацій, щоб перевірити фази без очікування
+    def book_at(ms):
+        p.evaluate(f"document.querySelectorAll('.book-fly, .book-fly *').forEach(e => e.getAnimations().forEach(a => {{ a.pause(); a.currentTime = {ms}; }}))")
+        return p.locator(".book").bounding_box()
     art = p.locator(".login-art").bounding_box()
-    check("літачок приземлився у верхній правій частині", plane_box and plane_box["x"] > art["x"] + art["width"] / 2 and plane_box["y"] < art["y"] + art["height"] / 2, str(plane_box))
+    inside = lambda bx: bx and bx["x"] + bx["width"] > art["x"] and bx["x"] < art["x"] + art["width"] and bx["y"] + bx["height"] > art["y"] and bx["y"] < art["y"] + art["height"]
+    closed = book_at(2300); opened = book_at(3900); gone = book_at(6800)
+    book_at(2300); halves = [p.locator(s).bounding_box()["x"] for s in (".book-left", ".book-right")]
+    check("книга вилітає закритою: обкладинка лежить на сторінках", inside(closed) and abs(halves[0] - halves[1]) < 12, f"{closed} {halves}")
+    book_at(3900); w_open = p.locator(".book-left").bounding_box()["x"]
+    check("посередині книга розгорнута: обкладинка ліворуч від корінця", w_open < p.locator(".book-right").bounding_box()["x"] - 5, f"{w_open}")
+    check("розгорнута книга в кадрі", inside(opened), str(opened))
+    check("наприкінці книга вилітає з кадру", not inside(gone), str(gone))
+    p.locator(".login-art").screenshot(path=str(OUT / "book-gone.png")); book_at(3900); p.locator(".login-art").screenshot(path=str(OUT / "book-open.png"))
+    p.wait_for_selector(".bits span", state="attached", timeout=4000)
+    check("у фоні з'являються двійкові цифри", set(p.locator(".bits span").first.text_content().replace(" ", "")) <= {"0", "1"})
+    check("літачка більше немає", p.locator(".plane").count() == 0)
     check("галочки більше немає", p.locator(".login-tick").count() == 0)
     check("назва вкладки", p.title() == "Be Smart School")
     check("старої назви немає на екрані входу", "Зошит" not in p.locator("body").inner_text())
@@ -64,7 +77,10 @@ with sync_playwright() as pw:
     c.close()
     c, p = new(b, motion="reduce"); p.goto(BASE); p.wait_for_selector(".bs-logo"); p.wait_for_timeout(100)
     check("без анімацій лого одразу повне", p.locator(".bs-tail").first.bounding_box()["width"] > 10)
-    check("без анімацій літачок одразу на місці", p.locator(".plane g").last.bounding_box()["y"] < p.locator(".login-art").bounding_box()["height"] / 2)
+    p.wait_for_timeout(1500)
+    bk = p.locator(".book").bounding_box(); art = p.locator(".login-art").bounding_box()
+    check("без анімацій книга спокійно лежить угорі праворуч", bk["x"] > art["x"] + art["width"] / 2 and bk["y"] < art["y"] + art["height"] / 2, str(bk))
+    check("без анімацій цифри у фоні не бігають", p.locator(".bits span").count() == 0)
     c.close()
     for w in (320, 360, 390, 768, 900, 1920):
         c, p = new(b, w, 700); p.goto(BASE); p.wait_for_selector(".bs-logo"); p.wait_for_timeout(1900)

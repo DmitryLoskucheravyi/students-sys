@@ -1,46 +1,69 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { Button, Input, PasswordInput } from '../ui.jsx';
 import { ThemeButton } from '../session.jsx';
 
-/* Літачок із зошитового аркуша: робить петлю й лишає пунктир, як дорога в роадмапі */
-const FLIGHT = 'M40 372C170 384 250 300 300 232C352 160 462 118 470 190C476 248 378 250 386 184C394 112 480 72 556 62';
-const LIFT_OFF = '1.75s';
-const FLIGHT_TIME = '2.3s';
-const FLIGHT_EASE = '0.45 0 0.2 1';
+const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-function PaperPlane() {
-  const [still] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
-  const plane = (
-    <>
-      <path d="M24 0L-20 -17L-9 0L-20 17Z" fill="#fff" />
-      <path d="M24 0L-9 0L-14 17Z" fill="#ffc9cf" />
-    </>
-  );
+/*
+ * Цифрова книга: вилітає знизу зліва, у центрі розгортається й гортає сторінки,
+ * згортається, робить оберт і вилітає за правий верхній край. Один раз за відкриття сторінки.
+ * Уся хореографія в CSS (.book-*): тут лише будова книги.
+ */
+function FlyingBook() {
+  const lines = (n, cls) => Array.from({ length: n }, (_, i) => <i key={i} className={cls?.[i] ?? ''} />);
   return (
-    <svg className="plane" viewBox="0 0 600 400" preserveAspectRatio="xMaxYMin meet" aria-hidden="true">
-      <defs>
-        <mask id="flight-reveal" maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="400">
-          <path d={FLIGHT} pathLength="1" fill="none" stroke="#fff" strokeWidth="14" strokeDasharray="1" strokeDashoffset={still ? 0 : 1}>
-            {!still && (
-              <animate attributeName="stroke-dashoffset" from="1" to="0" begin={LIFT_OFF} dur={FLIGHT_TIME} fill="freeze"
-                calcMode="spline" keyTimes="0;1" keySplines={FLIGHT_EASE} />
-            )}
-          </path>
-        </mask>
-      </defs>
-      <path className="plane-trail" d={FLIGHT} mask="url(#flight-reveal)" />
-      {still ? (
-        <g transform="translate(556 62) rotate(-8)">{plane}</g>
-      ) : (
-        <g visibility="hidden">
-          <set attributeName="visibility" to="visible" begin={LIFT_OFF} fill="freeze" />
-          {plane}
-          <animateMotion path={FLIGHT} rotate="auto" begin={LIFT_OFF} dur={FLIGHT_TIME} fill="freeze"
-            calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines={FLIGHT_EASE} />
-        </g>
-      )}
-    </svg>
+    <div className="book-fly" aria-hidden="true">
+      <div className="book-spin">
+        <div className="book">
+          <div className="book-half book-left">
+            <div className="book-face book-inside">{lines(6, ['is-short', '', 'is-code', '', 'is-short', 'is-code'])}</div>
+            <div className="book-face book-cover"><b>&lt;/&gt;</b><span /></div>
+          </div>
+          <div className="book-half book-right">
+            <div className="book-face book-inside"><em>01</em>{lines(5, ['', 'is-code', 'is-short', '', 'is-code'])}</div>
+            <div className="book-face book-back" />
+          </div>
+          <div className="book-page book-page-1"><div className="book-face book-inside">{lines(6, ['is-code', '', 'is-short', '', 'is-code', 'is-short'])}</div><div className="book-face book-inside is-back">{lines(5)}</div></div>
+          <div className="book-page book-page-2"><div className="book-face book-inside">{lines(6, ['', 'is-short', '', 'is-code', '', ''])}</div><div className="book-face book-inside is-back">{lines(5, ['is-code'])}</div></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const BITS = ['1 0', '0 1 1 0', '1', '0', '1 0 1', '11 0', '0 1', '1 0 0 1', '0 11'];
+const rand = (a, b) => a + Math.random() * (b - a);
+
+/** Двійкові цифри у фоні: зрідка з'являються, пливуть убік і згасають. */
+function Bits() {
+  const [bits, setBits] = useState([]);
+  useEffect(() => {
+    if (reducedMotion()) return undefined;
+    let n = 0;
+    let timer;
+    const spawn = () => {
+      const id = ++n;
+      setBits((list) => [...list.slice(-7), {
+        id,
+        text: BITS[Math.floor(Math.random() * BITS.length)],
+        style: {
+          top: `${rand(4, 88)}%`, left: `${rand(4, 82)}%`, fontSize: `${Math.round(rand(13, 22))}px`,
+          '--dx': `${(Math.random() < 0.5 ? -1 : 1) * Math.round(rand(40, 110))}px`,
+          animationDuration: `${rand(4.5, 7).toFixed(1)}s`,
+        },
+      }]);
+      timer = setTimeout(spawn, rand(900, 2000));
+    };
+    timer = setTimeout(spawn, 500);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <div className="bits" aria-hidden="true">
+      {bits.map((b) => (
+        <span key={b.id} style={b.style} onAnimationEnd={() => setBits((list) => list.filter((x) => x.id !== b.id))}>{b.text}</span>
+      ))}
+    </div>
   );
 }
 
@@ -65,7 +88,8 @@ export default function Login({ onLogin }) {
   return (
     <div className="login">
       <div className="login-art">
-        <PaperPlane />
+        <Bits />
+        <FlyingBook />
         <p className="bs-logo" role="img" aria-label="Be Smart School">
           <span className="bs-be" aria-hidden="true">
             <span className="bs-word bs-be-in"><b>B</b><span className="bs-tail"><span>E</span></span></span>
