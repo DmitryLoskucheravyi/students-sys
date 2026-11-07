@@ -7,6 +7,7 @@ import { q, tx } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { HttpError, bad, conflict, dateTime, forbidden, id, int, notFound, nowStr, str } from '../lib.js';
 import { MAX_FILE_MB, UPLOAD_DIR, openFile, persistFile, removeFile } from '../storage.js';
+import { courseTopics, parseTopics, saveTopics, topicsOf } from '../topics.js';
 
 export const homeworkRouter = Router();
 export const filesRouter = Router();
@@ -58,7 +59,7 @@ function handleUpload(req, res, next) {
 const allFiles = (req) => Object.values(req.files ?? {}).flat();
 const removeTemp = (files) => Promise.all(files.map((f) => unlink(f.path).catch(() => {})));
 
-async function readHead(filePath, n = 12) {
+export async function readHead(filePath, n = 12) {
   const fh = await open(filePath, 'r');
   try {
     const buf = Buffer.alloc(n);
@@ -69,7 +70,7 @@ async function readHead(filePath, n = 12) {
   }
 }
 const isZip = (b) => b[0] === 0x50 && b[1] === 0x4b && [3, 5, 7].includes(b[2]);
-function imageMime(b) {
+export function imageMime(b) {
   if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
   if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
   if (b.subarray(0, 3).toString('latin1') === 'GIF') return 'image/gif';
@@ -152,63 +153,9 @@ async function resolvePlacement(b) {
   return { ...placement, sessionId };
 }
 
-async function courseTopics(courseId) {
-  const steps = await q('SELECT id, title FROM roadmap_steps WHERE course_id=? ORDER BY position, id', [courseId]);
-  const subs = steps.length
-    ? await q('SELECT id, step_id, title FROM roadmap_substeps WHERE step_id IN (?) ORDER BY position, id', [steps.map((s) => s.id)])
-    : [];
-  return steps.map((s) => ({ ...s, substeps: subs.filter((x) => x.step_id === s.id).map(({ id: subId, title }) => ({ id: subId, title })) }));
-}
-
-/**
- * Приводить список тем до чистого вигляду: лише теми курсу уроку, без повторів.
- * Обраний цілий етап поглинає свої підпункти.
- */
-async function parseTopics(raw, courseId) {
-  if (raw == null) return [];
-  if (!Array.isArray(raw)) throw bad('Теми передано неправильно');
-  if (raw.length > 200) throw bad('Забагато тем');
-  if (!raw.length) return [];
-  if (!courseId) throw bad('Урок не прив’язаний до курсу, тем немає');
-  const steps = await courseTopics(courseId);
-  const whole = new Set();
-  const parts = new Map();
-  for (const t of raw) {
-    const stepId = id(t?.step_id, 'Тема');
-    const step = steps.find((s) => s.id === stepId);
-    if (!step) throw bad('Тема не з курсу цього уроку');
-    if (t.substep_id == null || t.substep_id === '') {
-      whole.add(stepId);
-      continue;
-    }
-    const subId = id(t.substep_id, 'Підтема');
-    if (!step.substeps.some((x) => x.id === subId)) throw bad('Підтема не з цієї теми');
-    parts.set(subId, stepId);
-  }
-  return [
-    ...[...whole].map((stepId) => ({ step_id: stepId, substep_id: null })),
-    ...[...parts].filter(([, stepId]) => !whole.has(stepId)).map(([subId, stepId]) => ({ step_id: stepId, substep_id: subId })),
-  ];
-}
-
-async function saveTopics(t, homeworkId, topics) {
-  await t('DELETE FROM homework_topics WHERE homework_id=?', [homeworkId]);
-  if (topics.length) {
-    await t('INSERT INTO homework_topics (homework_id, step_id, substep_id) VALUES ?', [
-      topics.map((x) => [homeworkId, x.step_id, x.substep_id]),
-    ]);
-  }
-}
-
-async function topicsOf(homeworkId) {
-  return q(
-    `SELECT t.step_id, t.substep_id, s.title AS step_title, x.title AS substep_title
-       FROM homework_topics t JOIN roadmap_steps s ON s.id = t.step_id
-       LEFT JOIN roadmap_substeps x ON x.id = t.substep_id
-      WHERE t.homework_id=? ORDER BY s.position, s.id, x.position, x.id`,
-    [homeworkId]
-  );
-}
+const parseHwTopics = (raw, courseId) => (raw?.length && !courseId ? Promise.reject(bad('Урок не прив’язаний до курсу, тем немає')) : parseTopics(raw, courseId));
+const saveHwTopics = (t, homeworkId, topics) => saveTopics(t, 'homework_topics', 'homework_id', homeworkId, topics);
+const hwTopicsOf = (homeworkId) => topicsOf('homework_topics', 'homework_id', homeworkId);
 
 // Що можна обрати темою: роадмап курсу уроку. Порожньо, якщо урок без курсу.
 homeworkRouter.get('/topics', requireRole('manager', 'teacher'), async (req, res) => {
@@ -231,13 +178,13 @@ homeworkRouter.get('/', async (req, res) => {
       [me]
     );
     const subs = await q(
-      'SELECT homework_id, status, grade, submitted_at FROM submissions WHERE student_id=?',
+      'SELECT homework_id, status, grade, submitted_at, reviewed_at, seen_at FROM submissions WHERE student_id=?',
       [me]
     );
     return res.json(
       rows.map((h) => {
         const s = subs.find((x) => x.homework_id === h.id);
-        return { ...h, my_status: s?.status ?? 'todo', my_grade: s?.grade ?? null };
+        return { ...h, my_status: s?.status ?? 'todo', my_grade: s?.grade ?? null, my_new: Boolean(s?.reviewed_at && !s.seen_at) };
       })
     );
   }
@@ -267,10 +214,10 @@ homeworkRouter.post('/', requireRole('manager', 'teacher'), async (req, res) => 
     due_at: dateTime(b.due_at, 'Здати до'),
     created_by: req.user.id,
   };
-  const topics = await parseTopics(b.topics, placement.course_id);
+  const topics = await parseHwTopics(b.topics, placement.course_id);
   const homeworkId = await tx(async (t) => {
     const r = await t('INSERT INTO homework SET ?', [row]);
-    await saveTopics(t, r.insertId, topics);
+    await saveHwTopics(t, r.insertId, topics);
     return r.insertId;
   });
   res.status(201).json({ id: homeworkId });
@@ -283,7 +230,9 @@ homeworkRouter.get('/:id', async (req, res) => {
     if (!(await isStudentOf(hw, me))) throw forbidden();
     const [submission] = await q('SELECT * FROM submissions WHERE homework_id=? AND student_id=?', [hw.id, me]);
     const files = submission ? await filesOf([submission.id]) : [];
-    return res.json({ ...hw, topics: await topicsOf(hw.id), submission: submission ? { ...submission, files } : null });
+    // Учень відкрив роботу: оцінка й відгук переглянуті, сповіщення гасне.
+    if (submission?.reviewed_at && !submission.seen_at) await q('UPDATE submissions SET seen_at=? WHERE id=?', [nowStr(), submission.id]);
+    return res.json({ ...hw, topics: await hwTopicsOf(hw.id), submission: submission ? { ...submission, files } : null });
   }
   assertStaff(req.user, hw);
   const students = await q(
@@ -306,7 +255,7 @@ homeworkRouter.get('/:id', async (req, res) => {
     ...row,
     submission: row.submission ? { ...row.submission, files: files.filter((f) => f.submission_id === row.submission.id) } : null,
   }));
-  res.json({ ...hw, topics: await topicsOf(hw.id), students: merged });
+  res.json({ ...hw, topics: await hwTopicsOf(hw.id), students: merged });
 });
 
 homeworkRouter.patch('/:id', requireRole('manager', 'teacher'), async (req, res) => {
@@ -320,10 +269,10 @@ homeworkRouter.patch('/:id', requireRole('manager', 'teacher'), async (req, res)
     hw.id,
   ];
   // Теми змінюються, лише коли їх передали: старі клієнти їх не надсилають.
-  const topics = b.topics === undefined ? null : await parseTopics(b.topics, hw.course_id);
+  const topics = b.topics === undefined ? null : await parseHwTopics(b.topics, hw.course_id);
   await tx(async (t) => {
     await t('UPDATE homework SET title=?, description=?, due_at=? WHERE id=?', fields);
-    if (topics) await saveTopics(t, hw.id, topics);
+    if (topics) await saveHwTopics(t, hw.id, topics);
   });
   res.json({ ok: true });
 });
@@ -432,7 +381,7 @@ homeworkRouter.post('/submissions/:id/review', requireRole('manager', 'teacher')
   const feedback = str(req.body?.feedback, 'Коментар', { max: 3000, required: false });
   if (status === 'returned' && !feedback) throw bad('Напишіть, що виправити');
   await q(
-    'UPDATE submissions SET status=?, grade=?, feedback=?, reviewed_at=?, reviewed_by=? WHERE id=?',
+    'UPDATE submissions SET status=?, grade=?, feedback=?, reviewed_at=?, reviewed_by=?, seen_at=NULL WHERE id=?',
     [status, status === 'accepted' ? grade : null, feedback, nowStr(), req.user.id, subId]
   );
   res.json({ ok: true });
@@ -477,7 +426,7 @@ filesRouter.get('/:id', async (req, res) => {
   stream.pipe(res);
 });
 
-function contentDisposition(name, inline) {
+export function contentDisposition(name, inline) {
   const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, '_');
   return `${inline ? 'inline' : 'attachment'}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
 }

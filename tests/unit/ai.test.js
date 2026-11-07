@@ -93,3 +93,21 @@ test('обрізана відповідь і порожній результат
   stubGemini(() => new Response(JSON.stringify({ promptFeedback: { blockReason: 'SAFETY' } })));
   await assert.rejects(draftRoadmap('t', 'c'), (e) => e.status === 422);
 });
+
+test('normalizeQuestions лишає лише питання з 3-6 різними варіантами й правильною відповіддю', async () => {
+  const { normalizeQuestions, MAX_OPTIONS } = await import('../../server/ai.js');
+  const opts = (n, correct = [0]) => Array.from({ length: n }, (_, i) => ({ text: `v${i}`, correct: correct.includes(i) }));
+  const out = normalizeQuestions([
+    { text: ' Добре ', options: opts(4, [0, 2]) },
+    { text: 'Мало варіантів', options: opts(2) },
+    { text: 'Без правильної', options: opts(4, []) },
+    { text: 'Повтори', options: [{ text: 'a', correct: true }, { text: 'A', correct: false }, { text: 'b' }] },
+    { text: 'Багато', options: opts(9) },
+    { text: '', options: opts(3) },
+    null,
+  ]);
+  assert.deepEqual(out.map((x) => x.text), ['Добре', 'Багато']);
+  assert.equal(out[0].options.filter((o) => o.correct).length, 2);
+  assert.equal(out[1].options.length, MAX_OPTIONS);
+  assert.deepEqual(normalizeQuestions('ні'), []);
+});

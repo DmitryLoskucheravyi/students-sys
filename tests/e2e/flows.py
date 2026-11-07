@@ -197,7 +197,7 @@ with sync_playwright() as pw:
     check("списано 420 ₴ зі скоригованого абонемента", r2["students"][0]["price_charged"] == 420, str(r2["students"]))
 
     # Домашнє
-    p.get_by_role("link", name="Домашні").click(); p.wait_for_load_state("networkidle")
+    p.get_by_role("link", name="Завдання").click(); p.wait_for_load_state("networkidle")
     p.get_by_role("button", name="Задати домашнє").click(); p.wait_for_load_state("networkidle")
     choose(p, "Урок", "Тест-урок"); p.get_by_label("Назва").fill("Тест ДЗ"); p.get_by_label("Завдання").fill("Здайте код і скрін")
     shot(p, "15-homework-form-dark")
@@ -265,7 +265,7 @@ with sync_playwright() as pw:
     p3 = other
     p3.get_by_role("link", name="Курси").click(); p3.wait_for_load_state("networkidle")
     p3.locator(".course", has_text="Веброзробка").click(); p3.wait_for_load_state("networkidle"); p3.wait_for_timeout(200); shot(p3, "20-student-roadmap")
-    p3.get_by_role("link", name="Домашні", exact=True).click(); p3.wait_for_load_state("networkidle"); shot(p3, "21-student-homework")
+    p3.get_by_role("link", name="Завдання").click(); p3.wait_for_load_state("networkidle"); shot(p3, "21-student-homework")
     ctx.close()
 
     # --- Вчитель перевіряє, повертає, потім приймає

@@ -20,6 +20,7 @@ const { lessonsRouter, schedulesRouter } = await import('./routes/lessons.js');
 const { sessionsRouter, requestsRouter } = await import('./routes/sessions.js');
 const { homeworkRouter, filesRouter } = await import('./routes/homework.js');
 const { statsRouter } = await import('./routes/stats.js');
+const { quizzesRouter, notificationsRouter } = await import('./routes/quizzes.js');
 
 const app = express();
 app.disable('x-powered-by');
@@ -64,6 +65,8 @@ api.use('/requests', requestsRouter);
 api.use('/homework', homeworkRouter);
 api.use('/files', filesRouter);
 api.use('/stats', statsRouter);
+api.use('/quizzes', quizzesRouter);
+api.use('/notifications', notificationsRouter);
 api.use((_req, _res, next) => next(Object.assign(new Error('Не знайдено'), { status: 404 })));
 app.use('/api', api);
 

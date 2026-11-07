@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
@@ -8,6 +8,7 @@ import { dateTimeShort, fileSize, nowLocal, time } from '../fmt.js';
 import { HW_STATUS } from './Homework.jsx';
 import Uploader from '../Uploader.jsx';
 import { TopicChips, TopicPicker } from './HomeworkTopics.jsx';
+import { notify } from './Quizzes.jsx';
 
 export default function HomeworkDetail() {
   const { id } = useParams();
@@ -18,6 +19,8 @@ export default function HomeworkDetail() {
   const [run] = useAction();
   const { confirm } = useUI();
   const isStudent = user.role === 'student';
+  // Відкрита робота гасить сповіщення про оцінку: лічильник перераховуємо після завантаження.
+  useEffect(() => { if (isStudent && hw) notify(); }, [isStudent, hw]);
 
   if (error) return <><BackLink /><ErrorNote text={error} onRetry={reload} /></>;
   if (!hw) return loading ? <Loader /> : null;
@@ -50,7 +53,7 @@ export default function HomeworkDetail() {
     </>
   );
 }
-const BackLink = () => <Link to="/homework" className="back"><IconLeft size={18} /> Домашні</Link>;
+const BackLink = () => <Link to="/homework" className="back"><IconLeft size={18} /> Завдання</Link>;
 
 export function FileList({ files, onRemove }) {
   const shots = files.filter((f) => f.kind === 'screenshot');

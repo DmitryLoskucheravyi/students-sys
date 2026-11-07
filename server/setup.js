@@ -46,6 +46,11 @@ async function migrate(conn, { hadRoster, hadSchedules }) {
   if (!(await columnInfo(conn, 'lesson_sessions', 'location'))) {
     await conn.query('ALTER TABLE lesson_sessions ADD COLUMN location VARCHAR(200) NULL');
   }
+  // Учень бачить сповіщення про оцінку чи відгук, доки не відкриє роботу.
+  if (!(await columnInfo(conn, 'submissions', 'seen_at'))) {
+    await conn.query('ALTER TABLE submissions ADD COLUMN seen_at DATETIME NULL');
+    await conn.query('UPDATE submissions SET seen_at = reviewed_at WHERE reviewed_at IS NOT NULL');
+  }
   if (hadSchedules && !hadRoster) {
     await conn.query(
       `INSERT IGNORE INTO schedule_students (schedule_id, student_id)

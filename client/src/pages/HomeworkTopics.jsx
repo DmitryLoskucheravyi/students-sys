@@ -10,8 +10,9 @@ const keyOf = (t) => `${t.step_id}:${t.substep_id ?? ''}`;
  * а розгорнувши тему, можна обрати лише окремі підтеми.
  * query: «schedule_id=5» або «session_id=12», щоб сервер знайшов курс уроку.
  */
-export function TopicPicker({ query, value, onChange }) {
-  const path = query ? `/homework/topics?${query}` : null;
+export function TopicPicker({ query, source, value, onChange, hint = 'Домашнє з’явиться на роадмапі в цих темах.' }) {
+  // source: шлях курсу (/courses/5), коли теми беруться не з уроку, а з обраного курсу.
+  const path = source ?? (query ? `/homework/topics?${query}` : null);
   const { data, loadedPath } = useData(path);
   const [opened, setOpened] = useState({});
   // Після зміни уроку старі теми не показуємо, доки не прийдуть нові.
@@ -32,8 +33,8 @@ export function TopicPicker({ query, value, onChange }) {
 
   return (
     <fieldset className="topics">
-      <legend><IconRoadmap size={16} /> Теми з курсу «{data.course_title}»</legend>
-      <p className="muted small">Домашнє з’явиться на роадмапі в цих темах.</p>
+      <legend><IconRoadmap size={16} /> Теми з курсу «{data.course_title ?? data.title}»</legend>
+      <p className="muted small">{hint}</p>
       <ul>
         {data.steps.map((s, i) => {
           const whole = wholeOn(s);

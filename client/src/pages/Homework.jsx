@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
-import { Button, DatePicker, Empty, ErrorNote, Input, Loader, Modal, PageHead, Select, Status, Textarea, TimePicker, useAction } from '../ui.jsx';
+import { Button, DatePicker, Empty, ErrorNote, Input, Loader, Modal, PageHead, Segmented, Select, Status, Textarea, TimePicker, useAction } from '../ui.jsx';
 import { IconHomework, IconPlus } from '../icons.jsx';
 import { WEEKDAYS, addDays, dateTimeShort, nowLocal, shortDate, todayISO } from '../fmt.js';
 import { TopicPicker } from './HomeworkTopics.jsx';
+import { MyQuizzes, QuizList } from './Quizzes.jsx';
 
 export const HW_STATUS = {
   todo: ['warn', 'Треба здати'],
@@ -23,16 +24,46 @@ const GROUPS = [
 export default function Homework() {
   const { user } = useAuth();
   const isStudent = user.role === 'student';
-  const { data, loading, error, reload } = useData('/homework');
+  const isManager = user.role === 'manager';
+  const [params, setParams] = useSearchParams();
+  const tab = isManager && params.get('tab') === 'quizzes' ? 'quizzes' : 'homework';
+  const navigate = useNavigate();
+
+  return (
+    <>
+      <PageHead title="Завдання">
+        {!isStudent && tab === 'homework' && <HomeworkAdd />}
+        {tab === 'quizzes' && <Button icon={<IconPlus size={18} />} onClick={() => navigate('/quizzes/new')}>Новий тест</Button>}
+      </PageHead>
+      {isManager && (
+        <div className="tabs-row">
+          <Segmented value={tab} onChange={(v) => setParams(v === 'quizzes' ? { tab: 'quizzes' } : {}, { replace: true })}
+            options={[{ value: 'homework', label: 'Домашні' }, { value: 'quizzes', label: 'Тести' }]} />
+        </div>
+      )}
+      {isStudent && <MyQuizzes />}
+      {tab === 'quizzes' ? <QuizList /> : <HomeworkList isStudent={isStudent} />}
+    </>
+  );
+}
+
+function HomeworkAdd() {
   const [adding, setAdding] = useState(false);
   const navigate = useNavigate();
+  return (
+    <>
+      <Button icon={<IconPlus size={18} />} onClick={() => setAdding(true)}>Задати домашнє</Button>
+      {adding && <NewHomework onClose={() => setAdding(false)} onDone={(id) => navigate(`/homework/${id}`)} />}
+    </>
+  );
+}
+
+function HomeworkList({ isStudent }) {
+  const { data, loading, error, reload } = useData('/homework');
   const now = nowLocal();
 
   return (
     <>
-      <PageHead title="Домашні">
-        {!isStudent && <Button icon={<IconPlus size={18} />} onClick={() => setAdding(true)}>Задати домашнє</Button>}
-      </PageHead>
       {error && <ErrorNote text={error} onRetry={reload} />}
       {!data && loading && <Loader />}
       {data && !data.length && <Empty icon={<IconHomework size={36} />} title="Домашніх поки немає" />}
@@ -50,7 +81,7 @@ export default function Homework() {
                   <li key={h.id}>
                     <Link className="row row-link" to={`/homework/${h.id}`}>
                       <div className="row-main">
-                        <h3>{h.title}</h3>
+                        <h3>{h.my_new && <span className="new-dot" title="Нова оцінка чи відгук"><span className="sr">Нове: </span></span>}{h.title}</h3>
                         <p className="muted small">{h.course_title ?? h.lesson_title}</p>
                       </div>
                       <span className={`small ${late ? 'text-red' : 'muted'}`}>до {dateTimeShort(h.due_at)}</span>
@@ -81,7 +112,6 @@ export default function Homework() {
           ))}
         </ul>
       )}
-      {adding && <NewHomework onClose={() => setAdding(false)} onDone={(id) => navigate(`/homework/${id}`)} />}
     </>
   );
 }

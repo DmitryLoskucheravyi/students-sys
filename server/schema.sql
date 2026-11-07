@@ -313,3 +313,87 @@ CREATE TABLE IF NOT EXISTS file_chunks (
   data MEDIUMBLOB NOT NULL,
   PRIMARY KEY (stored_name, part)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Тести. Створює менеджер; учневі тест відкривають окремо, за бажанням із темами роадмапу.
+CREATE TABLE IF NOT EXISTS quizzes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(160) NOT NULL,
+  description VARCHAR(1000) NULL,
+  created_by INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Картинки питань лежать у тому самому сховищі, що й файли домашніх.
+CREATE TABLE IF NOT EXISTS quiz_images (
+  stored_name VARCHAR(80) PRIMARY KEY,
+  mime VARCHAR(40) NOT NULL,
+  size INT NOT NULL,
+  created_by INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS quiz_questions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  quiz_id INT NOT NULL,
+  position INT NOT NULL DEFAULT 0,
+  text VARCHAR(500) NOT NULL,
+  image VARCHAR(80) NULL,
+  FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
+  FOREIGN KEY (image) REFERENCES quiz_images(stored_name) ON DELETE SET NULL,
+  INDEX idx_quiz_questions (quiz_id, position)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS quiz_options (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  question_id INT NOT NULL,
+  position INT NOT NULL DEFAULT 0,
+  text VARCHAR(200) NOT NULL,
+  is_correct TINYINT(1) NOT NULL DEFAULT 0,
+  FOREIGN KEY (question_id) REFERENCES quiz_questions(id) ON DELETE CASCADE,
+  INDEX idx_quiz_options (question_id, position)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Тест, відкритий учневі. Одна спроба; менеджер може дозволити пройти ще раз.
+CREATE TABLE IF NOT EXISTS quiz_assignments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  quiz_id INT NOT NULL,
+  student_id INT NOT NULL,
+  course_id INT NULL,
+  due_at DATETIME NULL,
+  assigned_by INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  submitted_at DATETIME NULL,
+  score INT NULL,
+  max_score INT NULL,
+  UNIQUE KEY uq_quiz_student (quiz_id, student_id),
+  FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL,
+  FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_quiz_assign_student (student_id, submitted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS quiz_assignment_topics (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  assignment_id INT NOT NULL,
+  step_id INT NOT NULL,
+  substep_id INT NULL,
+  FOREIGN KEY (assignment_id) REFERENCES quiz_assignments(id) ON DELETE CASCADE,
+  FOREIGN KEY (step_id) REFERENCES roadmap_steps(id) ON DELETE CASCADE,
+  FOREIGN KEY (substep_id) REFERENCES roadmap_substeps(id) ON DELETE CASCADE,
+  INDEX idx_quiz_topics_step (step_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Обрані учнем варіанти. Бал рахується при здачі й зберігається в призначенні.
+CREATE TABLE IF NOT EXISTS quiz_answers (
+  assignment_id INT NOT NULL,
+  question_id INT NOT NULL,
+  option_id INT NOT NULL,
+  PRIMARY KEY (assignment_id, option_id),
+  FOREIGN KEY (assignment_id) REFERENCES quiz_assignments(id) ON DELETE CASCADE,
+  FOREIGN KEY (question_id) REFERENCES quiz_questions(id) ON DELETE CASCADE,
+  FOREIGN KEY (option_id) REFERENCES quiz_options(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

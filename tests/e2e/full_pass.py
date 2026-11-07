@@ -396,7 +396,7 @@ with sync_playwright() as pw:
     # Сесія зникла посеред роботи: перекидає на вхід
     c2, p2 = new(b)
     login(p2, "nightstd", "nightpass1"); p2.context.clear_cookies()
-    p2.get_by_role("link", name="Домашні", exact=True).first.click(); p2.wait_for_timeout(600)
+    p2.get_by_role("link", name="Завдання").first.click(); p2.wait_for_timeout(600)
     check("протухла сесія веде на вхід", p2.get_by_role("button", name="Увійти").count() == 1)
     b.close()
 

@@ -431,7 +431,7 @@ with sync_playwright() as pw:
     p.wait_for_timeout(700); hb = handle.bounding_box(); p.mouse.move(hb["x"] + 4, hb["y"] + 300); p.mouse.down(); p.mouse.move(hb["x"] + 900, hb["y"] + 300, steps=6); p.mouse.up()
     check("панель не ширша за 380 px", abs(rail.bounding_box()["width"] - 380) <= 1, str(rail.bounding_box()["width"]))
     handle.dblclick(); p.wait_for_timeout(150)
-    check("подвійний клік згортає до іконок", rail.bounding_box()["width"] <= 80 and p.locator(".rail-nav a span").first.is_hidden() and p.locator(".wordmark-short").is_visible())
+    check("подвійний клік згортає до іконок", rail.bounding_box()["width"] <= 80 and p.locator(".rail-nav a > span:not(.nav-ico)").first.is_hidden() and p.locator(".rail-nav a svg").first.is_visible() and p.locator(".wordmark-short").is_visible())
     check("у згорнутій панелі назви в підказках", p.locator(".rail-nav a").first.get_attribute("title") == "Розклад")
     p.screenshot(path=str(OUT / "rail-collapsed.png"))
     p.locator(".rail-nav a", has=p.locator("text=Уроки")).click(); p.wait_for_load_state("networkidle")

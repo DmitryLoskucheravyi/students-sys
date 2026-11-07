@@ -46,3 +46,7 @@ export const IconUser = (p) => <I {...p}><circle cx="12" cy="8" r="4"/><A d="M4.
 export const IconArchive = (p) => <I {...p}><path d="M5 9v10a1.500 1.500 0 0 0 1.500 1.500h11A1.500 1.500 0 0 0 19 19V9"/><path d="M3.500 4.500h17V9h-17z"/><A d="M10 13h4"/></I>;
 export const IconRestore = (p) => <I {...p}><path d="M5.500 8A8 8 0 1 1 4 12.500"/><A d="M4.500 3.500V8.500h5"/></I>;
 export const IconList = (p) => <I {...p}><A d="M4 6.500l1.500 1.500L8 5M4 13.500l1.500 1.500L8 12"/><path d="M11.500 7H20M11.500 14H20M11.500 20H20M5 20h.01"/></I>;
+export const IconQuiz = (p) => <I {...p}><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M11 8h5.500M11 15h5.500"/><A d="M7 8.200l1 1 1.800-2M7 15.200l1 1 1.800-2"/></I>;
+export const IconBell = (p) => <I {...p}><path d="M6 16.500V11a6 6 0 0 1 12 0v5.500l1.500 2h-15z"/><A d="M10 20.500a2 2 0 0 0 4 0"/></I>;
+export const IconAlert = (p) => <I {...p}><path d="M12 4l9 16H3z"/><A d="M12 10v4.500M12 17.300h.01"/></I>;
+export const IconHourglass = (p) => <I {...p}><path d="M7 3.500h10M7 20.500h10M8 3.500c0 4.500 8 4.500 8 8.500s-8 4-8 8.500M16 3.500c0 4.500-8 4.500-8 8.500s8 4 8 8.500"/><A d="M10 18.500h4"/></I>;

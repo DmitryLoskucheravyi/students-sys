@@ -161,7 +161,7 @@ with sync_playwright() as pw:
     c.close()
     c, p = new(b, 320, 640, touch=True, theme="dark"); login(p, "student", "student123"); shot(p, "s10-320-student-dark", full=True)
     p.goto(f"{BASE}/subscription"); p.wait_for_load_state("networkidle"); shot(p, "s11-320-ticket-dark")
-    p.goto(f"{BASE}/homework"); p.wait_for_load_state("networkidle"); p.locator(".row-link").first.click(); p.wait_for_selector(".uploader"); shot(p, "s12-320-hw-dark", full=True)
+    p.goto(f"{BASE}/homework"); p.wait_for_load_state("networkidle"); p.locator("a.row-link[href^='/homework/']").first.click(); p.wait_for_selector(".uploader"); shot(p, "s12-320-hw-dark", full=True)
     c.close()
     c, p = new(b, 768, 900, touch=True); login(p, "manager", "manager123"); shot(p, "s13-768")
     c.close()

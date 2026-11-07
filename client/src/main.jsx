@@ -1,6 +1,6 @@
 import { StrictMode, useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import '@fontsource-variable/unbounded';
 import '@fontsource-variable/onest';
 import './styles.css';
@@ -21,6 +21,7 @@ import Homework from './pages/Homework.jsx';
 import HomeworkDetail from './pages/HomeworkDetail.jsx';
 import Profile from './pages/Profile.jsx';
 import Stats from './pages/Stats.jsx';
+import { QuizDetail, QuizEditor, QuizTake } from './pages/Quizzes.jsx';
 
 const NAV = {
   manager: [
@@ -29,18 +30,18 @@ const NAV = {
     ['/courses', 'Курси', IconRoadmap],
     ['/subscriptions', 'Абонементи', IconTicket],
     ['/people', 'Люди', IconPeople],
-    ['/homework', 'Домашні', IconHomework],
+    ['/homework', 'Завдання', IconHomework],
     ['/stats', 'Статистика', IconChart],
   ],
   teacher: [
     ['/', 'Розклад', IconCalendar],
     ['/lessons', 'Уроки', IconLesson],
     ['/courses', 'Курси', IconRoadmap],
-    ['/homework', 'Домашні', IconHomework],
+    ['/homework', 'Завдання', IconHomework],
   ],
   student: [
     ['/', 'Розклад', IconCalendar],
-    ['/homework', 'Домашні', IconHomework],
+    ['/homework', 'Завдання', IconHomework],
     ['/courses', 'Курси', IconRoadmap],
     ['/subscription', 'Абонемент', IconTicket],
   ],
@@ -128,10 +129,37 @@ function RailResizer({ rail }) {
   );
 }
 
+/**
+ * Лічильник сповіщень учня: непройдені тести та нові оцінки чи відгуки до домашніх.
+ * Оновлюється під час переходів, щохвилини та після дій (подія bs:notify).
+ */
+function useNotifications(user) {
+  const [count, setCount] = useState(0);
+  const location = useLocation();
+  const refresh = useCallback(() => {
+    if (user.role !== 'student') return;
+    api('/notifications').then((r) => setCount(r.count)).catch(() => {});
+  }, [user.role]);
+  useEffect(() => { refresh(); }, [refresh, location.pathname]);
+  useEffect(() => {
+    if (user.role !== 'student') return undefined;
+    const timer = setInterval(refresh, 60_000);
+    window.addEventListener('bs:notify', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('bs:notify', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [refresh, user.role]);
+  return count;
+}
+
 function Shell() {
   const { user, logout } = useAuth();
   const items = NAV[user.role];
   const rail = useRail();
+  const unread = useNotifications(user);
   return (
     <div className={`shell ${rail.collapsed ? 'is-collapsed' : ''}`} style={{ '--rail-w': `${rail.collapsed ? RAIL_COLLAPSED : rail.width}px` }}>
       <aside className="rail">
@@ -156,8 +184,12 @@ function Shell() {
         <nav className="rail-nav" aria-label="Основна навігація">
           {items.map(([to, label, Icon]) => (
             <NavLink key={to} to={to} end={to === '/'} className={to === '/stats' ? 'only-desktop' : undefined} title={rail.collapsed ? label : undefined}>
-              <Icon />
+              <span className="nav-ico">
+                <Icon />
+                {to === '/homework' && unread > 0 && <b className="nav-badge" aria-hidden="true">{unread > 9 ? '9+' : unread}</b>}
+              </span>
               <span>{label}</span>
+              {to === '/homework' && unread > 0 && <span className="sr">, нових: {unread}</span>}
             </NavLink>
           ))}
         </nav>
@@ -180,6 +212,10 @@ function Shell() {
           <Route path="/" element={<Schedule />} />
           <Route path="/homework" element={<Homework />} />
           <Route path="/homework/:id" element={<HomeworkDetail />} />
+          {(user.role === 'student' || user.role === 'manager') && <Route path="/tests/:id" element={<QuizTake />} />}
+          {user.role === 'manager' && <Route path="/quizzes/new" element={<QuizEditor />} />}
+          {user.role === 'manager' && <Route path="/quizzes/:id" element={<QuizDetail />} />}
+          {user.role === 'manager' && <Route path="/quizzes/:id/edit" element={<QuizEditor />} />}
           <Route path="/courses" element={<Courses />} />
           <Route path="/courses/:id" element={<CourseDetail />} />
           <Route path="/profile" element={<Profile />} />

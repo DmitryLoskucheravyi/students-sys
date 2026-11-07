@@ -108,6 +108,7 @@ coursesRouter.get('/:id', async (req, res) => {
   const students = isStudent ? [] : await courseStudents(req.user, courseId);
   const ids = isStudent ? [req.user.id] : students.map((s) => s.id);
   const homework = await courseHomework(req.user, courseId, ids);
+  const quizzes = await courseQuizzes(courseId, ids);
   const progress = ids.length && steps.length
     ? await q(
         `SELECT p.student_id, p.step_id, p.done_at FROM roadmap_progress p
@@ -131,9 +132,35 @@ coursesRouter.get('/:id', async (req, res) => {
     progress,
     sub_progress: subProgress,
     homework,
+    quizzes,
     can_edit: await canEdit(req.user, courseId),
   });
 });
+
+/** Тести, відкриті учням курсу й прив'язані до його тем. Кожен запис належить одному учневі. */
+async function courseQuizzes(courseId, studentIds) {
+  if (!studentIds.length) return [];
+  const rows = await q(
+    `SELECT a.id, a.student_id, a.due_at, a.submitted_at, a.score, a.max_score, z.title, t.step_id, t.substep_id
+       FROM quiz_assignment_topics t
+       JOIN quiz_assignments a ON a.id = t.assignment_id
+       JOIN quizzes z ON z.id = a.quiz_id
+       JOIN roadmap_steps s ON s.id = t.step_id
+      WHERE s.course_id = ? AND a.student_id IN (?)
+      ORDER BY a.created_at, a.id, t.id`,
+    [courseId, studentIds]
+  );
+  const list = new Map();
+  for (const r of rows) {
+    const item = list.get(r.id) ?? {
+      id: r.id, student_id: r.student_id, title: r.title, due_at: r.due_at,
+      submitted_at: r.submitted_at, score: r.score, max_score: r.max_score, topics: [],
+    };
+    item.topics.push({ step_id: r.step_id, substep_id: r.substep_id });
+    list.set(r.id, item);
+  }
+  return [...list.values()];
+}
 
 /**
  * Домашні, прив'язані до тем курсу. Учень бачить лише задані його групі, вчитель лише свої.

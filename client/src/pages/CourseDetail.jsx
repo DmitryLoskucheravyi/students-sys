@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth, useIsMobile } from '../session.jsx';
 import { Button, Checkbox, Collapse, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Select, Status, useAction, useUI } from '../ui.jsx';
-import { IconDown, IconEdit, IconHomework, IconLeft, IconPeople, IconPlus, IconRoadmap, IconSpark, IconTick, IconTrash, IconUp } from '../icons.jsx';
+import { IconDown, IconEdit, IconHomework, IconLeft, IconPeople, IconPlus, IconQuiz, IconRight, IconRoadmap, IconSpark, IconTick, IconTrash, IconUp } from '../icons.jsx';
 import { dateTimeShort, nowLocal, plural } from '../fmt.js';
 import { CourseForm } from './Courses.jsx';
 import { HW_STATUS } from './Homework.jsx';
@@ -51,6 +51,40 @@ function ProgressCard({ steps, doneIds, doneSubs, homework, viewerId, isStudent 
         </ul>
       )}
     </section>
+  );
+}
+
+/** Тести під етапом: непройдений кличе «Пройти тест», пройдений показує бал. */
+function StepQuizzes({ items, step, links }) {
+  if (!items.length) return null;
+  return (
+    <ul className="road-hw" aria-label={`Тести етапу «${step.title}»`}>
+      {items.map((z) => {
+        const subTitles = z.topics
+          .filter((t) => t.step_id === step.id && t.substep_id)
+          .map((t) => step.substeps.find((x) => x.id === t.substep_id)?.title)
+          .filter(Boolean);
+        const body = (
+          <>
+            <IconQuiz size={16} />
+            <span className="road-hw-title">
+              {z.title}
+              {subTitles.length > 0 && <small className="muted"> · {subTitles.join(', ')}</small>}
+            </span>
+            {z.submitted_at
+              ? <Status kind={z.score / z.max_score >= 0.5 ? 'completed' : 'cancelled'}>{z.score} з {z.max_score}</Status>
+              : <span className="road-quiz-go">{links ? 'Пройти тест' : 'Не пройдено'}{links && <IconRight size={16} />}</span>}
+          </>
+        );
+        return (
+          <li key={z.id}>
+            {links
+              ? <Link to={`/tests/${z.id}`} className={`road-hw-item is-quiz ${z.submitted_at ? '' : 'is-open'}`}>{body}</Link>
+              : <div className={`road-hw-item is-quiz ${z.submitted_at ? '' : 'is-open'}`}>{body}</div>}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -116,7 +150,7 @@ function SubToggle({ open, done, total, onClick, label }) {
 }
 
 /** Звивиста дорога. Висота рядків залежить від підпунктів, тому точки вимірюємо з DOM. */
-function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, onToggleSub, homework = [], viewerId = null }) {
+function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, onToggleSub, homework = [], quizzes = [], quizLinks = false, viewerId = null }) {
   const mobile = useIsMobile();
   const { x: X, center: STOP_CENTER, radius: STOP_RADIUS } = mobile ? ROAD.mobile : ROAD.wide;
   const listRef = useRef(null);
@@ -184,6 +218,7 @@ function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, onToggle
                 <h3>{s.title}</h3>
                 {s.description && <p className="muted small">{s.description}</p>}
                 <StepHomework step={s} viewerId={viewerId} items={homework.filter((h) => h.topics.some((t) => t.step_id === s.id))} />
+                <StepQuizzes step={s} links={quizLinks} items={quizzes.filter((z) => z.topics.some((t) => t.step_id === s.id))} />
                 {total > 0 && (
                   <>
                     <SubToggle open={open} done={subsDone} total={total} label={`${subsDone} із ${total}`}
@@ -303,7 +338,8 @@ export default function CourseDetail() {
           ) : (
             <RoadmapPath key={viewerId ?? 'none'} steps={course.steps} doneIds={doneIds} doneSubs={doneSubs} canMark={course.can_edit && Boolean(studentId)}
               onToggleStep={toggleStep} onToggleSub={toggleSub} viewerId={viewerId}
-              homework={viewerId ? course.homework.filter((h) => h.student_ids.includes(viewerId)) : course.homework} />
+              homework={viewerId ? course.homework.filter((h) => h.student_ids.includes(viewerId)) : course.homework}
+              quizzes={course.quizzes.filter((z) => z.student_id === viewerId)} quizLinks={isStudent || isManager} />
           )}
         </>
       )}

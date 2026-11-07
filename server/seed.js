@@ -127,6 +127,24 @@ await q('INSERT INTO homework (lesson_id, schedule_id, title, description, due_a
   pyOne, pySchedule, 'Калькулятор у консолі', 'Чотири дії та обробка ділення на нуль.', `${addDays(d, 6)} 20:00:00`, teacher2,
 ]);
 
+// Тест, відкритий Маркові й прив'язаний до теми React на роадмапі.
+const quiz = (await q('INSERT INTO quizzes (title, description, created_by) VALUES (?,?,?)', [
+  'React: основи', 'Короткий тест після уроку про компоненти.', null,
+])).insertId;
+const question = async (position, text, options) => {
+  const qid = (await q('INSERT INTO quiz_questions (quiz_id, position, text) VALUES (?,?,?)', [quiz, position, text])).insertId;
+  for (const [i, [t, ok]] of options.entries()) {
+    await q('INSERT INTO quiz_options (question_id, position, text, is_correct) VALUES (?,?,?,?)', [qid, i + 1, t, ok ? 1 : 0]);
+  }
+};
+await question(1, 'Що повертає компонент React?', [['Розмітку JSX', true], ['CSS-файл', false], ['SQL-запит', false]]);
+await question(2, 'Які хуки керують станом?', [['useState', true], ['useReducer', true], ['useEffect', false], ['useRef', false]]);
+await question(3, 'Як передати дані в дочірній компонент?', [['Через пропси', true], ['Через localStorage', false], ['Через CSS', false]]);
+const assignment = (await q('INSERT INTO quiz_assignments (quiz_id, student_id, course_id, due_at) VALUES (?,?,?,?)', [
+  quiz, student, web, `${addDays(d, 5)} 20:00:00`,
+])).insertId;
+await q('INSERT INTO quiz_assignment_topics (assignment_id, step_id) VALUES (?,?)', [assignment, webSteps[4].id]);
+
 console.log(`Готово. Входи:
   менеджер  manager / manager123
   вчитель   teacher / teacher123
