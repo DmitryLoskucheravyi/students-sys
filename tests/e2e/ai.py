@@ -1,5 +1,6 @@
-"""ШІ-режим роадмапа, новий логотип і бренд."""
-import os, pathlib, sys
+"""ШІ-режим роадмапа, новий логотип, заставка входу і бренд."""
+import io, os, pathlib, sys
+from PIL import Image
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
@@ -27,7 +28,7 @@ def toast(p, text): expect(p.locator(".toast", has_text=text).first).to_be_visib
 def over(p): return p.evaluate("document.documentElement.scrollWidth - window.innerWidth")
 
 with sync_playwright() as pw:
-    b = pw.chromium.launch(headless=True)
+    b = pw.chromium.launch(headless=True, args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
 
     # --- Заставка входу: кроки анімації лого, книга, цифри
     c, p = new(b)
@@ -53,22 +54,39 @@ with sync_playwright() as pw:
     check("BE написано великими", p.locator(".bs-be").text_content().strip() == "BE")
     p.locator(".login-art").screenshot(path=str(OUT / "logo-final.png"))
     check("School стоїть точно під Smart", abs(smart["x"] - school["x"]) < 1 and school["y"] >= smart["y"] + smart["height"] - 1, f"{smart} {school}")
-    # Цифрова книга: керуємо часом її анімацій, щоб перевірити фази без очікування
-    def book_at(ms):
-        p.evaluate(f"document.querySelectorAll('.book-fly, .book-fly *').forEach(e => e.getAnimations().forEach(a => {{ a.pause(); a.currentTime = {ms}; }}))")
-        return p.locator(".book").bounding_box()
-    art = p.locator(".login-art").bounding_box()
-    inside = lambda bx: bx and bx["x"] + bx["width"] > art["x"] and bx["x"] < art["x"] + art["width"] and bx["y"] + bx["height"] > art["y"] and bx["y"] < art["y"] + art["height"]
-    closed = book_at(2300); opened = book_at(3900); gone = book_at(6800)
-    book_at(2300); halves = [p.locator(s).bounding_box()["x"] for s in (".book-left", ".book-right")]
-    check("книга вилітає закритою: обкладинка лежить на сторінках", inside(closed) and abs(halves[0] - halves[1]) < 12, f"{closed} {halves}")
-    book_at(3900); w_open = p.locator(".book-left").bounding_box()["x"]
-    check("посередині книга розгорнута: обкладинка ліворуч від корінця", w_open < p.locator(".book-right").bounding_box()["x"] - 5, f"{w_open}")
-    check("розгорнута книга в кадрі", inside(opened), str(opened))
-    check("наприкінці книга вилітає з кадру", not inside(gone), str(gone))
-    p.locator(".login-art").screenshot(path=str(OUT / "book-gone.png")); book_at(3900); p.locator(".login-art").screenshot(path=str(OUT / "book-open.png"))
-    p.wait_for_selector(".bits span", state="attached", timeout=4000)
-    check("у фоні з'являються двійкові цифри", set(p.locator(".bits span").first.text_content().replace(" ", "")) <= {"0", "1"})
+    # Тривимірна книга: фази за часом, потім перемотування в конкретні миті
+    for _ in range(60):
+        if p.evaluate("!!document.querySelector('.book3d canvas')"): break
+        p.wait_for_timeout(100)
+    check("книга малюється в WebGL", p.locator(".book3d canvas").count() == 1 or "open" in (p.get_attribute(".book3d", "data-seen") or ""))
+    for _ in range(120):
+        if p.get_attribute(".book3d", "data-phase") == "gone": break
+        p.wait_for_timeout(100)
+    seen = (p.get_attribute(".book3d", "data-seen") or "").split(",")
+    check("книга вилітає закритою, розгортається, згортається й вилітає", seen[:2] == ["wait", "closed"] and "open" in seen and "closing" in seen and seen[-1] == "gone", str(seen))
+    check("після вильоту сцену прибрано", p.locator(".book3d canvas").count() == 0)
+    bits = p.locator(".bits span").all_text_contents()
+    check("цифри у фоні окремі: по одній", len(bits) >= 3 and all(x in ("0", "1") for x in bits), str(bits))
+    moves = p.evaluate("[...document.querySelectorAll('.bits span')].map(s => s.style.getPropertyValue('--dx') + s.style.getPropertyValue('--dy'))")
+    check("кожна цифра пливе у свій бік", len(set(moves)) == len(moves), str(moves))
+    c.close()
+    c, p = new(b); p.goto(BASE); p.wait_for_selector(".bs-logo")
+    for _ in range(60):
+        if p.evaluate("!!document.querySelector('.book3d')?.bookSeek"): break
+        p.wait_for_timeout(100)
+    def light_in(top_part):
+        art = p.locator(".login-art").bounding_box()
+        img = Image.open(io.BytesIO(p.screenshot(clip={"x": art["x"], "y": art["y"], "width": art["width"], "height": art["height"] * top_part}))).convert("RGB")
+        return sum(1 for px in img.getdata() if px[0] > 225 and px[1] > 205 and px[2] > 190)
+    p.evaluate("document.querySelector('.bs-logo').style.visibility = 'hidden'")
+    p.evaluate("document.querySelector('.book3d').bookSeek(0.5)")
+    check("посередині книга розгорнута й видна", p.get_attribute(".book3d", "data-phase") == "open" and light_in(0.7) > 3000, str(light_in(0.7)))
+    p.locator(".login-art").screenshot(path=str(OUT / "book-open.png"))
+    p.evaluate("document.querySelector('.book3d').bookSeek(0.2)")
+    check("на початку книга ще закрита або розгортається", p.get_attribute(".book3d", "data-phase") in ("closed", "turning"))
+    p.evaluate("document.querySelector('.book3d').bookSeek(0.999)")
+    check("наприкінці книги в кадрі вже немає", light_in(1) < 200, str(light_in(1)))
+    p.evaluate("document.querySelector('.bs-logo').style.visibility = ''")
     check("літачка більше немає", p.locator(".plane").count() == 0)
     check("галочки більше немає", p.locator(".login-tick").count() == 0)
     check("назва вкладки", p.title() == "Be Smart School")
@@ -78,8 +96,11 @@ with sync_playwright() as pw:
     c, p = new(b, motion="reduce"); p.goto(BASE); p.wait_for_selector(".bs-logo"); p.wait_for_timeout(100)
     check("без анімацій лого одразу повне", p.locator(".bs-tail").first.bounding_box()["width"] > 10)
     p.wait_for_timeout(1500)
-    bk = p.locator(".book").bounding_box(); art = p.locator(".login-art").bounding_box()
-    check("без анімацій книга спокійно лежить угорі праворуч", bk["x"] > art["x"] + art["width"] / 2 and bk["y"] < art["y"] + art["height"] / 2, str(bk))
+    art = p.locator(".login-art").bounding_box()
+    p.evaluate("document.querySelector('.bs-logo').style.visibility = 'hidden'")
+    img = Image.open(io.BytesIO(p.screenshot(clip={"x": art["x"] + art["width"] / 2, "y": art["y"], "width": art["width"] / 2, "height": art["height"] / 2}))).convert("RGB")
+    lit = sum(1 for px in img.getdata() if px[0] > 225 and px[1] > 205 and px[2] > 190)
+    check("без анімацій книга спокійно лежить угорі праворуч", p.get_attribute(".book3d", "data-phase") == "still" and lit > 2000, str(lit))
     check("без анімацій цифри у фоні не бігають", p.locator(".bits span").count() == 0)
     c.close()
     for w in (320, 360, 390, 768, 900, 1920):

@@ -1,41 +1,34 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { Button, Input, PasswordInput } from '../ui.jsx';
 import { ThemeButton } from '../session.jsx';
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-/*
- * Цифрова книга: вилітає знизу зліва, у центрі розгортається й гортає сторінки,
- * згортається, робить оберт і вилітає за правий верхній край. Один раз за відкриття сторінки.
- * Уся хореографія в CSS (.book-*): тут лише будова книги.
+/**
+ * Тривимірна книга (three.js). Модуль сцени вантажиться окремо, тільки тут.
+ * Без WebGL книги просто немає: заставка лишається з лого й цифрами.
  */
-function FlyingBook() {
-  const lines = (n, cls) => Array.from({ length: n }, (_, i) => <i key={i} className={cls?.[i] ?? ''} />);
-  return (
-    <div className="book-fly" aria-hidden="true">
-      <div className="book-spin">
-        <div className="book">
-          <div className="book-half book-left">
-            <div className="book-face book-inside">{lines(6, ['is-short', '', 'is-code', '', 'is-short', 'is-code'])}</div>
-            <div className="book-face book-cover"><b>&lt;/&gt;</b><span /></div>
-          </div>
-          <div className="book-half book-right">
-            <div className="book-face book-inside"><em>01</em>{lines(5, ['', 'is-code', 'is-short', '', 'is-code'])}</div>
-            <div className="book-face book-back" />
-          </div>
-          <div className="book-page book-page-1"><div className="book-face book-inside">{lines(6, ['is-code', '', 'is-short', '', 'is-code', 'is-short'])}</div><div className="book-face book-inside is-back">{lines(5)}</div></div>
-          <div className="book-page book-page-2"><div className="book-face book-inside">{lines(6, ['', 'is-short', '', 'is-code', '', ''])}</div><div className="book-face book-inside is-back">{lines(5, ['is-code'])}</div></div>
-        </div>
-      </div>
-    </div>
-  );
+function Book3D() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const startAt = performance.now();
+    let alive = true;
+    let stop;
+    import('../book3d.js')
+      .then(({ mountBook }) => { if (alive && ref.current) stop = mountBook(ref.current, { still: reducedMotion(), startAt }); })
+      .catch(() => {});
+    return () => { alive = false; stop?.(); };
+  }, []);
+  return <div ref={ref} className="book3d" aria-hidden="true" />;
 }
 
-const BITS = ['1 0', '0 1 1 0', '1', '0', '1 0 1', '11 0', '0 1', '1 0 0 1', '0 11'];
 const rand = (a, b) => a + Math.random() * (b - a);
 
-/** Двійкові цифри у фоні: зрідка з'являються, пливуть убік і згасають. */
+/**
+ * Двійкові цифри у фоні. Кожна цифра окрема: зʼявляється у своєму місці,
+ * пливе у свій бік зі своєю швидкістю й згасає.
+ */
 function Bits() {
   const [bits, setBits] = useState([]);
   useEffect(() => {
@@ -44,18 +37,21 @@ function Bits() {
     let timer;
     const spawn = () => {
       const id = ++n;
-      setBits((list) => [...list.slice(-7), {
+      const angle = (Math.random() < 0.5 ? Math.PI : 0) + rand(-0.5, 0.5);
+      const dist = rand(50, 160);
+      setBits((list) => [...list.slice(-15), {
         id,
-        text: BITS[Math.floor(Math.random() * BITS.length)],
+        text: Math.random() < 0.5 ? '0' : '1',
         style: {
-          top: `${rand(4, 88)}%`, left: `${rand(4, 82)}%`, fontSize: `${Math.round(rand(13, 22))}px`,
-          '--dx': `${(Math.random() < 0.5 ? -1 : 1) * Math.round(rand(40, 110))}px`,
-          animationDuration: `${rand(4.5, 7).toFixed(1)}s`,
+          top: `${rand(3, 92)}%`, left: `${rand(3, 94)}%`, fontSize: `${Math.round(rand(12, 24))}px`,
+          '--dx': `${Math.round(Math.cos(angle) * dist)}px`, '--dy': `${Math.round(Math.sin(angle) * dist)}px`,
+          '--peak': rand(0.25, 0.5).toFixed(2),
+          animationDuration: `${rand(3.5, 7.5).toFixed(1)}s`,
         },
       }]);
-      timer = setTimeout(spawn, rand(900, 2000));
+      timer = setTimeout(spawn, rand(350, 900));
     };
-    timer = setTimeout(spawn, 500);
+    timer = setTimeout(spawn, 400);
     return () => clearTimeout(timer);
   }, []);
   return (
@@ -89,7 +85,7 @@ export default function Login({ onLogin }) {
     <div className="login">
       <div className="login-art">
         <Bits />
-        <FlyingBook />
+        <Book3D />
         <p className="bs-logo" role="img" aria-label="Be Smart School">
           <span className="bs-be" aria-hidden="true">
             <span className="bs-word bs-be-in"><b>B</b><span className="bs-tail"><span>E</span></span></span>

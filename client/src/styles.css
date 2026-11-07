@@ -369,102 +369,24 @@ img { display: block; max-width: 100%; }
 /* Запас з'являється разом із буквами: у згорнутому стані він показав би їхній шматок */
 @keyframes bs-tail-room { from { padding-right: 0; margin-right: 0; } }
 @keyframes bs-drop { from { transform: translateY(-105%); } }
-/* Двійкові цифри у фоні заставки: з'являються, пливуть убік, згасають */
+/* Двійкові цифри у фоні заставки: кожна окремо зʼявляється, пливе у свій бік і згасає */
 .bits { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
 .bits span {
-  position: absolute; color: #fff; font: 600 16px/1 ui-monospace, Consolas, monospace; letter-spacing: 0.14em; white-space: pre;
+  position: absolute; color: #fff; font: 600 16px/1 ui-monospace, Consolas, monospace;
   opacity: 0; animation: bit-drift 6s ease-in-out forwards;
 }
 @keyframes bit-drift {
-  0% { opacity: 0; transform: translateX(0); }
-  22% { opacity: 0.45; }
-  70% { opacity: 0.3; }
-  100% { opacity: 0; transform: translateX(var(--dx)); }
+  0% { opacity: 0; transform: translate(0, 0); }
+  25% { opacity: var(--peak, 0.4); }
+  70% { opacity: calc(var(--peak, 0.4) * 0.6); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)); }
 }
 
-/*
- * Цифрова книга. Обкладинка (ліва половина) обертається навколо корінця, дві сторінки гортаються.
- * Базові стилі описують спокійну розгорнуту книгу: так її бачать без анімацій.
- * Час: --book-at старт, --book-t тривалість; відсотки в ключових кадрах узгоджені між собою.
- */
-.book-fly {
-  /* Телефон: панель низька, тож книга менша й зависає праворуч над лого. Компʼютер перевизначає нижче */
-  --bw: 30px; --bh: 42px; --book-at: 1.7s; --book-t: 5s; --x1: 68%; --x2: 80%; --y1: 26%; --y2: 21%;
-  position: absolute; z-index: 2; left: 76%; top: 26%; pointer-events: none;
-  transform: translate(-50%, -50%); perspective: 700px;
-  animation: book-x var(--book-t) var(--book-at) both, book-y var(--book-t) var(--book-at) both;
-}
-.book-spin { transform-style: preserve-3d; transform: rotateZ(-8deg) rotateX(14deg); animation: book-spin var(--book-t) var(--book-at) both; }
-.book { position: relative; width: calc(var(--bw) * 2); height: var(--bh); transform-style: preserve-3d; }
-.book-half, .book-page { position: absolute; top: 0; transform-style: preserve-3d; }
-.book-half { width: var(--bw); height: var(--bh); }
-.book-left { left: 0; transform-origin: 100% 50%; transform: rotateY(6deg); animation: book-cover var(--book-t) var(--book-at) both; }
-.book-right { left: var(--bw); }
-.book-page { left: var(--bw); top: 3%; width: calc(var(--bw) - 4%); height: 94%; transform-origin: 0 50%; }
-.book-page-1 { transform: rotateY(-178deg) translateZ(-1.5px); animation: book-page-1 var(--book-t) var(--book-at) both; }
-.book-page-2 { transform: translateZ(1.5px); animation: book-page-2 var(--book-t) var(--book-at) both; }
-.book-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
-.book-face.is-back, .book-cover, .book-back { transform: rotateY(180deg); }
-.book-inside {
-  display: flex; flex-direction: column; gap: 9%; padding: 14% 13%; overflow: hidden;
-  background: linear-gradient(90deg, #f2cfd4, #fff7f8 20%); border-radius: 2px 7px 7px 2px;
-  box-shadow: 0 6px 18px rgb(60 0 10 / 0.18);
-}
-/* Ліва сторона: корінець праворуч */
-.book-left .book-inside, .book-inside.is-back { background: linear-gradient(270deg, #f2cfd4, #fff7f8 20%); border-radius: 7px 2px 2px 7px; }
-.book-right .book-inside { box-shadow: 2px 3px 0 #f0c3c9, 4px 5px 0 #e4a9b1, 0 8px 22px rgb(60 0 10 / 0.22); }
-.book-page .book-inside { box-shadow: none; }
-.book-inside i { display: block; flex: none; height: 3px; width: 100%; border-radius: 2px; background: #f0b7bf; }
-.book-inside i.is-short { width: 58%; }
-.book-inside i.is-code { width: 72%; margin-left: 20%; background: #d6152f; opacity: 0.6; }
-.book-inside em { font: 800 calc(var(--bh) * 0.15)/1 ui-monospace, Consolas, monospace; font-style: normal; color: #d6152f; letter-spacing: 0.08em; }
-.book-cover, .book-back {
-  display: grid; place-items: center; align-content: center; gap: 10%;
-  background: #fff; border-radius: 2px 7px 7px 2px; box-shadow: 0 8px 22px rgb(60 0 10 / 0.25);
-  border-left: calc(var(--bw) * 0.14) solid #ffc9cf;
-}
-.book-back { border-radius: 7px 2px 2px 7px; border-left: 0; border-right: calc(var(--bw) * 0.14) solid #ffc9cf; }
-.book-cover b { font: 800 calc(var(--bh) * 0.2)/1 var(--display); color: #d6152f; letter-spacing: -0.06em; }
-.book-cover span { width: 46%; height: 3px; border-radius: 2px; background: #d6152f; opacity: 0.45; }
-
-/* Політ: окремо по горизонталі й вертикалі, різне згладжування дає дугу. Посередині книга сповільнюється */
-@keyframes book-x {
-  0% { left: -16%; animation-timing-function: cubic-bezier(0.25, 0.55, 0.35, 1); }
-  42% { left: var(--x1); animation-timing-function: linear; }
-  64% { left: var(--x2); animation-timing-function: cubic-bezier(0.6, 0, 0.85, 0.45); }
-  100% { left: 118%; }
-}
-@keyframes book-y {
-  0% { top: 96%; animation-timing-function: cubic-bezier(0.1, 0.75, 0.3, 1); }
-  42% { top: var(--y1); animation-timing-function: ease-in-out; }
-  64% { top: var(--y2); animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.5); }
-  100% { top: -18%; }
-}
-@keyframes book-spin {
-  0% { transform: rotateZ(-38deg) rotateX(30deg) rotateY(-26deg) scale(0.7); animation-timing-function: cubic-bezier(0.3, 0.6, 0.35, 1); }
-  42% { transform: rotateZ(-6deg) rotateX(14deg) rotateY(-8deg) scale(1.12); animation-timing-function: ease-in-out; }
-  64% { transform: rotateZ(5deg) rotateX(10deg) rotateY(6deg) scale(1.12); animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0.6); }
-  100% { transform: rotateZ(400deg) rotateX(34deg) rotateY(28deg) scale(0.72); }
-}
-/* Закрита обкладинка трохи над сторінками (translateZ після повороту дивиться до глядача) */
-@keyframes book-cover {
-  0%, 16% { transform: rotateY(180deg) translateZ(-4px); animation-timing-function: cubic-bezier(0.55, 0, 0.2, 1); }
-  36%, 57% { transform: rotateY(6deg) translateZ(0); animation-timing-function: cubic-bezier(0.6, 0, 0.3, 1); }
-  74%, 100% { transform: rotateY(180deg) translateZ(-4px); }
-}
-@keyframes book-page-1 {
-  0%, 21% { transform: rotateY(0) translateZ(2.5px); animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1); }
-  35%, 53% { transform: rotateY(-178deg) translateZ(-1.5px); animation-timing-function: cubic-bezier(0.5, 0, 0.3, 1); }
-  67%, 100% { transform: rotateY(0) translateZ(2.5px); }
-}
-@keyframes book-page-2 {
-  0%, 27% { transform: rotateY(0) translateZ(1.5px); animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1); }
-  41%, 49% { transform: rotateY(-176deg) translateZ(-2.5px); animation-timing-function: cubic-bezier(0.5, 0, 0.3, 1); }
-  63%, 100% { transform: rotateY(0) translateZ(1.5px); }
-}
+/* Тривимірна книга: полотно на всю панель над лого */
+.book3d { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.book3d canvas { display: block; width: 100%; height: 100%; }
 @media (prefers-reduced-motion: reduce) {
-  .bs-logo, .bs-word b, .bs-tail, .bs-tail > span, .bs-under > span, .bs-be, .bs-be-in,
-  .book-fly, .book-spin, .book-left, .book-page-1, .book-page-2 { animation: none; }
+  .bs-logo, .bs-word b, .bs-tail, .bs-tail > span, .bs-under > span, .bs-be, .bs-be-in { animation: none; }
 }
 .login-form { position: relative; justify-self: center; width: min(100%, 400px); padding: 24px 16px; display: flex; flex-direction: column; gap: 16px; }
 .login-form h1 { font: 700 28px/1.1 var(--display); letter-spacing: -0.03em; margin-bottom: 6px; }
@@ -1043,7 +965,6 @@ button.stop:active { transform: scale(0.94); }
   .login { grid-template-rows: none; grid-template-columns: minmax(0, 1.2fr) minmax(340px, 1fr); }
   .login-art { padding: 40px; }
   .bs-logo { font-size: clamp(50px, 6.8vw, 116px); }
-  .book-fly { --bw: 74px; --bh: 102px; --x1: 40%; --x2: 54%; --y1: 40%; --y2: 34%; }
   .login-form { align-self: center; padding: 32px 24px; }
   .login-form h1 { font-size: 30px; }
   .login-theme { top: 28px; right: 24px; }
