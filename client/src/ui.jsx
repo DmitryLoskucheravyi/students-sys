@@ -537,6 +537,13 @@ export function PageHead({ title, children }) {
  * Розділові знаки в кінці не входять у посилання.
  */
 const URL_RE = /((?:https?:\/\/|www\.)[^\s<>"']+[^\s<>"'.,;:!?)\]}])/gi;
+
+/** Перше посилання в тексті як готова адреса, або null. */
+export function firstUrl(text) {
+  const found = String(text ?? '').match(new RegExp(URL_RE.source, 'i'));
+  if (!found) return null;
+  return /^https?:\/\//i.test(found[0]) ? found[0] : `https://${found[0]}`;
+}
 export function Linkify({ text }) {
   if (!text) return null;
   const parts = String(text).split(URL_RE);

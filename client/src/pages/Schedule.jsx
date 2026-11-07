@@ -2,11 +2,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth, useIsMobile } from '../session.jsx';
-import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Segmented, Select, Status, TimePicker, Textarea, WeekdayPicker, useAction, useUI } from '../ui.jsx';
-import { IconBan, IconClock, IconClose, IconEdit, IconHomework, IconLeft, IconList, IconLesson, IconMove, IconOnce, IconPeople, IconPin, IconPlus, IconRepeat, IconRestore, IconRight, IconTick, IconTicket, IconUser } from '../icons.jsx';
+import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Linkify, Loader, firstUrl, Modal, PageHead, Segmented, Select, Status, TimePicker, Textarea, WeekdayPicker, useAction, useUI } from '../ui.jsx';
+import { IconBan, IconClock, IconClose, IconEdit, IconExternal, IconHomework, IconLeft, IconList, IconLesson, IconMove, IconOnce, IconPeople, IconPin, IconPlus, IconRepeat, IconRestore, IconRight, IconTick, IconTicket, IconUser } from '../icons.jsx';
 import { WEEKDAYS, addDays, dateTimeShort, mondayOf, money, nowLocal, parseDate, time, todayISO, weekTitle, weekdayDayMonth, weekdayOf } from '../fmt.js';
 
-const HOUR_PX = 56;
+// Висота години: блок на годину вміщує назву, час, вчителя й учнів.
+const HOUR_PX = 88;
 const DAY_MIN = 24 * 60;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const currentMinute = () => {
@@ -230,14 +231,26 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot }) {
               const to = s.ends_at.slice(0, 10) === d ? minutes(s.ends_at) : DAY_MIN;
               const top = Math.min((from / 60) * HOUR_PX, ((DAY_MIN / 60) * HOUR_PX) - (single ? 40 : 30));
               const height = Math.max(single ? 40 : 30, ((to - from) / 60) * HOUR_PX - 2);
+              // Посилання відкривається прямо з сітки; для скасованого заняття воно вже не потрібне.
+              const link = s.status !== 'cancelled' ? firstUrl(s.location) : null;
+              const names = s.students?.map((x) => x.name).join(', ');
               return (
-                <button key={s.id} type="button" className={`block ${blockClass(s)} ${height < 40 ? 'is-short' : ''}`}
-                  title={`${s.title}, ${time(s.starts_at)}–${time(s.ends_at)}`}
-                  style={{ top, height, left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}
-                  onClick={() => onOpen(s.id)}>
-                  <strong>{s.title}</strong>
-                  <small>{time(s.starts_at)}–{time(s.ends_at)}{isMoved(s) ? ', перенесено' : ''}{single && !isMoved(s) ? `, ${s.teacher_name ?? 'без вчителя'}` : ''}</small>
-                </button>
+                <div key={s.id} className={`block ${blockClass(s)} ${height < 40 ? 'is-short' : ''} ${link ? 'has-link' : ''}`}
+                  style={{ top, height, left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}>
+                  <button type="button" className="block-open" title={`${s.title}, ${time(s.starts_at)}–${time(s.ends_at)}`} onClick={() => onOpen(s.id)}>
+                    <strong>{s.title}</strong>
+                    <small>{time(s.starts_at)}–{time(s.ends_at)}{isMoved(s) ? ', перенесено' : ''}</small>
+                    <small className="block-meta" title="Вчитель"><IconUser size={13} /><span>{s.teacher_name ?? 'Без вчителя'}</span></small>
+                    {names !== undefined && (
+                      <small className="block-meta" title="Учні"><IconPeople size={13} /><span>{names || 'Без учнів'}</span></small>
+                    )}
+                  </button>
+                  {link && (
+                    <a className="block-link" href={link} target="_blank" rel="noopener noreferrer" aria-label={`Перейти за посиланням: ${s.title}`} title="Перейти за посиланням">
+                      <IconExternal size={15} />
+                    </a>
+                  )}
+                </div>
               );
             })}
             {d === today && <i className="now-line" style={{ top: (nowMin / 60) * HOUR_PX }} />}

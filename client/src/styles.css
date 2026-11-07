@@ -422,17 +422,32 @@ img { display: block; max-width: 100%; }
 .week-col:last-child { border-right: 1px solid var(--grid-strong); }
 .week-col.is-today { background-color: var(--red-soft); }
 .week-col.can-add { cursor: copy; }
+/* Заняття в сітці: уся картка відкриває деталі, окрема іконка веде за посиланням */
 .block {
   --ia: currentColor;
-  position: absolute; display: flex; flex-direction: column; text-align: left; overflow: hidden;
-  padding: 5px 7px; border-radius: 5px; font-size: 12.5px; line-height: 1.25;
+  position: absolute; overflow: hidden; border-radius: 6px; font-size: 12.5px; line-height: 1.25;
 }
-.block strong { flex: none; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
-.block small { flex: none; font-size: 11.5px; opacity: 0.95; }
-/* Два рядки не влазять: лишаємо назву, час є в підказці й у картці заняття */
-.block.is-short { justify-content: center; padding: 2px 7px; }
-.block.is-short strong { white-space: nowrap; }
+.block-open {
+  position: absolute; inset: 0; display: flex; flex-direction: column; gap: 2px; align-items: stretch;
+  padding: 6px 8px; text-align: left; color: inherit; min-width: 0;
+}
+.block-open:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; border-radius: 6px; }
+.block strong { flex: none; font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.block small { flex: none; font-size: 12px; opacity: 0.95; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.block.has-link strong { padding-right: 24px; }
+.block-meta { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.block-meta svg { flex: none; opacity: 0.85; }
+.block-meta span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.block-link {
+  position: absolute; top: 3px; right: 3px; z-index: 1; display: grid; place-items: center;
+  width: 26px; height: 26px; border-radius: 6px; color: inherit; background: rgb(255 255 255 / 0.16);
+}
+.block.is-once .block-link, .block.is-completed .block-link { background: var(--red-soft); color: var(--red); }
+.block-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+/* Два рядки не влазять: лишаємо назву, решта є в підказці й у картці заняття */
+.block.is-short .block-open { justify-content: center; padding: 2px 8px; }
 .block.is-short small { display: none; }
+.block.is-short .block-link { top: 50%; transform: translateY(-50%); width: 22px; height: 22px; }
 .block.is-weekly { background: var(--red-fill); color: #fff; }
 .block.is-once { background: var(--paper); color: var(--red); box-shadow: inset 0 0 0 2px var(--red); }
 .block.is-completed { background: var(--ok-soft); color: var(--ink); }
@@ -866,6 +881,8 @@ button.stop:active { transform: scale(0.94); }
   .row-link:hover h3, .course:hover h3 { color: var(--red); }
   .slot button:hover { opacity: 1; background: rgb(0 0 0 / 0.16); }
   .block.is-weekly:hover { background: var(--red-hover); }
+  .block-link:hover { background: rgb(255 255 255 / 0.32); }
+  .block.is-once .block-link:hover, .block.is-completed .block-link:hover { background: var(--red-fill); color: #fff; }
   .block.is-once:hover { background: var(--red-soft); }
   .block.is-completed:hover { background: var(--grid-strong); }
   .summary-next:not(:disabled):hover { background: var(--red-hover); }

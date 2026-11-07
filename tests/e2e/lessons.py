@@ -118,7 +118,7 @@ with sync_playwright() as pw:
     m.goto(BASE); m.wait_for_load_state("networkidle")
     if next_week.isocalendar()[1] != today.isocalendar()[1]:
         m.get_by_label("Наступний тиждень").click(); m.wait_for_load_state("networkidle")
-    m.evaluate(f"document.querySelector('.week').scrollTop = 16 * 56")
+    m.evaluate(f"document.querySelector('.week').scrollTop = 16 * 88")
     m.locator(".week-col").nth(0).locator(".block", has_text="Шаблон-урок").first.click(); m.wait_for_selector(".sheet")
     m.get_by_role("button", name="Змінити місце").click()
     field = m.get_by_label("Місце або посилання")
@@ -130,6 +130,30 @@ with sync_playwright() as pw:
     m.get_by_role("button", name="Змінити місце").click(); m.get_by_label("Місце або посилання").fill("щось інше"); m.get_by_label("Місце або посилання").press("Escape")
     check("Esc скасовує без збереження", "zoom.us/j/999" in m.locator(".facts").inner_text() and m.locator(".modal").count() == 1)
     m.get_by_label("Закрити").click()
+    # Картка в сітці: більша година, вчитель, учні, перехід за посиланням без відкриття картки
+    m.wait_for_selector(".modal", state="detached")
+    blk = m.locator(".week-col").nth(0).locator(".block", has_text="Шаблон-урок").first
+    hour = m.evaluate("getComputedStyle(document.querySelector('.week')).getPropertyValue('--hour').trim()")
+    check("година в сітці 88 px", hour == "88px", hour)
+    check("у картці видно вчителя", "Склад Вчитель" in blk.locator(".block-meta").first.inner_text())
+    check("у картці видно учнів", "Аня Перша" in blk.inner_text() and "Богдан Другий" in blk.inner_text())
+    lnk = blk.locator("a.block-link")
+    check("іконка переходу веде на посилання цього заняття", lnk.get_attribute("href") == "https://zoom.us/j/999?pwd=abc" and lnk.get_attribute("target") == "_blank" and "noopener" in lnk.get_attribute("rel"))
+    with m.context.expect_page() as popup:
+        lnk.click()
+    popup.value.close()
+    check("клік по іконці відкриває посилання, а не картку заняття", m.locator(".modal").count() == 0)
+    bb = blk.bounding_box(); check("картка на годину вміщує 4 рядки", bb["height"] >= 80, str(bb))
+    blk.screenshot(path=str(OUT / "block-card.png"))
+    m.screenshot(path=str(OUT / "week-big-blocks.png"))
+    ap.goto(BASE); ap.wait_for_load_state("networkidle")
+    if next_week.isocalendar()[1] != today.isocalendar()[1]:
+        ap.get_by_label("Наступний тиждень").click(); ap.wait_for_load_state("networkidle")
+    sblk = ap.locator(".block", has_text="Шаблон-урок").first
+    expect(sblk).to_be_attached()
+    check("учень бачить вчителя, але не склад групи", "Склад Вчитель" in sblk.inner_text() and "Богдан" not in sblk.inner_text() and sblk.locator(".block-meta").count() == 1)
+    check("учень бачить іконку переходу до свого заняття", sblk.locator("a.block-link").count() >= 1)
+
     loc = lambda sid: api(mc, "GET", f"/sessions/{sid}").json()["location"]
     check("змінилось лише це заняття", loc(first["id"]) == "https://zoom.us/j/999?pwd=abc" and loc(second["id"]) == "https://zoom.us/j/555 кабінет 3", f"{loc(first['id'])} | {loc(second['id'])}")
     check("урок-шаблон не змінився", next(l for l in api(mc, "GET", "/lessons").json() if l["id"] == lesson["id"])["location"] == "https://zoom.us/j/555 кабінет 3")

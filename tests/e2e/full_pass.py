@@ -59,10 +59,10 @@ with sync_playwright() as pw:
     labels = m.locator(".week-hours span").all_inner_texts()
     check("сітка містить 24 години 00:00-23:00", labels == [f"{h:02d}:00" for h in range(24)], f"{labels[:2]}..{labels[-1:]}")
     h = m.evaluate("document.querySelector('.week-body').getBoundingClientRect().height")
-    check("висота сітки 24 × 56 px", h == 24 * 56, str(h))
+    check("висота сітки 24 × 88 px", h == 24 * 88, str(h))
     if today.weekday() >= 0:
         st = m.evaluate("document.querySelector('.week').scrollTop")
-        exp = max(0, (now.hour + now.minute / 60 - 1)) * 56
+        exp = max(0, (now.hour + now.minute / 60 - 1)) * 88
         maxs = m.evaluate("(()=>{const w=document.querySelector('.week');return w.scrollHeight-w.clientHeight})()")
         check("сітка відкривається на поточному часі", abs(st - min(exp, maxs)) < 60, f"{st} vs {exp}")
     check("лінія поточного часу видима в сітці", m.locator(".now-line").count() == 1)
@@ -80,17 +80,17 @@ with sync_playwright() as pw:
     check("висота блока через північ додатна", head.evaluate("e=>e.getBoundingClientRect().height") >= 26 and tail.evaluate("e=>e.getBoundingClientRect().height") >= 54)
     squash = head.evaluate("e => { const r = e.querySelector('strong').getBoundingClientRect(); const b = e.getBoundingClientRect(); return { h: r.height, inside: r.top >= b.top && r.bottom <= b.bottom }; }")
     check("назва короткого блока читається, не сплющена", squash["h"] >= 14 and squash["inside"], str(squash))
-    check("блок не вилазить за низ доби", head.evaluate("e=>parseFloat(e.style.top)+e.getBoundingClientRect().height") <= 24 * 56 + 1)
+    check("блок не вилазить за низ доби", head.evaluate("e=>parseFloat(e.style.top)+e.getBoundingClientRect().height") <= 24 * 88 + 1)
     # Клік по порожній клітинці в різні години
     m.evaluate("document.querySelector('.week').scrollTop = 0")
     col = m.locator(".week-col").nth(4); bx = col.bounding_box()
-    m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + 56 * 3 + 5)
+    m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + 88 * 3 + 5)
     expect(m.locator(".modal")).to_be_visible()
     expect(m.get_by_label("Час", exact=True)).to_contain_text("03:00"); check("клік по клітинці 03:xx підставляє 03:00", True)
     m.get_by_label("Закрити").click()
     m.evaluate("(()=>{const w=document.querySelector('.week');w.scrollTop=w.scrollHeight})()"); m.wait_for_timeout(100)
     bx = col.bounding_box()
-    m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + 56 * 23 + 40)
+    m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + 88 * 23 + 40)
     expect(m.get_by_label("Час", exact=True)).to_contain_text("23:00"); check("остання клітинка підставляє 23:00", True)
     m.get_by_label("Закрити").click()
     head_top = m.evaluate("document.querySelector('.week-head').getBoundingClientRect().top - document.querySelector('.week').getBoundingClientRect().top")
