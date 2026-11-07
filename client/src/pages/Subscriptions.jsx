@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, useData } from '../api.js';
-import { Button, DatePicker, Empty, ErrorNote, Input, Loader, Modal, PageHead, Segmented, Select, Status, Stepper, useAction } from '../ui.jsx';
-import { IconEdit, IconList, IconPlus, IconTicket } from '../icons.jsx';
+import { Button, DatePicker, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageHead, Segmented, Select, Status, Stepper, useAction, useUI } from '../ui.jsx';
+import { IconClose, IconEdit, IconList, IconMinus, IconPlus, IconTicket } from '../icons.jsx';
 import { addDays, dateTimeShort, lessonsWord, money, shortDate, todayISO } from '../fmt.js';
 
 export const subState = (s) => {
@@ -18,6 +18,7 @@ export default function Subscriptions() {
   const [issuing, setIssuing] = useState(false);
   const [editingSub, setEditingSub] = useState(null);
   const [history, setHistory] = useState(null);
+  const [writingOff, setWritingOff] = useState(null);
   const [editingPlan, setEditingPlan] = useState(null);
 
   return (
@@ -50,6 +51,7 @@ export default function Subscriptions() {
                     <div className="sub-price"><strong>{money(s.price_per_lesson)}</strong><small>за заняття</small></div>
                     <Status kind={kind}>{text}</Status>
                     <div className="row-actions">
+                      <Button variant="ghost" small icon={<IconMinus size={16} />} disabled={s.lessons_left <= 0} onClick={() => setWritingOff(s)}>Списати</Button>
                       <Button variant="ghost" small icon={<IconList size={16} />} onClick={() => setHistory(s)}>Списання</Button>
                       <Button variant="ghost" small icon={<IconEdit size={16} />} onClick={() => setEditingSub(s)}>Змінити</Button>
                     </div>
@@ -88,7 +90,8 @@ export default function Subscriptions() {
 
       {issuing && <IssueForm onClose={() => setIssuing(false)} onDone={() => { setIssuing(false); subs.reload(); plans.reload(); }} />}
       {editingSub && <SubForm sub={editingSub} onClose={() => setEditingSub(null)} onDone={() => { setEditingSub(null); subs.reload(); }} />}
-      {history && <ChargesModal sub={history} onClose={() => setHistory(null)} />}
+      {history && <ChargesModal sub={history} canUndo onChange={subs.reload} onClose={() => setHistory(null)} />}
+      {writingOff && <WriteoffForm sub={writingOff} onClose={() => setWritingOff(null)} onDone={() => { setWritingOff(null); subs.reload(); }} />}
       {editingPlan && <PlanForm plan={editingPlan} onClose={() => setEditingPlan(null)} onDone={() => { setEditingPlan(null); plans.reload(); }} />}
     </>
   );
@@ -194,8 +197,47 @@ function SubForm({ sub, onClose, onDone }) {
   );
 }
 
-export function ChargesModal({ sub, onClose }) {
+/* Ручне списання: учень займався, але заняття немає в розкладі */
+function WriteoffForm({ sub, onClose, onDone }) {
+  const [lessons, setLessons] = useState(1);
+  const [date, setDate] = useState(todayISO());
+  const [note, setNote] = useState('');
+  const [run, busy] = useAction();
+  const submit = async (e) => {
+    e.preventDefault();
+    const ok = await run(() => api(`/subscriptions/${sub.id}/writeoffs`, { method: 'POST', body: { lessons: Number(lessons), date, note } }), 'Уроки списано');
+    if (ok) onDone();
+  };
+  return (
+    <Modal narrow title={`Списати: ${sub.student_name}`} onClose={onClose}>
+      <form className="form" onSubmit={submit}>
+        <p className="muted small">{sub.name}: лишилось {lessonsWord(sub.lessons_left)}, {money(sub.price_per_lesson)} за заняття.</p>
+        <div className="form-row">
+          <Stepper label="Уроків" value={lessons} onChange={setLessons} min={1} max={sub.lessons_left} />
+          <DatePicker label="Дата" value={date} onChange={setDate} />
+        </div>
+        <Input label="Коментар" placeholder="Наприклад, заняття поза розкладом" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} />
+        <p className="total">Спишеться <strong>{money(Number(lessons) * sub.price_per_lesson)}</strong></p>
+        <div className="form-actions">
+          <Button variant="ghost" onClick={onClose}>Назад</Button>
+          <Button type="submit" busy={busy} disabled={!(Number(lessons) >= 1)}>Списати</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export function ChargesModal({ sub, onClose, canUndo, onChange }) {
   const { data, error, reload } = useData(`/subscriptions/${sub.id}/charges`);
+  const [run] = useAction();
+  const { confirm } = useUI();
+  const undo = async (c) => {
+    const yes = await confirm({ title: 'Скасувати списання?', text: `${lessonsWord(c.lessons)} повернуться на абонемент.`, action: 'Скасувати списання', danger: true });
+    if (yes && (await run(() => api(`/subscriptions/${sub.id}/writeoffs/${c.writeoff_id}`, { method: 'DELETE' }), 'Уроки повернуто'))) {
+      reload();
+      onChange?.();
+    }
+  };
   return (
     <Modal side title={`Списання: ${sub.name}`} onClose={onClose}>
       {error && <ErrorNote text={error} onRetry={reload} />}
@@ -205,9 +247,15 @@ export function ChargesModal({ sub, onClose }) {
         <>
           <ul className="charges">
             {data.map((c) => (
-              <li key={c.session_id}>
-                <span><strong>{c.title}</strong><small>{dateTimeShort(c.starts_at)}</small></span>
-                <span>{money(c.price_charged)}</span>
+              <li key={c.key}>
+                <span>
+                  <strong>{c.title}</strong>
+                  <small>{c.kind === 'manual' ? `${shortDate(c.date)}, вручну, ${lessonsWord(c.lessons)}` : dateTimeShort(c.starts_at)}</small>
+                </span>
+                <span className="charge-amount">
+                  {money(c.price_charged)}
+                  {canUndo && c.kind === 'manual' && <IconButton label="Скасувати списання" onClick={() => undo(c)}><IconClose size={16} /></IconButton>}
+                </span>
               </li>
             ))}
           </ul>

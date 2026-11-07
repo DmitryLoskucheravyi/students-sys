@@ -4,7 +4,7 @@ import { api, useData } from '../api.js';
 import { useAuth, useIsMobile } from '../session.jsx';
 import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Linkify, Loader, firstUrl, Modal, PageHead, Segmented, Select, Status, TimePicker, Textarea, WeekdayPicker, useAction, useUI } from '../ui.jsx';
 import { IconBan, IconClock, IconClose, IconEdit, IconExternal, IconHomework, IconLeft, IconList, IconLesson, IconMove, IconOnce, IconPeople, IconPin, IconPlus, IconRepeat, IconRestore, IconRight, IconTick, IconTicket, IconUser } from '../icons.jsx';
-import { WEEKDAYS, addDays, dateTimeShort, mondayOf, money, nowLocal, parseDate, time, todayISO, weekTitle, weekdayDayMonth, weekdayOf } from '../fmt.js';
+import { WEEKDAYS, addDays, dateTimeShort, mondayOf, money, nowLocal, parseDate, shortDate, time, todayISO, weekTitle, weekdayDayMonth, weekdayOf } from '../fmt.js';
 
 // Висота години: блок на годину вміщує назву, час, вчителя й учнів.
 const HOUR_PX = 88;
@@ -448,24 +448,55 @@ function FormActions({ onCancel, action, busy }) {
   );
 }
 
+const NO_CHARGE = 'none';
+
+/**
+ * Хто був і з якого абонемента списати. Спершу пропонується абонемент, що діє на дату заняття;
+ * якщо такого немає, той, що почнеться пізніше: так вносять заняття заднім числом.
+ */
 function CompleteForm({ session, onCancel, onDone }) {
+  const options = session.charge_options ?? {};
   const [present, setPresent] = useState(session.students.map((s) => s.id));
+  const [charges, setCharges] = useState(() => Object.fromEntries(
+    session.students.map((s) => [s.id, options[s.id]?.[0]?.id ?? NO_CHARGE])
+  ));
   const [run, busy] = useAction();
   const submit = async (e) => {
     e.preventDefault();
-    const r = await run(() => api(`/sessions/${session.id}/complete`, { method: 'POST', body: { attended_ids: present } }), 'Заняття проведено');
+    const body = {
+      attended_ids: present,
+      charges: Object.fromEntries(present.map((sid) => [sid, charges[sid] === NO_CHARGE ? null : charges[sid]])),
+    };
+    const r = await run(() => api(`/sessions/${session.id}/complete`, { method: 'POST', body }), 'Заняття проведено');
     if (r) onDone(r.no_subscription);
   };
+  const subLabel = (o) => `${o.name}: ${money(o.price_per_lesson)}, лишилось ${o.lessons_left}`;
   return (
     <form className="sheet-form" onSubmit={submit}>
       <h3>Хто був на занятті</h3>
-      <div className="check-list">
-        {session.students.map((s) => (
-          <Checkbox key={s.id} checked={present.includes(s.id)}
-            onChange={(on) => setPresent(on ? [...present, s.id] : present.filter((x) => x !== s.id))}>{s.name}</Checkbox>
-        ))}
+      <div className="attend-list">
+        {session.students.map((s) => {
+          const subs = options[s.id] ?? [];
+          const chosen = subs.find((o) => o.id === charges[s.id]);
+          return (
+            <div key={s.id} className="attend-row">
+              <Checkbox checked={present.includes(s.id)}
+                onChange={(on) => setPresent(on ? [...present, s.id] : present.filter((x) => x !== s.id))}>{s.name}</Checkbox>
+              {present.includes(s.id) && (
+                <>
+                  <Select compact label="Абонемент" value={charges[s.id]} onChange={(v) => setCharges({ ...charges, [s.id]: v })}
+                    options={[
+                      ...subs.map((o) => ({ value: o.id, label: subLabel(o), hint: o.covers ? `до ${shortDate(o.expires_on)}` : `діє з ${shortDate(o.starts_on)}: заняття раніше` })),
+                      { value: NO_CHARGE, label: 'Без списання' },
+                    ]} />
+                  {chosen && !chosen.covers && <small className="attend-note">Абонемент почнеться {shortDate(chosen.starts_on)}, але урок спишеться з нього.</small>}
+                  {!subs.length && <small className="attend-note">Немає чинного абонемента з вільними уроками.</small>}
+                </>
+              )}
+            </div>
+          );
+        })}
       </div>
-      <p className="muted small">Присутнім спишеться один урок з абонемента.</p>
       <FormActions onCancel={onCancel} action="Підтвердити" busy={busy} />
     </form>
   );

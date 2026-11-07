@@ -149,8 +149,31 @@ sessionsRouter.get('/:id', async (req, res) => {
             WHERE r.session_id=? AND r.status='pending' ORDER BY r.id`,
           [sessionId]
         );
+  // Для проведення: з яких абонементів можна списати урок кожному учневі.
+  if (req.user.role !== 'student' && session.status === 'scheduled' && session.students.length) {
+    const date = session.starts_at.slice(0, 10);
+    const subs = await chargeable(session.students.map((st) => st.id), date);
+    session.charge_options = Object.fromEntries(session.students.map((st) => [st.id, subs.filter((x) => x.student_id === st.id)]));
+  }
   res.json(session);
 });
+
+/**
+ * Абонементи, з яких можна списати урок за заняття в `date`: чинні, з вільними уроками, не прострочені на ту дату.
+ * Спершу ті, що діють на дату заняття; далі ті, що починаються пізніше (заняття вносять заднім числом).
+ */
+async function chargeable(studentIds, date, conn = q, lock = false) {
+  if (!studentIds.length) return [];
+  const rows = await conn(
+    `SELECT id, student_id, name, price_per_lesson, starts_on, expires_on, lessons_total - lessons_used AS lessons_left,
+            (starts_on <= ?) AS covers
+       FROM subscriptions
+      WHERE student_id IN (?) AND status = 'active' AND lessons_used < lessons_total AND expires_on >= ?
+      ORDER BY covers DESC, expires_on, id ${lock ? 'FOR UPDATE' : ''}`,
+    [date, studentIds, date]
+  );
+  return rows.map((r) => ({ ...r, covers: Boolean(r.covers) }));
+}
 
 /* Дії: кожна окремою функцією, бо їх викликають і вчитель, і схвалення запиту учня */
 async function applyCancel(session, reason, t) {
@@ -219,10 +242,22 @@ sessionsRouter.patch('/:id/location', requireRole('manager', 'teacher'), async (
   res.json({ ok: true });
 });
 
-/** Проводить заняття і списує урок із абонементів присутніх за їхньою поточною ціною. */
+/** Явний вибір абонемента: { [id учня]: id абонемента або null, тобто без списання }. */
+function parseCharges(raw) {
+  if (raw == null) return new Map();
+  if (typeof raw !== 'object' || Array.isArray(raw)) throw bad('«Абонементи»: некоректне значення');
+  return new Map(Object.entries(raw).map(([studentId, subId]) => [id(studentId, 'Учень'), subId == null || subId === 0 ? null : id(subId, 'Абонемент')]));
+}
+
+/**
+ * Проводить заняття і списує урок із абонементів присутніх за їхньою поточною ціною.
+ * Без явного вибору списується абонемент, що діє на дату заняття. Явно можна обрати й той,
+ * що почнеться пізніше: так вносять заняття заднім числом.
+ */
 sessionsRouter.post('/:id/complete', requireRole('manager', 'teacher'), async (req, res) => {
   const sessionId = id(req.params.id);
   const attended = new Set(idList(req.body?.attended_ids ?? [], 'Присутні'));
+  const charges = parseCharges(req.body?.charges);
   const warnings = [];
   await tx(async (t) => {
     const [s] = await t(
@@ -245,19 +280,22 @@ sessionsRouter.post('/:id/complete', requireRole('manager', 'teacher'), async (r
       let subId = null;
       let price = null;
       if (present) {
-        const [sub] = await t(
-          `SELECT id, price_per_lesson FROM subscriptions
-            WHERE student_id=? AND status='active' AND lessons_used < lessons_total
-              AND starts_on <= ? AND expires_on >= ?
-            ORDER BY expires_on, id LIMIT 1 FOR UPDATE`,
-          [student.id, sessionDate, sessionDate]
-        );
+        const options = await chargeable([student.id], sessionDate, t, true);
+        let sub = null;
+        if (charges.has(student.id)) {
+          const chosen = charges.get(student.id);
+          if (chosen !== null) {
+            sub = options.find((o) => o.id === chosen);
+            if (!sub) throw bad(`Абонемент для ${student.name} не підходить: він закінчився, використаний або чужий`);
+          }
+        } else {
+          sub = options.find((o) => o.covers) ?? null;
+          if (!sub) warnings.push(student.name);
+        }
         if (sub) {
           subId = sub.id;
           price = sub.price_per_lesson;
           await t('UPDATE subscriptions SET lessons_used = lessons_used + 1 WHERE id=?', [sub.id]);
-        } else {
-          warnings.push(student.name);
         }
       }
       await t(

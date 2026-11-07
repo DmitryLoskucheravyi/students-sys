@@ -20,11 +20,17 @@ statsRouter.get('/', async (req, res) => {
        FROM subscriptions WHERE created_at >= ? AND created_at < ?`,
     range
   );
+  // Відпрацьовано: списання за проведені заняття плюс ручні списання з абонементів.
   const [earned] = await q(
-    `SELECT COALESCE(SUM(a.price_charged), 0) AS amount, COUNT(*) AS lessons
-       FROM attendance a JOIN lesson_sessions se ON se.id = a.session_id
-      WHERE a.attended = 1 AND a.price_charged IS NOT NULL AND se.starts_at >= ? AND se.starts_at < ?`,
-    range
+    `SELECT COALESCE(SUM(amount), 0) AS amount, COALESCE(SUM(lessons), 0) AS lessons FROM (
+       SELECT a.price_charged AS amount, 1 AS lessons
+         FROM attendance a JOIN lesson_sessions se ON se.id = a.session_id
+        WHERE a.attended = 1 AND a.price_charged IS NOT NULL AND se.starts_at >= ? AND se.starts_at < ?
+       UNION ALL
+       SELECT w.lessons * w.price_per_lesson, w.lessons
+         FROM subscription_writeoffs w WHERE w.done_on >= ? AND w.done_on < ?
+     ) x`,
+    [...range, from, addDays(to, 1)]
   );
   const [sessions] = await q(
     `SELECT COALESCE(SUM(status = 'completed'), 0) AS completed,
@@ -59,7 +65,9 @@ statsRouter.get('/', async (req, res) => {
             COALESCE((SELECT SUM(s.lessons_total * s.price_per_lesson) FROM subscriptions s
                        WHERE DATE_FORMAT(s.created_at, '%Y-%m') = m.month), 0) AS sold,
             COALESCE((SELECT SUM(a.price_charged) FROM attendance a JOIN lesson_sessions se ON se.id = a.session_id
-                       WHERE a.attended = 1 AND DATE_FORMAT(se.starts_at, '%Y-%m') = m.month), 0) AS earned,
+                       WHERE a.attended = 1 AND DATE_FORMAT(se.starts_at, '%Y-%m') = m.month), 0)
+          + COALESCE((SELECT SUM(w.lessons * w.price_per_lesson) FROM subscription_writeoffs w
+                       WHERE DATE_FORMAT(w.done_on, '%Y-%m') = m.month), 0) AS earned,
             COALESCE((SELECT COUNT(*) FROM lesson_sessions se WHERE se.status = 'completed'
                        AND DATE_FORMAT(se.starts_at, '%Y-%m') = m.month), 0) AS completed,
             COALESCE((SELECT COUNT(*) FROM lesson_sessions se WHERE se.status = 'cancelled'

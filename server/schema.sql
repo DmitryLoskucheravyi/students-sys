@@ -92,6 +92,21 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   INDEX idx_subs_student (student_id, status, expires_on)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Ручне списання уроків з абонемента: без заняття в розкладі. Ціна фіксується в момент списання.
+CREATE TABLE IF NOT EXISTS subscription_writeoffs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  subscription_id INT NOT NULL,
+  lessons INT NOT NULL,
+  price_per_lesson DECIMAL(10,2) NOT NULL,
+  done_on DATE NOT NULL,
+  note VARCHAR(300) NULL,
+  created_by INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_writeoffs_date (done_on)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Урок — шаблон: назва, курс, тривалість, місце. Хто веде, хто вчиться і коли — у lesson_schedules.
 -- teacher_id і lesson_students лишилися від старої моделі: з них переноситься склад під час міграції.
 CREATE TABLE IF NOT EXISTS lessons (

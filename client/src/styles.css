@@ -505,6 +505,11 @@ img { display: block; max-width: 100%; }
 .sheet-when { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .sheet-when strong { font-weight: 600; font-size: 16px; }
 .sheet h3 { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14.5px; margin-bottom: 8px; }
+.charge-amount { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+.attend-list { display: flex; flex-direction: column; gap: 12px; }
+.attend-row { display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.attend-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.attend-note { color: var(--red); font-size: 12.5px; }
 .place-view { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
 .place-view > span { flex: 1; min-width: 0; padding-top: 2px; overflow-wrap: anywhere; }
 .place-view .icon-btn { flex: none; margin: -8px -8px -8px 0; }

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { q } from '../db.js';
+import { q, tx } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { addDays, bad, forbidden, id, int, isoDate, money, notFound, str, today } from '../lib.js';
 
@@ -67,22 +67,69 @@ subscriptionsRouter.get('/', async (req, res) => {
   res.json(rows);
 });
 
+// Історія: проведені заняття й ручні списання разом, від нових до старих.
 subscriptionsRouter.get('/:id/charges', async (req, res) => {
   const subId = id(req.params.id);
   const [sub] = await q('SELECT student_id FROM subscriptions WHERE id=?', [subId]);
   if (!sub) throw notFound();
   const { role, id: me } = req.user;
   if (role === 'teacher' || (role === 'student' && sub.student_id !== me)) throw forbidden();
-  res.json(
-    await q(
-      `SELECT a.session_id, a.price_charged, se.starts_at, l.title
-         FROM attendance a
-         JOIN lesson_sessions se ON se.id = a.session_id
-         JOIN lessons l ON l.id = se.lesson_id
-        WHERE a.subscription_id = ? ORDER BY se.starts_at DESC`,
-      [subId]
-    )
+  const sessions = await q(
+    `SELECT a.session_id, a.price_charged, se.starts_at, l.title
+       FROM attendance a
+       JOIN lesson_sessions se ON se.id = a.session_id
+       JOIN lessons l ON l.id = se.lesson_id
+      WHERE a.subscription_id = ?`,
+    [subId]
   );
+  const manual = await q(
+    `SELECT id, lessons, price_per_lesson, done_on, note FROM subscription_writeoffs WHERE subscription_id = ?`,
+    [subId]
+  );
+  res.json(
+    [
+      ...sessions.map((s) => ({
+        key: `s${s.session_id}`, kind: 'session', session_id: s.session_id, title: s.title,
+        starts_at: s.starts_at, date: s.starts_at, lessons: 1, price_charged: s.price_charged,
+      })),
+      ...manual.map((w) => ({
+        key: `w${w.id}`, kind: 'manual', writeoff_id: w.id, title: w.note || 'Списано вручну', note: w.note,
+        date: `${w.done_on} 00:00:00`, lessons: w.lessons, price_charged: Math.round(w.lessons * w.price_per_lesson * 100) / 100,
+      })),
+    ].sort((a, b) => b.date.localeCompare(a.date))
+  );
+});
+
+/** Ручне списання: учень займався, але заняття немає в розкладі. Ціна береться з абонемента зараз. */
+subscriptionsRouter.post('/:id/writeoffs', requireRole('manager'), async (req, res) => {
+  const subId = id(req.params.id);
+  const lessons = int(req.body?.lessons ?? 1, 'Уроків', { min: 1, max: 500 });
+  const doneOn = req.body?.date ? isoDate(req.body.date, 'Дата') : today();
+  const note = str(req.body?.note, 'Коментар', { max: 300, required: false });
+  await tx(async (t) => {
+    const [sub] = await t('SELECT * FROM subscriptions WHERE id=? FOR UPDATE', [subId]);
+    if (!sub) throw notFound('Абонемент не знайдено');
+    const left = sub.lessons_total - sub.lessons_used;
+    if (lessons > left) throw bad(left ? `На абонементі лишилось лише ${left}` : 'На абонементі не лишилось уроків');
+    await t('UPDATE subscriptions SET lessons_used = lessons_used + ? WHERE id=?', [lessons, subId]);
+    await t('INSERT INTO subscription_writeoffs SET ?', [{
+      subscription_id: subId, lessons, price_per_lesson: sub.price_per_lesson, done_on: doneOn, note, created_by: req.user.id,
+    }]);
+  });
+  res.status(201).json((await q(`${SUB_SELECT} WHERE s.id=?`, [subId]))[0]);
+});
+
+// Скасування ручного списання повертає уроки на абонемент.
+subscriptionsRouter.delete('/:id/writeoffs/:writeoffId', requireRole('manager'), async (req, res) => {
+  const subId = id(req.params.id);
+  const writeoffId = id(req.params.writeoffId);
+  await tx(async (t) => {
+    const [w] = await t('SELECT lessons FROM subscription_writeoffs WHERE id=? AND subscription_id=? FOR UPDATE', [writeoffId, subId]);
+    if (!w) throw notFound('Списання не знайдено');
+    await t('UPDATE subscriptions SET lessons_used = GREATEST(lessons_used - ?, 0) WHERE id=?', [w.lessons, subId]);
+    await t('DELETE FROM subscription_writeoffs WHERE id=?', [writeoffId]);
+  });
+  res.json((await q(`${SUB_SELECT} WHERE s.id=?`, [subId]))[0]);
 });
 
 subscriptionsRouter.post('/', requireRole('manager'), async (req, res) => {

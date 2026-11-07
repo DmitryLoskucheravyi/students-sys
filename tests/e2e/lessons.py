@@ -226,6 +226,83 @@ with sync_playwright() as pw:
     check("6 місяців у динаміці, поточний останній", len(after["monthly"]) == 6 and after["monthly"][-1]["month"] == str(today)[:7] and cur_month[0]["sold"] >= 800)
     check("невалідний проміжок відхилено", api(mc, "GET", "/stats?from=2026-05-01&to=2026-01-01").status == 400 and api(mc, "GET", "/stats?from=abc").status == 400)
 
+    # 11б. Заняття заднім числом: абонемент починається пізніше за заняття
+    cara = mk("student", "Кіра Минула", "carastud")
+    late_plan = api(mc, "POST", "/plans", data={"name": "starter 3.0", "lessons_count": 8, "price_per_lesson": 300, "valid_days": 60}).json()["id"]
+    start_on = today + dt.timedelta(days=5)
+    late_sub = api(mc, "POST", "/subscriptions", data={"student_id": cara, "plan_id": late_plan, "starts_on": str(start_on)}).json()
+    old_day = today - dt.timedelta(days=3)
+    back = api(mc, "POST", "/schedules", data={"lesson_id": other, "kind": "once", "date": str(old_day), "time": "08:00", "student_ids": [cara]}).json()
+    opts = api(mc, "GET", f"/sessions/{back['session_id']}").json()["charge_options"][str(cara)]
+    check("пропонується абонемент, що почнеться пізніше", len(opts) == 1 and opts[0]["id"] == late_sub["id"] and opts[0]["covers"] is False, str(opts))
+    auto = api(mc, "POST", f"/sessions/{back['session_id']}/complete", data={"attended_ids": [cara]}).json()
+    check("без вибору: попередження, як і раніше", auto.get("no_subscription") == ["Кіра Минула"], str(auto))
+    api(mc, "POST", f"/sessions/{back['session_id']}/reopen", data={})
+    # через UI: форма сама підставляє абонемент і пояснює
+    old_week = old_day - dt.timedelta(days=old_day.weekday())
+    m.goto(BASE); m.wait_for_load_state("networkidle")
+    if old_week < today - dt.timedelta(days=today.weekday()):
+        m.get_by_label("Попередній тиждень").click(); m.wait_for_load_state("networkidle")
+    m.evaluate("document.querySelector('.week').scrollTop = 7 * 88")
+    m.locator(".block", has_text="Збіг").filter(has_text="08:00").first.click(); m.wait_for_selector(".sheet")
+    m.get_by_role("button", name="Провести").click()
+    expect(m.locator(".attend-note")).to_contain_text("почнеться"); check("форма пояснює, що абонемент почнеться пізніше", True)
+    m.screenshot(path=str(OUT / "complete-backdated.png"))
+    m.locator(".sheet-form").get_by_role("button", name="Підтвердити").click(); toast(m, "Заняття проведено")
+    check("помилки про відсутній абонемент немає", m.locator(".toast", has_text="Без активного").count() == 0)
+    done = api(mc, "GET", f"/sessions/{back['session_id']}").json()
+    used = next(s for s in api(mc, "GET", f"/subscriptions?student_id={cara}").json() if s["id"] == late_sub["id"])["lessons_used"]
+    check("урок списано з абонемента за 300 ₴", done["students"][0]["price_charged"] == 300 and used == 1, str(done["students"]))
+    m.get_by_label("Закрити").click()
+    api(mc, "POST", f"/sessions/{back['session_id']}/reopen", data={})
+    check("скасування проведення повертає урок", next(s for s in api(mc, "GET", f"/subscriptions?student_id={cara}").json() if s["id"] == late_sub["id"])["lessons_used"] == 0)
+    r = api(mc, "POST", f"/sessions/{back['session_id']}/complete", data={"attended_ids": [cara], "charges": {str(cara): None}})
+    check("можна провести без списання", r.ok and api(mc, "GET", f"/sessions/{back['session_id']}").json()["students"][0]["price_charged"] is None)
+    api(mc, "POST", f"/sessions/{back['session_id']}/reopen", data={})
+    ann_sub = next(s for s in api(mc, "GET", f"/subscriptions?student_id={ann}").json())["id"]
+    bad_charges = [api(mc, "POST", f"/sessions/{back['session_id']}/complete", data={"attended_ids": [cara], "charges": c}).status
+                   for c in ({str(cara): ann_sub}, {str(cara): 999999}, {str(cara): "x"}, ["x"])]
+    check("чужий, неіснуючий чи битий абонемент відхилено", all(s == 400 for s in bad_charges) and api(mc, "GET", f"/sessions/{back['session_id']}").json()["status"] == "scheduled", str(bad_charges))
+
+    # 11в. Ручне списання з абонемента без розкладу й проведення
+    subs_of = lambda: next(s for s in api(mc, "GET", f"/subscriptions?student_id={cara}").json() if s["id"] == late_sub["id"])
+    stats_before = api(mc, "GET", f"/stats?from={today}&to={today}").json()["earned"]
+    m.goto(f"{BASE}/subscriptions"); m.wait_for_load_state("networkidle")
+    srow = m.locator(".sub-row", has_text="Кіра Минула")
+    srow.get_by_role("button", name="Списати").click()
+    form = m.locator(".modal")
+    expect(form).to_contain_text("лишилось 8 уроків"); check("форма списання показує залишок і ціну", "300" in form.inner_text())
+    form.get_by_label("Уроків").fill("2"); form.get_by_label("Коментар").fill("Заняття в парку")
+    expect(form.locator(".total")).to_contain_text("600"); check("форма показує суму списання", True)
+    m.screenshot(path=str(OUT / "writeoff-form.png"))
+    form.get_by_role("button", name="Списати").click(); toast(m, "Уроки списано")
+    m.wait_for_selector(".modal", state="detached"); m.wait_for_load_state("networkidle")
+    expect(m.locator(".sub-row", has_text="Кіра Минула").locator(".sub-left strong")).to_have_text("6"); check("залишок одразу оновився: 6 із 8", True)
+    check("на абонементі використано 2", subs_of()["lessons_used"] == 2)
+    stats_after = api(mc, "GET", f"/stats?from={today}&to={today}").json()["earned"]
+    check("статистика: відпрацьовано +600 ₴ і +2 уроки", stats_after["amount"] - stats_before["amount"] == 600 and stats_after["lessons"] - stats_before["lessons"] == 2, str(stats_after))
+    m.locator(".sub-row", has_text="Кіра Минула").get_by_role("button", name="Списання").click()
+    item = m.locator(".charges li", has_text="Заняття в парку")
+    expect(item).to_contain_text("вручну"); expect(item).to_contain_text("600"); check("ручне списання в історії", True)
+    item.get_by_role("button", name="Скасувати списання").click()
+    m.locator(".modal", has_text="Скасувати списання?").get_by_role("button", name="Скасувати списання").click(); toast(m, "Уроки повернуто")
+    check("скасування повертає уроки", subs_of()["lessons_used"] == 0)
+    m.get_by_label("Закрити").click()
+    wo = api(mc, "POST", f"/subscriptions/{late_sub['id']}/writeoffs", data={"lessons": 1, "date": str(old_day)})
+    check("списання заднім числом через API", wo.status == 201 and subs_of()["lessons_used"] == 1)
+    hist = api(ac, "GET", f"/subscriptions/{late_sub['id']}/charges")
+    check("чужий учень не бачить історію", hist.status == 403)
+    kc = b.new_context(); assert kc.request.post(f"{BASE}/api/auth/login", data={"login": "carastud", "password": "staffpass1"}).ok
+    own = api(kc, "GET", f"/subscriptions/{late_sub['id']}/charges").json()
+    check("учениця бачить своє ручне списання", any(c["kind"] == "manual" and c["lessons"] == 1 and c["price_charged"] == 300 for c in own), str(own))
+    check("учениця не скасовує списання", api(kc, "DELETE", f"/subscriptions/{late_sub['id']}/writeoffs/{next(c['writeoff_id'] for c in own if c['kind'] == 'manual')}").status == 403)
+    kc.close()
+    over_limit = [api(mc, "POST", f"/subscriptions/{late_sub['id']}/writeoffs", data=d).status for d in ({"lessons": 8}, {"lessons": 0}, {"lessons": "x"}, {"date": "2026-02-30"})]
+    check("більше, ніж лишилось, нуль чи битий запит відхилено", all(s == 400 for s in over_limit), str(over_limit))
+    check("вчитель не списує", api(tc, "POST", f"/subscriptions/{late_sub['id']}/writeoffs", data={"lessons": 1}).status == 403)
+    check("учень не списує", api(ac, "POST", f"/subscriptions/{late_sub['id']}/writeoffs", data={"lessons": 1}).status == 403)
+    check("неіснуюче списання не скасувати", api(mc, "DELETE", f"/subscriptions/{late_sub['id']}/writeoffs/999999").status == 404)
+
     for w, theme in ((1360, "light"), (390, "dark"), (320, "light")):
         c, p = new(b, w, 860, theme); login(p, "manager", "manager123")
         p.goto(f"{BASE}/stats"); p.wait_for_selector(".stat-tile")
