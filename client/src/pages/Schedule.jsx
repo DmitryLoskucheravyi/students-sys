@@ -4,6 +4,7 @@ import { api, useData } from '../api.js';
 import { useAuth, useIsMobile } from '../session.jsx';
 import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Linkify, Loader, firstUrl, Modal, PageHead, Segmented, Select, Status, TimePicker, Textarea, WeekdayPicker, useAction, useUI } from '../ui.jsx';
 import { IconBan, IconClock, IconClose, IconEdit, IconExternal, IconHomework, IconLeft, IconList, IconLesson, IconMove, IconOnce, IconPeople, IconPin, IconPlus, IconRepeat, IconRestore, IconRight, IconTick, IconTicket, IconUser } from '../icons.jsx';
+import { TopicPicker } from './HomeworkTopics.jsx';
 import { WEEKDAYS, addDays, dateTimeShort, mondayOf, money, nowLocal, parseDate, shortDate, time, todayISO, weekTitle, weekdayDayMonth, weekdayOf } from '../fmt.js';
 
 // Висота години: блок на годину вміщує назву, час, вчителя й учнів.
@@ -561,11 +562,12 @@ function HomeworkForm({ session, onCancel, onDone }) {
   const base = session.starts_at.slice(0, 10) < todayISO() ? todayISO() : session.starts_at.slice(0, 10);
   const [date, setDate] = useState(addDays(base, 7));
   const [t, setT] = useState('23:55');
+  const [topics, setTopics] = useState([]);
   const [run, busy] = useAction();
   const go = async (e) => {
     e.preventDefault();
     const ok = await run(() => api('/homework', { method: 'POST', body: {
-      lesson_id: session.lesson_id, session_id: session.id, title, description, due_at: `${date} ${t}:00`,
+      lesson_id: session.lesson_id, session_id: session.id, title, description, due_at: `${date} ${t}:00`, topics,
     } }), 'Домашнє задано');
     if (ok) onDone();
   };
@@ -578,6 +580,7 @@ function HomeworkForm({ session, onCancel, onDone }) {
         <DatePicker label="Здати до" value={date} onChange={setDate} />
         <TimePicker label="Час" value={t} onChange={setT} />
       </div>
+      <TopicPicker query={`session_id=${session.id}`} value={topics} onChange={setTopics} />
       <FormActions onCancel={onCancel} action="Задати" busy={busy} />
     </form>
   );

@@ -5,6 +5,7 @@ import { useAuth } from '../session.jsx';
 import { Button, DatePicker, Empty, ErrorNote, Input, Loader, Modal, PageHead, Select, Status, Textarea, TimePicker, useAction } from '../ui.jsx';
 import { IconHomework, IconPlus } from '../icons.jsx';
 import { WEEKDAYS, addDays, dateTimeShort, nowLocal, shortDate, todayISO } from '../fmt.js';
+import { TopicPicker } from './HomeworkTopics.jsx';
 
 export const HW_STATUS = {
   todo: ['warn', 'Треба здати'],
@@ -97,16 +98,18 @@ function NewHomework({ onClose, onDone }) {
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(addDays(todayISO(), 7));
   const [time, setTime] = useState('23:55');
+  const [topics, setTopics] = useState([]);
   const [run, busy] = useAction();
   const submit = async (e) => {
     e.preventDefault();
-    const r = await run(() => api('/homework', { method: 'POST', body: { schedule_id: scheduleId, title, description, due_at: `${date} ${time}:00` } }), 'Домашнє задано');
+    const r = await run(() => api('/homework', { method: 'POST', body: { schedule_id: scheduleId, title, description, due_at: `${date} ${time}:00`, topics } }), 'Домашнє задано');
     if (r) onDone(r.id);
   };
+  const pick = (v) => { setScheduleId(v); setTopics([]); };
   return (
     <Modal title="Задати домашнє" onClose={onClose}>
       <form className="form" onSubmit={submit}>
-        <Select label="Урок" value={scheduleId} onChange={setScheduleId} placeholder="Оберіть урок у розкладі"
+        <Select label="Урок" value={scheduleId} onChange={pick} placeholder="Оберіть урок у розкладі"
           options={(placements.data ?? []).map((p) => ({
             value: p.id,
             label: `${p.title} · ${placementWhen(p)}`,
@@ -118,6 +121,7 @@ function NewHomework({ onClose, onDone }) {
           <DatePicker label="Здати до" value={date} onChange={setDate} />
           <TimePicker label="Час" value={time} onChange={setTime} />
         </div>
+        <TopicPicker query={scheduleId ? `schedule_id=${scheduleId}` : null} value={topics} onChange={setTopics} />
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Назад</Button>
           <Button type="submit" busy={busy} disabled={!scheduleId}>Задати</Button>

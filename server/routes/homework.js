@@ -97,7 +97,7 @@ async function inspectFiles(req) {
 
 const HW_SELECT = `
   SELECT h.id, h.lesson_id, h.schedule_id, h.session_id, h.title, h.description, h.due_at, h.created_at,
-         l.title AS lesson_title, sc.teacher_id, u.name AS teacher_name, c.title AS course_title
+         l.title AS lesson_title, l.course_id, sc.teacher_id, u.name AS teacher_name, c.title AS course_title
     FROM homework h
     JOIN lessons l ON l.id = h.lesson_id
     LEFT JOIN lesson_schedules sc ON sc.id = h.schedule_id
@@ -127,6 +127,99 @@ async function filesOf(submissionIds) {
     [submissionIds]
   );
 }
+
+/* Теми роадмапу для домашнього */
+
+/** Постановка, якій задають домашнє: напряму або через її заняття. */
+async function resolvePlacement(b) {
+  let scheduleId = b.schedule_id ? id(b.schedule_id, 'Урок у розкладі') : null;
+  let sessionId = null;
+  if (b.session_id) {
+    sessionId = id(b.session_id, 'Заняття');
+    const [s] = await q('SELECT schedule_id FROM lesson_sessions WHERE id=?', [sessionId]);
+    if (!s) throw bad('Заняття не знайдено');
+    if (scheduleId && scheduleId !== s.schedule_id) throw bad('Заняття не належить цьому уроку');
+    scheduleId = s.schedule_id;
+  }
+  if (!scheduleId) throw bad('Оберіть урок у розкладі');
+  const [placement] = await q(
+    `SELECT sc.id, sc.lesson_id, sc.teacher_id, l.course_id, c.title AS course_title
+       FROM lesson_schedules sc JOIN lessons l ON l.id = sc.lesson_id
+       LEFT JOIN courses c ON c.id = l.course_id WHERE sc.id=?`,
+    [scheduleId]
+  );
+  if (!placement) throw bad('Урок у розкладі не знайдено');
+  return { ...placement, sessionId };
+}
+
+async function courseTopics(courseId) {
+  const steps = await q('SELECT id, title FROM roadmap_steps WHERE course_id=? ORDER BY position, id', [courseId]);
+  const subs = steps.length
+    ? await q('SELECT id, step_id, title FROM roadmap_substeps WHERE step_id IN (?) ORDER BY position, id', [steps.map((s) => s.id)])
+    : [];
+  return steps.map((s) => ({ ...s, substeps: subs.filter((x) => x.step_id === s.id).map(({ id: subId, title }) => ({ id: subId, title })) }));
+}
+
+/**
+ * Приводить список тем до чистого вигляду: лише теми курсу уроку, без повторів.
+ * Обраний цілий етап поглинає свої підпункти.
+ */
+async function parseTopics(raw, courseId) {
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) throw bad('Теми передано неправильно');
+  if (raw.length > 200) throw bad('Забагато тем');
+  if (!raw.length) return [];
+  if (!courseId) throw bad('Урок не прив’язаний до курсу, тем немає');
+  const steps = await courseTopics(courseId);
+  const whole = new Set();
+  const parts = new Map();
+  for (const t of raw) {
+    const stepId = id(t?.step_id, 'Тема');
+    const step = steps.find((s) => s.id === stepId);
+    if (!step) throw bad('Тема не з курсу цього уроку');
+    if (t.substep_id == null || t.substep_id === '') {
+      whole.add(stepId);
+      continue;
+    }
+    const subId = id(t.substep_id, 'Підтема');
+    if (!step.substeps.some((x) => x.id === subId)) throw bad('Підтема не з цієї теми');
+    parts.set(subId, stepId);
+  }
+  return [
+    ...[...whole].map((stepId) => ({ step_id: stepId, substep_id: null })),
+    ...[...parts].filter(([, stepId]) => !whole.has(stepId)).map(([subId, stepId]) => ({ step_id: stepId, substep_id: subId })),
+  ];
+}
+
+async function saveTopics(t, homeworkId, topics) {
+  await t('DELETE FROM homework_topics WHERE homework_id=?', [homeworkId]);
+  if (topics.length) {
+    await t('INSERT INTO homework_topics (homework_id, step_id, substep_id) VALUES ?', [
+      topics.map((x) => [homeworkId, x.step_id, x.substep_id]),
+    ]);
+  }
+}
+
+async function topicsOf(homeworkId) {
+  return q(
+    `SELECT t.step_id, t.substep_id, s.title AS step_title, x.title AS substep_title
+       FROM homework_topics t JOIN roadmap_steps s ON s.id = t.step_id
+       LEFT JOIN roadmap_substeps x ON x.id = t.substep_id
+      WHERE t.homework_id=? ORDER BY s.position, s.id, x.position, x.id`,
+    [homeworkId]
+  );
+}
+
+// Що можна обрати темою: роадмап курсу уроку. Порожньо, якщо урок без курсу.
+homeworkRouter.get('/topics', requireRole('manager', 'teacher'), async (req, res) => {
+  const placement = await resolvePlacement(req.query);
+  if (req.user.role === 'teacher' && placement.teacher_id !== req.user.id) throw forbidden();
+  res.json({
+    course_id: placement.course_id,
+    course_title: placement.course_title,
+    steps: placement.course_id ? await courseTopics(placement.course_id) : [],
+  });
+});
 
 homeworkRouter.get('/', async (req, res) => {
   const { role, id: me } = req.user;
@@ -163,29 +256,24 @@ homeworkRouter.get('/', async (req, res) => {
 homeworkRouter.post('/', requireRole('manager', 'teacher'), async (req, res) => {
   const b = req.body ?? {};
   // Домашнє задають постановці: напряму або через її заняття.
-  let scheduleId = b.schedule_id ? id(b.schedule_id, 'Урок у розкладі') : null;
-  let sessionId = null;
-  if (b.session_id) {
-    sessionId = id(b.session_id, 'Заняття');
-    const [s] = await q('SELECT schedule_id FROM lesson_sessions WHERE id=?', [sessionId]);
-    if (!s) throw bad('Заняття не знайдено');
-    if (scheduleId && scheduleId !== s.schedule_id) throw bad('Заняття не належить цьому уроку');
-    scheduleId = s.schedule_id;
-  }
-  if (!scheduleId) throw bad('Оберіть урок у розкладі');
-  const [placement] = await q('SELECT lesson_id, teacher_id FROM lesson_schedules WHERE id=?', [scheduleId]);
-  if (!placement) throw bad('Урок у розкладі не знайдено');
+  const placement = await resolvePlacement(b);
   if (req.user.role === 'teacher' && placement.teacher_id !== req.user.id) throw forbidden();
-  const r = await q('INSERT INTO homework SET ?', [{
+  const row = {
     lesson_id: placement.lesson_id,
-    schedule_id: scheduleId,
-    session_id: sessionId,
+    schedule_id: placement.id,
+    session_id: placement.sessionId,
     title: str(b.title, 'Назва', { max: 160 }),
     description: str(b.description, 'Опис', { max: 5000, required: false }),
     due_at: dateTime(b.due_at, 'Здати до'),
     created_by: req.user.id,
-  }]);
-  res.status(201).json({ id: r.insertId });
+  };
+  const topics = await parseTopics(b.topics, placement.course_id);
+  const homeworkId = await tx(async (t) => {
+    const r = await t('INSERT INTO homework SET ?', [row]);
+    await saveTopics(t, r.insertId, topics);
+    return r.insertId;
+  });
+  res.status(201).json({ id: homeworkId });
 });
 
 homeworkRouter.get('/:id', async (req, res) => {
@@ -195,7 +283,7 @@ homeworkRouter.get('/:id', async (req, res) => {
     if (!(await isStudentOf(hw, me))) throw forbidden();
     const [submission] = await q('SELECT * FROM submissions WHERE homework_id=? AND student_id=?', [hw.id, me]);
     const files = submission ? await filesOf([submission.id]) : [];
-    return res.json({ ...hw, submission: submission ? { ...submission, files } : null });
+    return res.json({ ...hw, topics: await topicsOf(hw.id), submission: submission ? { ...submission, files } : null });
   }
   assertStaff(req.user, hw);
   const students = await q(
@@ -218,19 +306,25 @@ homeworkRouter.get('/:id', async (req, res) => {
     ...row,
     submission: row.submission ? { ...row.submission, files: files.filter((f) => f.submission_id === row.submission.id) } : null,
   }));
-  res.json({ ...hw, students: merged });
+  res.json({ ...hw, topics: await topicsOf(hw.id), students: merged });
 });
 
 homeworkRouter.patch('/:id', requireRole('manager', 'teacher'), async (req, res) => {
   const hw = await loadHomework(id(req.params.id));
   assertStaff(req.user, hw);
   const b = req.body ?? {};
-  await q('UPDATE homework SET title=?, description=?, due_at=? WHERE id=?', [
+  const fields = [
     str(b.title, 'Назва', { max: 160 }),
     str(b.description, 'Опис', { max: 5000, required: false }),
     dateTime(b.due_at, 'Здати до'),
     hw.id,
-  ]);
+  ];
+  // Теми змінюються, лише коли їх передали: старі клієнти їх не надсилають.
+  const topics = b.topics === undefined ? null : await parseTopics(b.topics, hw.course_id);
+  await tx(async (t) => {
+    await t('UPDATE homework SET title=?, description=?, due_at=? WHERE id=?', fields);
+    if (topics) await saveTopics(t, hw.id, topics);
+  });
   res.json({ ok: true });
 });
 

@@ -2,10 +2,88 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth, useIsMobile } from '../session.jsx';
-import { Button, Checkbox, Collapse, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Select, useAction, useUI } from '../ui.jsx';
-import { IconDown, IconEdit, IconLeft, IconPlus, IconRoadmap, IconSpark, IconTick, IconTrash, IconUp } from '../icons.jsx';
+import { Button, Checkbox, Collapse, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Select, Status, useAction, useUI } from '../ui.jsx';
+import { IconDown, IconEdit, IconHomework, IconLeft, IconPeople, IconPlus, IconRoadmap, IconSpark, IconTick, IconTrash, IconUp } from '../icons.jsx';
+import { dateTimeShort, nowLocal, plural } from '../fmt.js';
 import { CourseForm } from './Courses.jsx';
+import { HW_STATUS } from './Homework.jsx';
 import RoadmapAi from './RoadmapAi.jsx';
+
+/** Частка пройденого етапу: підпункти рахуються по одному, етап без підпунктів — цілим. */
+const stepShare = (s, doneIds, doneSubs) => {
+  if (doneIds.has(s.id)) return 1;
+  if (!s.substeps.length) return 0;
+  return s.substeps.filter((x) => doneSubs.has(x.id)).length / s.substeps.length;
+};
+
+/** Стан домашнього для учня; без учня (вчитель ще не обрав) стану немає. */
+const hwState = (h, viewerId) => (viewerId ? h.results.find((r) => r.student_id === viewerId)?.status ?? 'todo' : null);
+
+/** Підсумок для учня: скільки пройдено, де він зараз і що з домашніми курсу. */
+function ProgressCard({ steps, doneIds, doneSubs, homework, viewerId, isStudent }) {
+  const share = steps.reduce((sum, s) => sum + stepShare(s, doneIds, doneSubs), 0);
+  const pct = steps.length ? Math.round((share / steps.length) * 100) : 0;
+  const doneSteps = steps.filter((s) => doneIds.has(s.id)).length;
+  const currentIndex = steps.findIndex((s) => !doneIds.has(s.id));
+  const current = steps[currentIndex];
+  const states = homework.map((h) => hwState(h, viewerId));
+  const accepted = states.filter((s) => s === 'accepted').length;
+  const returned = states.filter((s) => s === 'returned').length;
+  const open = states.filter((s) => s === 'todo').length;
+  return (
+    <section className="course-progress" aria-label={isStudent ? 'Мій прогрес на курсі' : 'Підсумок курсу для обраного учня'}>
+      <div className="cp-main">
+        <strong className="cp-pct">{pct}%</strong>
+        <div className="cp-text">
+          <span className="progress" role="img" aria-label={`Пройдено ${pct}%`}><i style={{ width: `${pct}%` }} /></span>
+          <p className="small">
+            {doneSteps === steps.length
+              ? 'Усі етапи пройдено'
+              : <>Пройдено {doneSteps} з {steps.length} {plural(steps.length, 'етапу', 'етапів', 'етапів')}. Зараз: <b>{currentIndex + 1}. {current.title}</b></>}
+          </p>
+        </div>
+      </div>
+      {homework.length > 0 && (
+        <ul className="cp-hw" aria-label="Домашні курсу">
+          <li><b>{accepted}</b> з {homework.length} домашніх прийнято</li>
+          {open > 0 && <li className="is-warn">треба здати: <b>{open}</b></li>}
+          {returned > 0 && <li className="is-red">на виправлення: <b>{returned}</b></li>}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** Домашні під етапом роадмапу: назва, підтема, термін і стан для обраного учня. */
+function StepHomework({ items, step, viewerId }) {
+  if (!items.length) return null;
+  const now = nowLocal();
+  return (
+    <ul className="road-hw" aria-label={`Домашні етапу «${step.title}»`}>
+      {items.map((h) => {
+        const subTitles = h.topics
+          .filter((t) => t.step_id === step.id && t.substep_id)
+          .map((t) => step.substeps.find((x) => x.id === t.substep_id)?.title)
+          .filter(Boolean);
+        const st = hwState(h, viewerId);
+        const late = st && st !== 'accepted' && st !== 'submitted' && h.due_at < now;
+        return (
+          <li key={h.id}>
+            <Link to={`/homework/${h.id}`} className="road-hw-item">
+              <IconHomework size={16} />
+              <span className="road-hw-title">
+                {h.title}
+                {subTitles.length > 0 && <small className="muted"> · {subTitles.join(', ')}</small>}
+              </span>
+              <small className={late ? 'text-red' : 'muted'}>до {dateTimeShort(h.due_at)}</small>
+              {st && <Status kind={HW_STATUS[st][0]}>{HW_STATUS[st][1]}</Status>}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 /** Геометрія дороги. Центр і радіус кружка мають збігатися з .stop у styles.css. */
 const ROAD = {
@@ -38,7 +116,7 @@ function SubToggle({ open, done, total, onClick, label }) {
 }
 
 /** Звивиста дорога. Висота рядків залежить від підпунктів, тому точки вимірюємо з DOM. */
-function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, onToggleSub }) {
+function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, onToggleSub, homework = [], viewerId = null }) {
   const mobile = useIsMobile();
   const { x: X, center: STOP_CENTER, radius: STOP_RADIUS } = mobile ? ROAD.mobile : ROAD.wide;
   const listRef = useRef(null);
@@ -105,6 +183,7 @@ function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, onToggle
               <div className="road-text">
                 <h3>{s.title}</h3>
                 {s.description && <p className="muted small">{s.description}</p>}
+                <StepHomework step={s} viewerId={viewerId} items={homework.filter((h) => h.topics.some((t) => t.step_id === s.id))} />
                 {total > 0 && (
                   <>
                     <SubToggle open={open} done={subsDone} total={total} label={`${subsDone} із ${total}`}
@@ -149,6 +228,7 @@ export default function CourseDetail() {
   const [mode, setMode] = useState('view');
   const [editCourse, setEditCourse] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
   const [run] = useAction();
   const { confirm } = useUI();
 
@@ -156,8 +236,10 @@ export default function CourseDetail() {
   const isManager = user.role === 'manager';
   const viewerId = isStudent ? user.id : studentId;
 
+  // Обраний учень міг зникнути з курсу: тоді показуємо першого зі списку.
   useEffect(() => {
-    if (course?.students?.length && !studentId) setStudentId(course.students[0].id);
+    if (!course?.students) return;
+    if (!course.students.some((s) => s.id === studentId)) setStudentId(course.students[0]?.id ?? null);
   }, [course, studentId]);
 
   if (error) return <ErrorNote text={error} onRetry={reload} />;
@@ -185,6 +267,7 @@ export default function CourseDetail() {
     <>
       <Link to="/courses" className="back"><IconLeft size={18} /> Курси</Link>
       <PageHead title={course.title}>
+        {isManager && <Button variant="ghost" icon={<IconPeople size={18} />} onClick={() => setPeopleOpen(true)}>Учні курсу: {course.students.length}</Button>}
         {course.can_edit && <Button variant="ghost" icon={<IconSpark size={18} />} onClick={() => setAiOpen(true)}>Роадмап зі ШІ</Button>}
         {course.can_edit && <Button variant={mode === 'edit' ? 'primary' : 'ghost'} icon={<IconRoadmap size={18} />} onClick={() => setMode(mode === 'edit' ? 'view' : 'edit')}>{mode === 'edit' ? 'Готово' : 'Редагувати роадмап'}</Button>}
         {isManager && <IconButton label="Редагувати курс" onClick={() => setEditCourse(true)}><IconEdit size={20} /></IconButton>}
@@ -198,22 +281,101 @@ export default function CourseDetail() {
         <>
           {!isStudent && course.students.length > 0 && course.steps.length > 0 && (
             <div className="road-toolbar">
-              <Select compact label="Прогрес учня" value={studentId} onChange={setStudentId} options={course.students.map((s) => ({ value: s.id, label: s.name }))} />
+              <Select compact label="Прогрес учня" value={studentId} onChange={setStudentId}
+                options={course.students.map((s) => ({ value: s.id, label: s.name, hint: s.direct && !s.from_schedule ? 'на курсі без розкладу' : undefined }))} />
               {course.can_edit && <p className="muted small">Натисніть на етап або підпункт, щоб позначити.</p>}
             </div>
+          )}
+          {!isStudent && !course.students.length && (
+            <p className="muted small road-note">
+              На курсі ще немає учнів. {isManager
+                ? <button type="button" className="link-btn" onClick={() => setPeopleOpen(true)}>Додайте учня</button>
+                : 'Їх додає менеджер або розклад.'}
+            </p>
+          )}
+          {course.steps.length > 0 && viewerId && (
+            <ProgressCard steps={course.steps} doneIds={doneIds} doneSubs={doneSubs} viewerId={viewerId} isStudent={isStudent}
+              homework={course.homework.filter((h) => h.student_ids.includes(viewerId))} />
           )}
           {!course.steps.length ? (
             <Empty icon={<IconRoadmap size={36} />} title="Роадмап ще порожній"
               action={course.can_edit ? <Button icon={<IconPlus size={18} />} onClick={() => setMode('edit')}>Додати етапи</Button> : null} />
           ) : (
             <RoadmapPath key={viewerId ?? 'none'} steps={course.steps} doneIds={doneIds} doneSubs={doneSubs} canMark={course.can_edit && Boolean(studentId)}
-              onToggleStep={toggleStep} onToggleSub={toggleSub} />
+              onToggleStep={toggleStep} onToggleSub={toggleSub} viewerId={viewerId}
+              homework={viewerId ? course.homework.filter((h) => h.student_ids.includes(viewerId)) : course.homework} />
           )}
         </>
       )}
       {editCourse && <CourseForm course={course} onClose={() => setEditCourse(false)} onDone={() => { setEditCourse(false); reload(); }} />}
       {aiOpen && <RoadmapAi course={course} onClose={() => setAiOpen(false)} onDone={() => { setAiOpen(false); setMode('view'); reload(); }} />}
+      {peopleOpen && <CourseStudents course={course} onClose={() => setPeopleOpen(false)} onChange={reload} />}
     </>
+  );
+}
+
+/**
+ * Учні курсу. Напряму доданих менеджер прибирає тут; учні з розкладу лишаються, доки стоять у розкладі.
+ * Закріплений вчитель бачить курс і веде прогрес учня.
+ */
+function CourseStudents({ course, onClose, onChange }) {
+  const people = useData('/users');
+  const [studentId, setStudentId] = useState(null);
+  const [teacherId, setTeacherId] = useState(null);
+  const [run, busy] = useAction();
+  const { confirm } = useUI();
+  const list = people.data ?? [];
+  const teachers = list.filter((u) => u.role === 'teacher' && u.is_active).map((u) => ({ value: u.id, label: u.name }));
+  const direct = new Set(course.students.filter((s) => s.direct).map((s) => s.id));
+  const pupils = list.filter((u) => u.role === 'student' && u.is_active && !direct.has(u.id)).map((u) => ({ value: u.id, label: u.name }));
+
+  const add = async (e) => {
+    e.preventDefault();
+    const ok = await run(() => api(`/courses/${course.id}/students`, { method: 'POST', body: { student_id: studentId, teacher_id: teacherId } }), 'Учня додано на курс');
+    if (ok) { setStudentId(null); onChange(); }
+  };
+  const setTeacher = async (s, value) => {
+    if (await run(() => api(`/courses/${course.id}/students/${s.id}`, { method: 'PATCH', body: { teacher_id: value } }), 'Вчителя змінено')) onChange();
+  };
+  const remove = async (s) => {
+    const yes = await confirm({
+      title: `Прибрати ${s.name} з курсу?`,
+      text: s.from_schedule ? 'Учень лишиться на курсі через розклад.' : 'Позначки прогресу збережуться, якщо учня повернуть.',
+      action: 'Прибрати', danger: true,
+    });
+    if (yes && (await run(() => api(`/courses/${course.id}/students/${s.id}`, { method: 'DELETE' }), 'Учня прибрано з курсу'))) onChange();
+  };
+
+  return (
+    <Modal side title="Учні курсу" onClose={onClose}>
+      <div className="sheet">
+        <form className="form course-add" onSubmit={add}>
+          <Select label="Учень" value={studentId} onChange={setStudentId} placeholder="Оберіть учня" options={pupils} />
+          <Select label="Вчитель" hint="Необов'язково. Бачить курс і позначає прогрес" value={teacherId} onChange={setTeacherId}
+            placeholder="Без вчителя" clearable options={teachers} />
+          <Button type="submit" busy={busy} disabled={!studentId} icon={<IconPlus size={18} />}>Додати на курс</Button>
+        </form>
+        {course.students.length ? (
+          <ul className="rows course-people">
+            {course.students.map((s) => (
+              <li key={s.id} className="row">
+                <div className="row-main">
+                  <h3>{s.name}</h3>
+                  <p className="muted small">{[s.direct && 'доданий напряму', s.from_schedule && 'з розкладу'].filter(Boolean).join(' · ')}</p>
+                  {s.direct && (
+                    <Select compact label="Вчитель" value={s.teacher_id} placeholder="Без вчителя" clearable options={teachers}
+                      onChange={(v) => setTeacher(s, v)} />
+                  )}
+                </div>
+                {s.direct && <IconButton label={`Прибрати ${s.name} з курсу`} onClick={() => remove(s)}><IconTrash size={18} /></IconButton>}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted small">Учнів поки немає.</p>
+        )}
+      </div>
+    </Modal>
   );
 }
 

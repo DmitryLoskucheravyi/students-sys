@@ -52,6 +52,22 @@ CREATE TABLE IF NOT EXISTS roadmap_progress (
   FOREIGN KEY (marked_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Учень на курсі напряму, без розкладу. Вчитель необов'язковий: він бачить курс і веде прогрес учня.
+CREATE TABLE IF NOT EXISTS course_students (
+  course_id INT NOT NULL,
+  student_id INT NOT NULL,
+  teacher_id INT NULL,
+  added_by INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (course_id, student_id),
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (added_by) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_course_students_student (student_id),
+  INDEX idx_course_students_teacher (teacher_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Підпункти етапу. Етап вважається пройденим, коли позначено всі його підпункти.
 CREATE TABLE IF NOT EXISTS roadmap_substeps (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -243,6 +259,19 @@ CREATE TABLE IF NOT EXISTS homework (
   FOREIGN KEY (session_id) REFERENCES lesson_sessions(id) ON DELETE SET NULL,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
   INDEX idx_hw_lesson (lesson_id, due_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Теми роадмапу, яких стосується домашнє: етап цілком (substep_id порожній) або окремий підпункт.
+CREATE TABLE IF NOT EXISTS homework_topics (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  homework_id INT NOT NULL,
+  step_id INT NOT NULL,
+  substep_id INT NULL,
+  FOREIGN KEY (homework_id) REFERENCES homework(id) ON DELETE CASCADE,
+  FOREIGN KEY (step_id) REFERENCES roadmap_steps(id) ON DELETE CASCADE,
+  FOREIGN KEY (substep_id) REFERENCES roadmap_substeps(id) ON DELETE CASCADE,
+  INDEX idx_hw_topics_hw (homework_id),
+  INDEX idx_hw_topics_step (step_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS submissions (

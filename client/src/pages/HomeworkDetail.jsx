@@ -7,6 +7,7 @@ import { IconDownload, IconEdit, IconFile, IconFolderZip, IconLeft, IconTick, Ic
 import { dateTimeShort, fileSize, nowLocal, time } from '../fmt.js';
 import { HW_STATUS } from './Homework.jsx';
 import Uploader from '../Uploader.jsx';
+import { TopicChips, TopicPicker } from './HomeworkTopics.jsx';
 
 export default function HomeworkDetail() {
   const { id } = useParams();
@@ -36,6 +37,12 @@ export default function HomeworkDetail() {
       </PageHead>
       <p className={`small ${late ? 'text-red' : 'muted'}`}>Здати до {dateTimeShort(hw.due_at)}</p>
       <p className="muted small">{[hw.lesson_title, hw.teacher_name].filter(Boolean).join(', ')}</p>
+      {hw.topics?.length > 0 && (
+        <div className="hw-topics">
+          <TopicChips topics={hw.topics} />
+          {hw.course_id && <Link className="small" to={`/courses/${hw.course_id}`}>На роадмапі курсу</Link>}
+        </div>
+      )}
       {hw.description && <p className="task"><Linkify text={hw.description} /></p>}
 
       {isStudent ? <StudentWork hw={hw} onChange={reload} /> : <Submissions hw={hw} onChange={reload} />}
@@ -181,10 +188,11 @@ function EditHomework({ hw, onClose, onDone }) {
   const [description, setDescription] = useState(hw.description ?? '');
   const [date, setDate] = useState(hw.due_at.slice(0, 10));
   const [t, setT] = useState(time(hw.due_at));
+  const [topics, setTopics] = useState(() => (hw.topics ?? []).map(({ step_id, substep_id }) => ({ step_id, substep_id })));
   const [run, busy] = useAction();
   const submit = async (e) => {
     e.preventDefault();
-    const ok = await run(() => api(`/homework/${hw.id}`, { method: 'PATCH', body: { title, description, due_at: `${date} ${t}:00` } }), 'Зміни збережено');
+    const ok = await run(() => api(`/homework/${hw.id}`, { method: 'PATCH', body: { title, description, due_at: `${date} ${t}:00`, ...(hw.schedule_id ? { topics } : {}) } }), 'Зміни збережено');
     if (ok) onDone();
   };
   return (
@@ -196,6 +204,7 @@ function EditHomework({ hw, onClose, onDone }) {
           <DatePicker label="Здати до" value={date} onChange={setDate} />
           <TimePicker label="Час" value={t} onChange={setT} />
         </div>
+        <TopicPicker query={hw.schedule_id ? `schedule_id=${hw.schedule_id}` : null} value={topics} onChange={setTopics} />
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Назад</Button>
           <Button type="submit" busy={busy}>Зберегти</Button>

@@ -939,3 +939,56 @@ button.stop:active { transform: scale(0.94); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; transition-delay: 0ms !important; }
 }
+
+/* Теми домашнього: вибір у формі та плашки */
+.topics { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px 10px; margin: 0; min-width: 0; }
+.topics legend { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px; font-weight: 600; font-size: 14px; }
+.topics > p { margin: 0 0 8px; }
+.topics > ul, .topic-subs { list-style: none; margin: 0; padding: 0; }
+.topic + .topic { border-top: 1px solid var(--grid); }
+.topic-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; }
+.topic-num { color: var(--muted); font-variant-numeric: tabular-nums; }
+.topic-more {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 8px;
+  border: 0; border-radius: 8px; background: none; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer;
+}
+.topic-more:hover { background: var(--wash); color: var(--ink); }
+.topic-more .chev { transition: transform 0.2s var(--ease); }
+.topic-more.is-open .chev { transform: rotate(180deg); }
+.topic-subs { padding: 0 0 8px 28px; }
+.topic-subs li { min-height: 34px; display: flex; align-items: center; }
+.topic-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.topic-chips li {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px;
+  background: var(--red-soft); color: var(--ink); font-size: 13px; --ia: var(--red);
+}
+.hw-topics { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 10px 0 4px; }
+.hw-topics a { color: var(--red); }
+
+/* Прогрес учня на курсі */
+.course-progress {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px;
+  margin: 0 0 18px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--raise);
+}
+.cp-main { display: flex; align-items: center; gap: 16px; flex: 1 1 320px; min-width: 0; }
+.cp-pct { font-family: var(--display); font-size: 30px; line-height: 1; color: var(--red); font-variant-numeric: tabular-nums; }
+.cp-text { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.cp-text p { margin: 0; }
+.cp-hw { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
+.cp-hw .is-red { color: var(--red); }
+.road-note { margin: 0 0 16px; }
+.link-btn { border: 0; padding: 0; background: none; color: var(--red); font: inherit; text-decoration: underline; cursor: pointer; }
+
+/* Домашні під етапом роадмапу */
+.road-hw { list-style: none; margin: 8px 0 4px; padding: 0; display: grid; gap: 6px; max-width: 640px; }
+.road-hw-item {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink); text-decoration: none; font-size: 14px;
+}
+.road-hw-item:hover { border-color: var(--red); }
+.road-hw-title { flex: 1 1 160px; min-width: 0; font-weight: 500; }
+
+/* Учні курсу */
+.course-add { padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.course-people .row { align-items: flex-start; }
+.course-people .row-main { display: grid; gap: 6px; }
