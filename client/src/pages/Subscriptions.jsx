@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, useData } from '../api.js';
-import { Button, DatePicker, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageHead, Segmented, Select, Status, Stepper, useAction, useUI } from '../ui.jsx';
-import { IconClose, IconEdit, IconList, IconMinus, IconPlus, IconTicket } from '../icons.jsx';
+import { Button, DatePicker, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageHead, Segmented, Select, Stepper, useAction, useUI } from '../ui.jsx';
+import { IconAlert, IconClock, IconClose, IconEdit, IconHourglass, IconList, IconMinus, IconPlus, IconTick, IconTicket } from '../icons.jsx';
 import { addDays, dateTimeShort, lessonsWord, money, shortDate, todayISO } from '../fmt.js';
 
 export const subState = (s) => {
@@ -16,6 +16,26 @@ export const leftLevel = (s) => {
   if (s.lessons_left <= 2) return 'is-low';
   return s.lessons_left > s.lessons_total / 2 ? 'is-ok' : 'is-mid';
 };
+
+/** Стан абонемента круглою іконкою на початку рядка: колір і знак замість текстової плашки. */
+const SUB_ICON = {
+  active: ['is-ok', IconTick],
+  ending: ['is-mid', IconHourglass],
+  empty: ['is-low', IconAlert],
+  expired: ['is-off', IconClock],
+  closed: ['is-off', IconClose],
+};
+const subCode = (s) => {
+  if (s.status === 'closed') return 'closed';
+  if (s.is_expired) return 'expired';
+  if (s.lessons_left <= 0) return 'empty';
+  return s.lessons_left <= 1 ? 'ending' : 'active';
+};
+function SubStateIcon({ s }) {
+  const [cls, Icon] = SUB_ICON[subCode(s)];
+  const text = subState(s)[1];
+  return <span className={`sub-state ${cls}`} role="img" aria-label={text} title={text}><Icon size={18} /></span>;
+}
 
 export default function Subscriptions() {
   const [tab, setTab] = useState('issued');
@@ -46,9 +66,9 @@ export default function Subscriptions() {
           {subs.data?.length > 0 && (
             <ul className="rows">
               {subs.data.map((s) => {
-                const [kind, text] = subState(s);
                 return (
                   <li key={s.id} className="row sub-row">
+                    <SubStateIcon s={s} />
                     <div className="row-main">
                       <h3>{s.student_name}</h3>
                       <p className="muted small">{s.name}, до {shortDate(s.expires_on)}</p>
@@ -57,7 +77,6 @@ export default function Subscriptions() {
                       <strong>{s.lessons_left}</strong><small>із {s.lessons_total}</small>
                     </div>
                     <div className="sub-price"><strong>{money(s.price_per_lesson)}</strong><small>за заняття</small></div>
-                    <Status kind={kind}>{text}</Status>
                     <div className="row-actions">
                       <Button variant="ghost" small icon={<IconMinus size={16} />} disabled={s.lessons_left <= 0} onClick={() => setWritingOff(s)}>Списати</Button>
                       <Button variant="ghost" small icon={<IconList size={16} />} onClick={() => setHistory(s)}>Списання</Button>

@@ -284,6 +284,11 @@ with sync_playwright() as pw:
     check("6 із 8: зелена плашка", levels["Кіра Минула"][0] == "is-ok", str(levels.get("Кіра Минула")))
     check("1 із 4: червона плашка", levels["Дарина Бойко"][0] == "is-low", str(levels.get("Дарина Бойко")))
     check("залишок одним рядком", all(v[2] < 40 for v in levels.values()), str(levels))
+    states = m.evaluate("""() => Object.fromEntries([...document.querySelectorAll('.sub-row')].map(r => {
+      const s = r.querySelector('.sub-state'); return [r.querySelector('h3').textContent, [s.className.split(' ').pop(), s.getAttribute('aria-label'), r.firstElementChild === s]]; }))""")
+    check("стан абонемента іконкою на початку: діє — зелена", states["Кіра Минула"] == ["is-ok", "Діє", True], str(states.get("Кіра Минула")))
+    check("закінчується — помаранчева", states["Дарина Бойко"][:2] == ["is-mid", "Закінчується"], str(states.get("Дарина Бойко")))
+    check("текстової плашки стану більше немає", m.locator(".sub-row .status").count() == 0)
     manual_ids = lambda: {c["writeoff_id"] for c in api(mc, "GET", f"/subscriptions/{late_sub['id']}/charges").json() if c["kind"] == "manual"}
     kept = manual_ids()
     api(mc, "POST", f"/subscriptions/{late_sub['id']}/writeoffs", data={"lessons": 3})

@@ -1103,3 +1103,13 @@ button.stop:active { transform: scale(0.94); }
   .quiz-submit { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
   .quiz-save { width: 100%; justify-content: space-between; }
 }
+/* Стан абонемента: кругла іконка на початку рядка */
+.sub-state {
+  flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--state-bg); color: var(--state-ink); --ia: var(--state-ink);
+}
+.sub-state.is-ok { --state-bg: var(--left-ok-bg); --state-ink: var(--left-ok-ink); }
+.sub-state.is-mid { --state-bg: var(--left-mid-bg); --state-ink: var(--left-mid-ink); }
+.sub-state.is-low { --state-bg: var(--left-low-bg); --state-ink: var(--left-low-ink); }
+.sub-state.is-off { --state-bg: var(--wash); --state-ink: var(--muted); box-shadow: inset 0 0 0 1px var(--grid-strong); }
+.sub-row > .sub-left { margin-left: auto; }
