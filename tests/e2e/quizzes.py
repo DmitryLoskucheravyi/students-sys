@@ -222,6 +222,12 @@ with sync_playwright() as pw:
     api(tk, "POST", f"/homework/submissions/{sub['id']}/review", data={"status": "returned", "feedback": "Додай мобільну версію"})
     check("новий відгук знову сповіщає", api(mk, "GET", "/notifications").json()["reviews"] == 1)
     check("вчитель і менеджер без сповіщень", api(tk, "GET", "/notifications").json()["count"] == 0)
+    # Учня прибрали з групи: роботу він уже не відкриє, тож і сповіщення про неї не висить
+    roster = [s["id"] for s in api(mc, "GET", f"/schedules/{hw['schedule_id']}").json()["students"]]
+    api(mc, "PATCH", f"/schedules/{hw['schedule_id']}", data={"student_ids": [x for x in roster if x != users["student"]]})
+    check("після виходу з групи сповіщення про оцінку зникає", api(mk, "GET", "/notifications").json()["reviews"] == 0)
+    api(mc, "PATCH", f"/schedules/{hw['schedule_id']}", data={"student_ids": roster})
+    check("повернення в групу повертає сповіщення", api(mk, "GET", "/notifications").json()["reviews"] == 1)
 
     # 8. Телефон
     for w in [320, 390]:

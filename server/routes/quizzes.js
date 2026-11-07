@@ -369,7 +369,9 @@ notificationsRouter.get('/', async (req, res) => {
   if (req.user.role !== 'student') return res.json({ count: 0, quizzes: 0, reviews: 0 });
   const [{ quizzes }] = await q('SELECT COUNT(*) AS quizzes FROM quiz_assignments WHERE student_id=? AND submitted_at IS NULL', [req.user.id]);
   const [{ reviews }] = await q(
+    // Лише домашні групи, де учень зараз: інакше роботу не відкрити, і сповіщення не згасне.
     `SELECT COUNT(*) AS reviews FROM submissions s JOIN homework h ON h.id = s.homework_id
+       JOIN schedule_students ss ON ss.schedule_id = h.schedule_id AND ss.student_id = s.student_id
       WHERE s.student_id=? AND s.reviewed_at IS NOT NULL AND s.seen_at IS NULL`,
     [req.user.id]
   );
