@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth, useIsMobile } from '../session.jsx';
-import { Button, Checkbox, Collapse, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageHead, Select, useAction, useUI } from '../ui.jsx';
+import { Button, Checkbox, Collapse, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Select, useAction, useUI } from '../ui.jsx';
 import { IconDown, IconEdit, IconLeft, IconPlus, IconRoadmap, IconSpark, IconTick, IconTrash, IconUp } from '../icons.jsx';
 import { CourseForm } from './Courses.jsx';
 import RoadmapAi from './RoadmapAi.jsx';
@@ -190,7 +190,7 @@ export default function CourseDetail() {
         {isManager && <IconButton label="Редагувати курс" onClick={() => setEditCourse(true)}><IconEdit size={20} /></IconButton>}
         {isManager && <IconButton label="Видалити курс" onClick={removeCourse}><IconTrash size={20} /></IconButton>}
       </PageHead>
-      {course.summary && <p className="muted lead">{course.summary}</p>}
+      {course.summary && <p className="muted lead"><Linkify text={course.summary} /></p>}
 
       {mode === 'edit' ? (
         <RoadmapEditor course={course} onChange={reload} />

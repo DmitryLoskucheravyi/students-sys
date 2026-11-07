@@ -7,7 +7,7 @@ import './styles.css';
 import { api } from './api.js';
 import { UIProvider } from './ui.jsx';
 import { AuthCtx, ThemeButton, useAuth } from './session.jsx';
-import { IconCalendar, IconHomework, IconLesson, IconLogout, IconPeople, IconRoadmap, IconTicket } from './icons.jsx';
+import { IconCalendar, IconChart, IconHomework, IconLesson, IconLogout, IconPeople, IconRoadmap, IconTicket } from './icons.jsx';
 import { initials } from './fmt.js';
 import Login from './pages/Login.jsx';
 import Schedule from './pages/Schedule.jsx';
@@ -20,6 +20,7 @@ import People from './pages/People.jsx';
 import Homework from './pages/Homework.jsx';
 import HomeworkDetail from './pages/HomeworkDetail.jsx';
 import Profile from './pages/Profile.jsx';
+import Stats from './pages/Stats.jsx';
 
 const NAV = {
   manager: [
@@ -29,6 +30,7 @@ const NAV = {
     ['/subscriptions', 'Абонементи', IconTicket],
     ['/people', 'Люди', IconPeople],
     ['/homework', 'Домашні', IconHomework],
+    ['/stats', 'Статистика', IconChart],
   ],
   teacher: [
     ['/', 'Розклад', IconCalendar],
@@ -57,13 +59,17 @@ function Shell() {
             <span className="wordmark-stack"><span>Smart</span><span>School</span></span>
           </NavLink>
           <div className="rail-top-tools only-mobile">
+            {/* На телефоні статистика у верхній панелі: нижня вміщує лише шість вкладок */}
+            {user.role === 'manager' && (
+              <NavLink to="/stats" className="theme-btn top-link" aria-label="Статистика" title="Статистика"><IconChart /></NavLink>
+            )}
             <ThemeButton />
             <NavLink to="/profile" className="avatar" aria-label={`Профіль: ${user.name}`}>{initials(user.name)}</NavLink>
           </div>
         </div>
         <nav className="rail-nav" aria-label="Основна навігація">
           {items.map(([to, label, Icon]) => (
-            <NavLink key={to} to={to} end={to === '/'}>
+            <NavLink key={to} to={to} end={to === '/'} className={to === '/stats' ? 'only-desktop' : undefined}>
               <Icon />
               <span>{label}</span>
             </NavLink>
@@ -94,6 +100,7 @@ function Shell() {
           {user.role !== 'student' && <Route path="/lessons" element={<Lessons />} />}
           {user.role === 'manager' && <Route path="/subscriptions" element={<Subscriptions />} />}
           {user.role === 'manager' && <Route path="/people" element={<People />} />}
+          {user.role === 'manager' && <Route path="/stats" element={<Stats />} />}
           {user.role === 'student' && <Route path="/subscription" element={<MySubscription />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

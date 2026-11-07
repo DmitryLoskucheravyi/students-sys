@@ -47,12 +47,12 @@ with sync_playwright() as pw:
     s2_id = post(mc, "/users", {"role": "student", "name": "Другий Учень", "login": "second", "password": "nightpass1"}).json()["id"]
     plan = post(mc, "/plans", {"name": "Нічний", "lessons_count": 3, "price_per_lesson": 100, "valid_days": 60}).json()
     post(mc, "/subscriptions", {"student_id": s_id, "plan_id": plan["id"]})
-    lesson = post(mc, "/lessons", {"title": "Нічний урок", "teacher_id": t_id, "student_ids": [s_id, s2_id], "duration_min": 90}).json()
+    lesson = post(mc, "/lessons", {"title": "Нічний урок", "duration_min": 90}).json()
     lid = lesson["id"]
 
     # --- Години 00-23
     def once(date, hhmm, lesson_id=lid):
-        return post(mc, "/schedules", {"lesson_id": lesson_id, "kind": "once", "date": str(date), "time": hhmm})
+        return post(mc, "/schedules", {"lesson_id": lesson_id, "kind": "once", "date": str(date), "time": hhmm, "teacher_id": t_id, "student_ids": [s_id, s2_id]})
     early = once(next_mon, "00:00"); late = once(next_mon + dt.timedelta(days=1), "23:30")
     check("заняття о 00:00 і о 23:30 створюються", early.ok and late.ok, text_of(late))
     m.goto(BASE); m.wait_for_selector(".week")
@@ -201,7 +201,7 @@ with sync_playwright() as pw:
     # У межах сьогодні: абонемент видано сьогодні, і вчорашнє заняття він не покриває.
     past = max(now - dt.timedelta(hours=3), now.replace(hour=0, minute=0, second=0, microsecond=0))
     fut_day = next_mon + dt.timedelta(days=3)
-    fut = once(fut_day, "12:00").json()["session_id"]
+    fut_r = once(fut_day, "12:00").json(); fut, fut_sched = fut_r["session_id"], fut_r["schedule_id"]
     pst = once(past.date(), past.strftime("%H:%M")).json()["session_id"]
     # 1. Запит не зависає, коли заняття проведено
     rq = post(sc, f"/sessions/{fut}/requests", {"kind": "cancel", "reason": "x"})
@@ -211,29 +211,30 @@ with sync_playwright() as pw:
     # для проведення потрібне минуле заняття: запит робимо, поки воно ще в майбутньому, через перенесення
     soon = post(mc, f"/sessions/{fut}/reschedule", {"starts_at": str(fut_day) + " 13:00"})
     check("перенесення закриває запит", soon.ok and not [r for r in api(mc, "GET", "/requests").json() if r["session_id"] == fut])
-    # 2. Вимкнений учень не блокує редагування уроку
+    # 2. Вимкнений учень не блокує редагування складу постановки
     api(mc, "PATCH", f"/users/{s2_id}", data={"is_active": False})
-    r = api(mc, "PATCH", f"/lessons/{lid}", data={"title": "Нічний урок", "teacher_id": t_id, "student_ids": [s_id, s2_id], "duration_min": 90})
-    check("урок із вимкненим учнем редагується", r.ok, text_of(r))
-    m.goto(f"{BASE}/lessons"); m.wait_for_load_state("networkidle")
-    m.locator(".lesson-row", has_text="Нічний урок").get_by_role("button", name="Склад").click(); m.wait_for_load_state("networkidle")
-    m.get_by_label("Учні").click()
-    expect(m.get_by_role("option", name="Другий Учень (вимкнений)")).to_be_visible(); check("вимкненого учня видно у складі уроку", True)
+    r = api(mc, "PATCH", f"/schedules/{fut_sched}", data={"teacher_id": t_id, "student_ids": [s_id, s2_id]})
+    check("постановка з вимкненим учнем редагується", r.ok, text_of(r))
+    m.goto(f"{BASE}/"); m.wait_for_load_state("networkidle")
+    if fut_day.isocalendar()[1] != today.isocalendar()[1]:
+        m.get_by_label("Наступний тиждень").click(); m.wait_for_load_state("networkidle")
+    m.locator(".block", has_text="Нічний урок").filter(has_text="13:00").first.click(); m.wait_for_selector(".sheet")
+    m.get_by_role("button", name="Змінити склад").click(); m.wait_for_load_state("networkidle")
+    m.locator(".sheet-form").get_by_label("Учні").click()
+    expect(m.get_by_role("option", name="Другий Учень (вимкнений)")).to_be_visible(); check("вимкненого учня видно у складі постановки", True)
     m.keyboard.press("Escape")
-    m.locator(".modal").get_by_role("button", name="Зберегти").click(); expect(m.locator(".toast", has_text="Склад збережено").first).to_be_visible(); check("збереження складу з вимкненим учнем", True)
-    m.wait_for_selector(".modal", state="detached")
-    r = post(mc, "/lessons", {"title": "x", "teacher_id": t_id, "student_ids": [s2_id], "duration_min": 60})
-    check("новий урок із вимкненим учнем відхилено", r.status == 400, str(r.status))
-    # 3. Чіп одноразового заняття показує фактичний час
-    data = next(l for l in api(mc, "GET", "/lessons").json() if l["id"] == lid)
-    moved = [x for x in data["schedules"] if x["kind"] == "once" and x["time"] == "13:00" and x["start_date"] == str(fut_day)]
-    check("одноразове після перенесення показує новий час", len(moved) == 1, str(data["schedules"]))
+    m.locator(".sheet-form").get_by_role("button", name="Зберегти").click(); expect(m.locator(".toast", has_text="Склад збережено").first).to_be_visible(); check("збереження складу з вимкненим учнем", True)
+    m.get_by_label("Закрити").click()
+    r = post(mc, "/schedules", {"lesson_id": lid, "kind": "once", "date": str(fut_day + dt.timedelta(days=1)), "time": "09:00", "student_ids": [s2_id]})
+    check("нова постановка з вимкненим учнем відхилена", r.status == 400, str(r.status))
+    # 3. Список постановок показує фактичний час одноразового заняття
+    moved = [x for x in api(mc, "GET", "/schedules").json() if x["id"] == fut_sched]
+    check("одноразове після перенесення показує новий час", len(moved) == 1 and moved[0]["time"] == "13:00" and moved[0]["start_date"] == str(fut_day), str(moved))
     post(mc, f"/sessions/{fut}/cancel", {"reason": "тест"})
-    data = next(l for l in api(mc, "GET", "/lessons").json() if l["id"] == lid)
-    check("скасоване одноразове зникає з чипів уроку", not [x for x in data["schedules"] if x["start_date"] == str(fut_day)])
+    check("скасоване одноразове зникає зі списку постановок", not [x for x in api(mc, "GET", "/schedules").json() if x["id"] == fut_sched])
     post(mc, f"/sessions/{fut}/reopen")
     # 4. Останній файл здачі
-    hw = post(mc, "/homework", {"lesson_id": lid, "title": "ДЗ файли", "due_at": f"{fut_day} 23:55"}).json()["id"]
+    hw = post(mc, "/homework", {"session_id": fut, "title": "ДЗ файли", "due_at": f"{fut_day} 23:55"}).json()["id"]
     up = api(sc, "POST", f"/homework/{hw}/submission", multipart={"files": {"name": "a.txt", "mimeType": "text/plain", "buffer": b"a"}})
     check("здача файлу", up.status == 201, text_of(up))
     f1 = api(sc, "GET", f"/homework/{hw}").json()["submission"]["files"][0]["id"]
@@ -267,7 +268,9 @@ with sync_playwright() as pw:
         ("POST", "/schedules", {"lesson_id": "x"}),
         ("POST", "/lessons", {"title": "", "teacher_id": t_id, "duration_min": 60}),
         ("POST", "/lessons", {"title": "z", "teacher_id": t_id, "duration_min": 5}),
-        ("POST", "/lessons", {"title": "z", "teacher_id": t_id, "duration_min": 60, "student_ids": "abc"}),
+        ("POST", "/schedules", {"lesson_id": lid, "kind": "once", "date": str(today), "time": "10:00", "student_ids": "abc"}),
+        ("POST", "/schedules", {"lesson_id": lid, "kind": "once", "date": str(today), "time": "10:00", "teacher_id": s_id}),
+        ("PATCH", "/schedules/999999", {"teacher_id": None}),
         ("POST", "/lessons", {"title": "z" * 500, "teacher_id": t_id, "duration_min": 60}),
         ("POST", "/plans", {"name": "z", "lessons_count": 0, "price_per_lesson": 1, "valid_days": 1}),
         ("POST", "/plans", {"name": "z", "lessons_count": 1, "price_per_lesson": -5, "valid_days": 1}),
@@ -342,8 +345,7 @@ with sync_playwright() as pw:
     api(mc, "PATCH", f"/subscriptions/{subs[0]['id']}", data={"lessons_total": 3})
     # Архів, чипи й видалення правила при наявному ДЗ на занятті
     hw2 = post(mc, "/homework", {"lesson_id": lid, "session_id": fut, "title": "До заняття", "due_at": f"{fut_day} 20:00"}).json()["id"]
-    sched = next(x for x in next(l for l in api(mc, "GET", "/lessons").json() if l["id"] == lid)["schedules"] if x["start_date"] == str(fut_day))
-    r = api(mc, "DELETE", f"/schedules/{sched['id']}")
+    r = api(mc, "DELETE", f"/schedules/{fut_sched}")
     check("прибрати правило з ДЗ на занятті: без 500, ДЗ лишається", r.ok and api(mc, "GET", f"/homework/{hw2}").ok, text_of(r))
 
     # --- Прохід по всіх сторінках усіх ролей у двох темах і двох ширинах

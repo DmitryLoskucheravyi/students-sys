@@ -63,9 +63,9 @@ with sync_playwright() as pw:
     s = m.post("/api/users", data={"role": "student", "name": "Послідовна", "login": "seqstud", "password": "seqpass123"}).json()["id"]
     plan = m.post("/api/plans", data={"name": "Послідовний", "lessons_count": 100, "price_per_lesson": 10, "valid_days": 30}).json()["id"]
     sub_id = m.post("/api/subscriptions", data={"student_id": s, "plan_id": plan}).json()["id"]
-    lesson = m.post("/api/lessons", data={"title": "Послідовний", "teacher_id": t, "student_ids": [s], "duration_min": 10}).json()["id"]
+    lesson = m.post("/api/lessons", data={"title": "Послідовний", "duration_min": 10}).json()["id"]
     now = dt.datetime.now(); start = max(now - dt.timedelta(hours=1), now.replace(hour=0, minute=0, second=0, microsecond=0))
-    sess = m.post("/api/schedules", data={"lesson_id": lesson, "kind": "once", "date": start.strftime("%Y-%m-%d"), "time": start.strftime("%H:%M")}).json()["session_id"]
+    sess = m.post("/api/schedules", data={"lesson_id": lesson, "kind": "once", "date": start.strftime("%Y-%m-%d"), "time": start.strftime("%H:%M"), "teacher_id": t, "student_ids": [s]}).json()["session_id"]
     bad = []
     used = lambda: next(x for x in get(f"/subscriptions?student_id={s}") if x["id"] == sub_id)["lessons_used"]
     for _ in range(ROUNDS):

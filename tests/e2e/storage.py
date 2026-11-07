@@ -37,9 +37,11 @@ with sync_playwright() as pw:
     api = lambda c, meth, path, **kw: c.request.fetch(f"{BASE}/api{path}", method=meth, **kw)
     teacher = api(m, "POST", "/users", data={"role": "teacher", "name": "Файл Вчитель", "login": "fileteach", "password": "filepass12"}).json()["id"]
     student = api(m, "POST", "/users", data={"role": "student", "name": "Файл Учень", "login": "filestud", "password": "filepass12"}).json()["id"]
-    lesson = api(m, "POST", "/lessons", data={"title": "Файли", "teacher_id": teacher, "student_ids": [student], "duration_min": 60}).json()["id"]
+    lesson = api(m, "POST", "/lessons", data={"title": "Файли", "duration_min": 60}).json()["id"]
+    placement = api(m, "POST", "/schedules", data={"lesson_id": lesson, "kind": "weekly", "weekdays": [6], "time": "07:00",
+                                                    "teacher_id": teacher, "student_ids": [student]}).json()["schedule_id"]
     def new_hw(title):
-        return api(m, "POST", "/homework", data={"lesson_id": lesson, "title": title, "due_at": due}).json()["id"]
+        return api(m, "POST", "/homework", data={"schedule_id": placement, "title": title, "due_at": due}).json()["id"]
     s = session("filestud", "filepass12")
     def upload(hw, field, name, mime, data):
         return api(s, "POST", f"/homework/{hw}/submission", multipart={field: {"name": name, "mimeType": mime, "buffer": data}})

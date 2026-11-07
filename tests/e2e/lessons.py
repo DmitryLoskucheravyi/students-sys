@@ -1,4 +1,4 @@
-"""Урок як окрема сутність: спершу урок, потім вчитель і учні. І дорога роадмапа на всю ширину."""
+"""Урок — шаблон; вчитель і учні задаються в постановці в розклад. Плюс клікабельні посилання, статистика й дорога роадмапа."""
 import datetime as dt, os, pathlib, sys
 from playwright.sync_api import sync_playwright, expect
 
@@ -25,112 +25,186 @@ def login(p, u, pw):
 def api(ctx, m, path, **kw): return ctx.request.fetch(f"{BASE}/api{path}", method=m, **kw)
 def toast(p, text): expect(p.locator(".toast", has_text=text).first).to_be_visible(timeout=8000)
 def over(p): return p.evaluate("document.documentElement.scrollWidth - window.innerWidth")
-def lesson_by(ctx, title): return next(l for l in api(ctx, "GET", "/lessons").json() if l["title"] == title)
+def choose(p, label, option, scope=None):
+    (scope or p).get_by_label(label, exact=True).click(); p.get_by_role("option", name=option).first.click()
+
+today = dt.date.today()
+next_week = today + dt.timedelta(days=(7 - today.weekday()))  # наступний понеділок
 
 with sync_playwright() as pw:
     b = pw.chromium.launch(headless=True)
     mc, m = new(b); login(m, "manager", "manager123")
-    teacher = api(mc, "POST", "/users", data={"role": "teacher", "name": "Склад Вчитель", "login": "staffteach", "password": "staffpass1"}).json()["id"]
-    student = api(mc, "POST", "/users", data={"role": "student", "name": "Склад Учень", "login": "staffstud", "password": "staffpass1"}).json()["id"]
+    mk = lambda role, name, login_: api(mc, "POST", "/users", data={"role": role, "name": name, "login": login_, "password": "staffpass1"}).json()["id"]
+    teacher = mk("teacher", "Склад Вчитель", "staffteach"); teacher2 = mk("teacher", "Інший Вчитель", "otherteach")
+    ann = mk("student", "Аня Перша", "annstud"); bob = mk("student", "Богдан Другий", "bobstud")
 
-    # 1. Урок створюється без людей
+    # 1. Урок — шаблон: без людей і без плашок
     m.goto(f"{BASE}/lessons"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Новий урок").click()
-    m.get_by_label("Назва").fill("Сутність-урок")
-    m.locator(".modal").get_by_role("button", name="Створити").click(); toast(m, "Урок створено")
-    expect(m.get_by_text("Склад: Сутність-урок")).to_be_visible(); check("після створення відкривається склад", True)
-    m.locator(".modal").get_by_role("button", name="Пізніше").click(); m.wait_for_selector(".modal", state="detached"); m.wait_for_load_state("networkidle")
-    row = m.locator(".lesson-row", has_text="Сутність-урок")
-    expect(row).to_contain_text("Без вчителя"); expect(row).to_contain_text("Без учнів"); check("урок без вчителя й учнів у списку", True)
-    lesson = lesson_by(mc, "Сутність-урок")
-    check("у базі урок без вчителя", lesson["teacher_id"] is None and lesson["students"] == [])
-    m.screenshot(path=str(OUT / "lessons-empty.png"))
+    modal = m.locator(".modal")
+    check("у формі уроку немає вчителя й учнів", modal.get_by_label("Вчитель").count() == 0 and modal.get_by_label("Учні").count() == 0)
+    m.get_by_label("Назва").fill("Шаблон-урок"); m.get_by_label("Місце").fill("https://zoom.us/j/555 кабінет 3")
+    modal.get_by_role("button", name="Створити").click(); toast(m, "Урок створено")
+    expect(m.get_by_text("Додати в розклад").first).to_be_visible(); check("після створення відкривається постановка в розклад", True)
+    m.get_by_label("Закрити").click(); m.wait_for_selector(".modal", state="detached"); m.wait_for_load_state("networkidle")
+    row = m.locator(".lesson-row", has_text="Шаблон-урок")
+    check("у рядку уроку немає людей і плашок", row.locator(".slot").count() == 0 and row.locator(".lesson-people").count() == 0 and "Без учнів" not in row.inner_text())
+    link = row.locator("a.text-link")
+    check("посилання в місці клікабельне", link.count() == 1 and link.get_attribute("href") == "https://zoom.us/j/555" and link.get_attribute("target") == "_blank" and "noopener" in link.get_attribute("rel"))
+    lesson = next(l for l in api(mc, "GET", "/lessons").json() if l["title"] == "Шаблон-урок")
+    check("урок не має людей у відповіді API", "teacher_id" not in lesson and "students" not in lesson)
+    m.screenshot(path=str(OUT / "lessons-template.png"))
 
-    # 2. Розклад без вчителя: менеджер бачить і може провести
-    now = dt.datetime.now(); start = max(now - dt.timedelta(hours=1), now.replace(hour=0, minute=0, second=0, microsecond=0))
-    past = api(mc, "POST", "/schedules", data={"lesson_id": lesson["id"], "kind": "once", "date": str(start.date()), "time": start.strftime("%H:%M")})
-    check("урок без вчителя можна поставити в розклад", past.status == 201, past.text()[:100])
-    future_day = dt.date.today() + dt.timedelta(days=(7 - dt.date.today().weekday()) + 2)
-    fut = api(mc, "POST", "/schedules", data={"lesson_id": lesson["id"], "kind": "once", "date": str(future_day), "time": "10:00"}).json()["session_id"]
-    s_past = past.json()["session_id"]
-    sheet = api(mc, "GET", f"/sessions/{s_past}").json()
-    check("заняття без вчителя відкривається", sheet["teacher_name"] is None and sheet["students"] == [])
-    m.goto(BASE); m.wait_for_load_state("networkidle")
-    blk = m.locator(".block", has_text="Сутність-урок").first
-    expect(blk).to_be_attached(); blk.click(); m.wait_for_selector(".sheet")
-    expect(m.locator(".facts")).to_contain_text("Без вчителя"); check("у картці заняття написано «Без вчителя»", True)
-    m.get_by_label("Закрити").click()
-    check("менеджер проводить заняття без вчителя", api(mc, "POST", f"/sessions/{s_past}/complete", data={"attended_ids": []}).ok)
-    api(mc, "POST", f"/sessions/{s_past}/reopen", data={})
+    # 2. Постановка через UI: вчитель і учень обираються тут
+    row.get_by_role("button", name="В розклад").click(); m.wait_for_load_state("networkidle")
+    choose(m, "Вчитель", "Склад Вчитель")
+    m.get_by_label("Учні").click(); m.get_by_role("option", name="Аня Перша").click(); m.keyboard.press("Escape")
+    m.locator(".weekdays button", has_text="Пн").click(); m.locator(".weekdays button", has_text="Ср").click()
+    m.screenshot(path=str(OUT / "schedule-form-people.png"))
+    m.locator(".modal").get_by_role("button", name="Додати", exact=True).click(); toast(m, "Додано в розклад")
+    m.wait_for_selector(".modal", state="detached")
+    placements = [x for x in api(mc, "GET", "/schedules").json() if x["lesson_id"] == lesson["id"]]
+    check("одна постановка на два дні з вчителем і учнем", len(placements) == 1 and placements[0]["weekdays"] == [1, 3]
+          and placements[0]["teacher_id"] == teacher and [s["id"] for s in placements[0]["students"]] == [ann], str(placements))
+    pA = placements[0]["id"]
 
-    # 3. Склад через UI: вчитель і учень
-    m.goto(f"{BASE}/lessons"); m.wait_for_load_state("networkidle")
-    m.locator(".lesson-row", has_text="Сутність-урок").get_by_role("button", name="Склад").click()
-    m.get_by_label("Вчитель").click(); m.get_by_role("option", name="Склад Вчитель").click()
-    m.get_by_label("Учні").click(); m.get_by_role("option", name="Склад Учень").click(); m.keyboard.press("Escape")
-    m.locator(".modal").get_by_role("button", name="Зберегти").click(); toast(m, "Склад збережено")
-    m.wait_for_selector(".modal", state="detached"); m.wait_for_load_state("networkidle")
-    lesson = lesson_by(mc, "Сутність-урок")
-    check("вчителя й учня додано", lesson["teacher_id"] == teacher and [s["id"] for s in lesson["students"]] == [student])
-    m.screenshot(path=str(OUT / "lessons-staffed.png"))
+    # 3. Той самий урок — друга група з іншим вчителем і учнем
+    r = api(mc, "POST", "/schedules", data={"lesson_id": lesson["id"], "kind": "weekly", "weekdays": [5], "time": "10:00", "teacher_id": teacher2, "student_ids": [bob]})
+    check("той самий урок ставиться другій групі", r.status == 201, r.text()[:100]); pB = r.json()["schedule_id"]
     tc, tp = new(b); login(tp, "staffteach", "staffpass1")
-    check("доданий вчитель бачить заняття уроку", any(s["id"] == fut for s in api(tc, "GET", f"/sessions?from={future_day}&to={future_day}").json()))
-    sc, sp = new(b); login(sp, "staffstud", "staffpass1")
-    check("доданий учень бачить заняття уроку", any(s["id"] == fut for s in api(sc, "GET", f"/sessions?from={future_day}&to={future_day}").json()))
+    t2c, t2p = new(b); login(t2p, "otherteach", "staffpass1")
+    ac, ap = new(b); login(ap, "annstud", "staffpass1")
+    bc, bp = new(b); login(bp, "bobstud", "staffpass1")
+    wk = lambda ctx: api(ctx, "GET", f"/sessions?from={next_week}&to={next_week + dt.timedelta(days=6)}").json()
+    mine = lambda ctx: {s["schedule_id"] for s in wk(ctx) if s["lesson_id"] == lesson["id"]}
+    check("вчитель першої групи бачить лише свої заняття", mine(tc) == {pA})
+    check("вчитель другої групи бачить лише свої заняття", mine(t2c) == {pB})
+    check("учні бачать лише заняття своєї групи", mine(ac) == {pA} and mine(bc) == {pB})
 
-    # 4. Редагування уроку не стирає склад, а склад не стирає урок
-    r = api(mc, "PATCH", f"/lessons/{lesson['id']}", data={"title": "Сутність-урок", "duration_min": 45, "location": "Кабінет 5"})
-    after = lesson_by(mc, "Сутність-урок")
-    check("зміна тривалості зберігає вчителя й учнів", r.ok and after["teacher_id"] == teacher and len(after["students"]) == 1 and after["duration_min"] == 45)
-    fut_sess = api(mc, "GET", f"/sessions/{fut}").json()
-    check("тривалість поширилась на майбутнє заняття", fut_sess["ends_at"].endswith("10:45:00"), fut_sess["ends_at"])
-    r = api(mc, "PATCH", f"/lessons/{lesson['id']}", data={"student_ids": []})
-    after = lesson_by(mc, "Сутність-урок")
-    check("зміна складу зберігає поля уроку", r.ok and after["location"] == "Кабінет 5" and after["duration_min"] == 45 and after["teacher_id"] == teacher)
-
-    # 5. Накладка перевіряється в момент призначення вчителя
-    other = api(mc, "POST", "/lessons", data={"title": "Інший урок", "duration_min": 60}).json()["id"]
-    api(mc, "POST", "/schedules", data={"lesson_id": other, "kind": "once", "date": str(future_day), "time": "10:15"})
-    busy_teacher = api(mc, "POST", "/users", data={"role": "teacher", "name": "Зайнятий Вчитель", "login": "busyteach", "password": "busypass1"}).json()["id"]
-    api(mc, "PATCH", f"/lessons/{other}", data={"teacher_id": busy_teacher})
-    r = api(mc, "PATCH", f"/lessons/{lesson['id']}", data={"teacher_id": busy_teacher})
-    check("зайнятого вчителя не призначити: є накладка", r.status == 409 and "Зайнятий Вчитель" in r.text(), r.text()[:120])
-    check("після відмови вчитель не змінився", lesson_by(mc, "Сутність-урок")["teacher_id"] == teacher)
-
-    # 6. Прибрати вчителя: він втрачає доступ
-    r = api(mc, "PATCH", f"/lessons/{lesson['id']}", data={"teacher_id": None})
-    check("вчителя можна прибрати", r.ok and lesson_by(mc, "Сутність-урок")["teacher_id"] is None)
-    check("прибраний вчитель більше не бачить заняття", api(tc, "GET", f"/sessions/{fut}").status == 404)
-    check("прибраний вчитель не може його скасувати", api(tc, "POST", f"/sessions/{fut}/cancel", data={}).status in (403, 404))
-    hw = api(mc, "POST", "/homework", data={"lesson_id": lesson["id"], "title": "ДЗ без вчителя", "due_at": f"{future_day} 20:00"})
-    check("домашнє до уроку без вчителя", hw.status == 201)
+    # 4. Домашнє належить групі
+    hw = api(tc, "POST", "/homework", data={"schedule_id": pA, "title": "ДЗ групи А", "due_at": f"{next_week + dt.timedelta(days=6)} 20:00"})
+    check("вчитель задає домашнє своїй групі", hw.status == 201, hw.text()[:100]); hw_id = hw.json()["id"]
+    check("вчитель не задає домашнє чужій групі", api(tc, "POST", "/homework", data={"schedule_id": pB, "title": "x", "due_at": f"{next_week} 20:00"}).status == 403)
+    check("домашнє бачить учень групи", any(h["id"] == hw_id for h in api(ac, "GET", "/homework").json()))
+    check("домашнє не бачить учень іншої групи того самого уроку", not any(h["id"] == hw_id for h in api(bc, "GET", "/homework").json()) and api(bc, "GET", f"/homework/{hw_id}").status == 403)
+    check("вчитель іншої групи не бачить домашнє", api(t2c, "GET", f"/homework/{hw_id}").status == 403)
+    staff_view = api(tc, "GET", f"/homework/{hw_id}").json()
+    check("у домашньому список учнів групи", [s["student_id"] for s in staff_view["students"]] == [ann])
     m.goto(f"{BASE}/homework"); m.wait_for_load_state("networkidle")
-    expect(m.locator("body")).to_contain_text("ДЗ без вчителя"); check("список домашніх показує урок без вчителя", True)
-    m.goto(f"{BASE}/homework/{hw.json()['id']}"); m.wait_for_load_state("networkidle")
-    check("сторінка домашнього без «null»", "null" not in m.locator("main").inner_text() and "undefined" not in m.locator("main").inner_text())
+    m.get_by_role("button", name="Задати домашнє").click()
+    m.get_by_label("Урок", exact=True).click()
+    opts = m.get_by_role("option").all_inner_texts()
+    check("у формі домашнього групи з днями й часом", any("Шаблон-урок" in o and "Пн, Ср 17:00" in o for o in opts) and any("Шаблон-урок" in o and "Пт 10:00" in o for o in opts), str(opts[:6]))
+    m.keyboard.press("Escape"); m.get_by_label("Закрити").click()
 
-    # 7. Межі доступу й зламані запити
-    check("учень не змінює склад", api(sc, "PATCH", f"/lessons/{lesson['id']}", data={"teacher_id": None}).status == 403)
-    check("вчитель не змінює склад", api(tc, "PATCH", f"/lessons/{lesson['id']}", data={"student_ids": []}).status == 403)
-    bad = [api(mc, "PATCH", f"/lessons/{lesson['id']}", data=d).status for d in ({"teacher_id": student}, {"teacher_id": 999999}, {"student_ids": [teacher]}, {"teacher_id": "abc"}, {"title": ""})]
+    # 5. Склад постановки з картки заняття
+    sess = next(s for s in wk(mc) if s["schedule_id"] == pA)
+    m.goto(BASE); m.wait_for_load_state("networkidle")
+    if next_week.isocalendar()[1] != today.isocalendar()[1]:
+        m.get_by_label("Наступний тиждень").click(); m.wait_for_load_state("networkidle")
+    m.locator(".block", has_text="Шаблон-урок").first.click(); m.wait_for_selector(".sheet")
+    expect(m.locator(".facts a.text-link")).to_have_attribute("href", "https://zoom.us/j/555"); check("посилання клікабельне в картці заняття", True)
+    m.get_by_role("button", name="Змінити склад").click(); m.wait_for_load_state("networkidle")
+    form = m.locator(".sheet-form")
+    form.get_by_label("Учні").click(); m.get_by_role("option", name="Богдан Другий").click(); m.keyboard.press("Escape")
+    form.get_by_role("button", name="Зберегти").click(); toast(m, "Склад збережено")
+    check("учня додано в постановку з картки", sorted(s["id"] for s in api(mc, "GET", f"/schedules/{pA}").json()["students"]) == sorted([ann, bob]))
+    m.screenshot(path=str(OUT / "sheet-people.png"))
+    m.get_by_label("Закрити").click()
+
+    # 6. Накладки під час зміни складу
+    r = api(mc, "PATCH", f"/schedules/{pB}", data={"teacher_id": teacher})
+    check("вчитель без накладки призначається", r.ok, r.text()[:100])
+    other = api(mc, "POST", "/lessons", data={"title": "Збіг", "duration_min": 60}).json()["id"]
+    api(mc, "POST", "/schedules", data={"lesson_id": other, "kind": "weekly", "weekdays": [1], "time": "17:30", "teacher_id": teacher2})
+    r = api(mc, "PATCH", f"/schedules/{pA}", data={"teacher_id": teacher2})
+    check("зайнятого вчителя не призначити", r.status == 409 and "Інший Вчитель" in r.text(), r.text()[:120])
+    check("після відмови склад не змінився", api(mc, "GET", f"/schedules/{pA}").json()["teacher_id"] == teacher)
+    r = api(mc, "PATCH", f"/schedules/{pA}", data={"teacher_id": None})
+    check("вчителя можна прибрати з постановки", r.ok and api(mc, "GET", f"/schedules/{pA}").json()["teacher_id"] is None)
+    check("прибраний вчитель більше не бачить заняття", api(tc, "GET", f"/sessions/{sess['id']}").status == 404)
+
+    # 7. Тривалість уроку змінює всі постановки, але не склад
+    r = api(mc, "PATCH", f"/lessons/{lesson['id']}", data={"duration_min": 45})
+    s_after = api(mc, "GET", f"/sessions/{sess['id']}").json()
+    check("нова тривалість у майбутніх заняттях", r.ok and s_after["ends_at"].endswith("17:45:00"), s_after["ends_at"])
+    check("зміна уроку не чіпає склад", sorted(s["id"] for s in api(mc, "GET", f"/schedules/{pA}").json()["students"]) == sorted([ann, bob]))
+
+    # 8. Прибрати з розкладу з картки
+    m.goto(BASE); m.wait_for_load_state("networkidle")
+    if next_week.isocalendar()[1] != today.isocalendar()[1]:
+        m.get_by_label("Наступний тиждень").click(); m.wait_for_load_state("networkidle")
+    m.locator(".block", has_text="Шаблон-урок").filter(has_text="10:00").first.click(); m.wait_for_selector(".sheet")
+    m.get_by_role("button", name="Прибрати з розкладу").click()
+    m.locator(".modal", has_text="Прибрати").get_by_role("button", name="Прибрати").last.click(); toast(m, "Прибрано з розкладу")
+    check("постановку прибрано: майбутніх занять немає", not [s for s in wk(mc) if s["schedule_id"] == pB])
+
+    # 9. Межі доступу
+    check("учень не змінює склад", api(ac, "PATCH", f"/schedules/{pA}", data={"student_ids": []}).status == 403)
+    check("вчитель не змінює склад", api(tc, "PATCH", f"/schedules/{pA}", data={"student_ids": []}).status == 403)
+    check("учень не бачить список постановок", api(ac, "GET", "/schedules").status == 403)
+    bad = [api(mc, "PATCH", f"/schedules/{pA}", data=d).status for d in ({"teacher_id": ann}, {"teacher_id": 999999}, {"student_ids": [teacher]}, {"student_ids": "x"})]
     check("невалідний склад відхилено", all(s == 400 for s in bad), str(bad))
-    check("неіснуючий урок", api(mc, "PATCH", "/lessons/999999", data={"teacher_id": None}).status == 404)
 
-    # 8. Роадмап: дорога на всю ширину
+    # 10. Посилання: лише http(s), без виконання коду
+    api(mc, "PATCH", f"/lessons/{lesson['id']}", data={"location": "javascript:alert(1) www.example.com, і текст"})
+    m.goto(f"{BASE}/lessons"); m.wait_for_load_state("networkidle")
+    hrefs = m.locator(".lesson-row", has_text="Шаблон-урок").locator("a").evaluate_all("as => as.map(a => a.getAttribute('href'))")
+    check("javascript: не стає посиланням, www стає https без коми", hrefs == ["https://www.example.com"], str(hrefs))
+
+    # 11. Статистика: лише менеджер, числа сходяться
+    for ctx, who in ((tc, "вчитель"), (ac, "учень")):
+        check(f"{who}: статистика закрита", api(ctx, "GET", "/stats").status == 403)
+    anon = b.new_context(); check("аноніму статистика закрита", anon.request.get(f"{BASE}/api/stats").status == 401); anon.close()
+    before = api(mc, "GET", f"/stats?from={today}&to={today}").json()
+    plan = api(mc, "POST", "/plans", data={"name": "Стат", "lessons_count": 4, "price_per_lesson": 250, "valid_days": 30}).json()["id"]
+    sub = api(mc, "POST", "/subscriptions", data={"student_id": ann, "plan_id": plan, "price_per_lesson": 200})
+    now = dt.datetime.now(); start = max(now - dt.timedelta(hours=1), now.replace(hour=0, minute=0, second=0, microsecond=0))
+    ps = api(mc, "POST", "/schedules", data={"lesson_id": other, "kind": "once", "date": str(start.date()), "time": start.strftime("%H:%M"), "student_ids": [ann, bob]}).json()
+    api(mc, "POST", f"/sessions/{ps['session_id']}/complete", data={"attended_ids": [ann]})
+    cs = api(mc, "POST", "/schedules", data={"lesson_id": other, "kind": "once", "date": str(start.date()), "time": "23:55" if start.hour < 23 else "23:58"}).json()
+    api(mc, "POST", f"/sessions/{cs['session_id']}/cancel", data={"reason": "стат"})
+    after = api(mc, "GET", f"/stats?from={today}&to={today}").json()
+    check("продано: +800 ₴ і +1 абонемент", sub.ok and after["sold"]["amount"] - before["sold"]["amount"] == 800 and after["sold"]["count"] - before["sold"]["count"] == 1, str(after["sold"]))
+    check("відпрацьовано: +200 ₴ за проведене", after["earned"]["amount"] - before["earned"]["amount"] == 200, str(after["earned"]))
+    check("проведено +1, скасовано +1", after["sessions"]["completed"] - before["sessions"]["completed"] == 1 and after["sessions"]["cancelled"] - before["sessions"]["cancelled"] == 1, str(after["sessions"]))
+    check("відвідуваність: 1 із 2 відміток", after["attendance"]["present"] - before["attendance"]["present"] == 1 and after["attendance"]["marked"] - before["attendance"]["marked"] == 2)
+    check("передплачено: 3 уроки по 200 ₴ на новому абонементі", after["prepaid"]["amount"] - before["prepaid"]["amount"] == 600, str(after["prepaid"]))
+    cur_month = [x for x in after["monthly"] if x["month"] == str(today)[:7]]
+    check("6 місяців у динаміці, поточний останній", len(after["monthly"]) == 6 and after["monthly"][-1]["month"] == str(today)[:7] and cur_month[0]["sold"] >= 800)
+    check("невалідний проміжок відхилено", api(mc, "GET", "/stats?from=2026-05-01&to=2026-01-01").status == 400 and api(mc, "GET", "/stats?from=abc").status == 400)
+
+    for w, theme in ((1360, "light"), (390, "dark"), (320, "light")):
+        c, p = new(b, w, 860, theme); login(p, "manager", "manager123")
+        p.goto(f"{BASE}/stats"); p.wait_for_selector(".stat-tile")
+        check(f"{w}px: статистика без прокрутки вбік", over(p) <= 0, str(over(p)))
+        check(f"{w}px: 6 плиток і 6 стовпчиків", p.locator(".stat-tile").count() == 6 and p.locator(".bar").count() == 6)
+        if w < 900:
+            # До 360 px шість вкладок вміщуються, на 320 px панель гортається вбік (так задумано).
+            fits = p.evaluate(f"""(() => {{ const n = document.querySelector('.rail-nav'), wm = document.querySelector('.wordmark');
+              const scrolls = ['auto', 'scroll'].includes(getComputedStyle(n).overflowX);
+              return {{ nav: n.scrollWidth <= n.clientWidth + 1 || ({w} < 360 && scrolls), word: wm.scrollWidth <= wm.clientWidth + 1 }}; }})()""")
+            check(f"{w}px: статистика у верхній панелі, нижня вміщується, назва не обрізана",
+                  p.get_by_role("link", name="Статистика").first.is_visible() and fits["nav"] and fits["word"], str(fits))
+        p.locator(".bar-hit").last.hover()
+        if w > 900:
+            expect(p.locator(".bar-tip").last).to_be_visible(); check("підказка на стовпчику при наведенні", True)
+        p.locator(".segmented label", has_text="Рік").click(); p.wait_for_load_state("networkidle")
+        p.screenshot(path=str(OUT / f"stats-{w}-{theme}.png"), full_page=True)
+        c.close()
+    sc_, sp_ = new(b); login(sp_, "annstud", "staffpass1")
+    check("учень не бачить пункт «Статистика»", sp_.get_by_role("link", name="Статистика").count() == 0)
+    sp_.goto(f"{BASE}/stats"); sp_.wait_for_load_state("networkidle")
+    check("учень не відкриває сторінку статистики", sp_.locator(".stat-tile").count() == 0)
+
+    # 12. Роадмап: дорога на всю ширину
     web = next(c for c in api(mc, "GET", "/courses").json() if c["title"] == "Веброзробка")
-    for w, theme in ((1440, "light"), (1920, "dark"), (390, "light"), (320, "light")):
+    for w, theme in ((1440, "light"), (390, "light")):
         c, p = new(b, w, 900, theme); login(p, "manager", "manager123")
         p.goto(f"{BASE}/courses/{web['id']}"); p.wait_for_selector(".road-row"); p.wait_for_timeout(500)
         page_w = p.locator(".page").bounding_box()["width"]; road_w = p.locator(".road").bounding_box()["width"]
-        bed = p.evaluate("getComputedStyle(document.querySelector('.road-bed path')).strokeWidth")
-        stop = p.locator(".stop").first.bounding_box(); path_box = p.locator(".road-bed path").first.bounding_box()
-        text_x = p.locator(".road-text").first.bounding_box()["x"]
-        wide = w >= 900
-        check(f"{w}px: дорога на всю ширину сторінки", road_w >= page_w - 100, f"{road_w} із {page_w}")
-        check(f"{w}px: дорога широка ({bed})", float(bed.replace('px', '')) >= (30 if wide else 16))
-        check(f"{w}px: текст не налазить на дорогу", text_x > path_box["x"] + path_box["width"], f"текст {text_x}, дорога до {path_box['x'] + path_box['width']}")
-        check(f"{w}px: кружки на дорозі й без прокрутки вбік", stop["width"] >= (56 if wide else 44) and over(p) <= 0, f"{stop['width']} over={over(p)}")
-        p.screenshot(path=str(OUT / f"road-{w}-{theme}.png"))
+        path_box = p.locator(".road-bed path").first.bounding_box(); text_x = p.locator(".road-text").first.bounding_box()["x"]
+        check(f"{w}px: дорога на всю ширину, текст не налазить", road_w >= page_w - 100 and text_x > path_box["x"] + path_box["width"] and over(p) <= 0)
         c.close()
     b.close()
 

@@ -532,6 +532,21 @@ export function PageHead({ title, children }) {
   );
 }
 
+/**
+ * Текст, у якому посилання клікабельні. Лише http(s) і www: javascript: та інші схеми лишаються текстом.
+ * Розділові знаки в кінці не входять у посилання.
+ */
+const URL_RE = /((?:https?:\/\/|www\.)[^\s<>"']+[^\s<>"'.,;:!?)\]}])/gi;
+export function Linkify({ text }) {
+  if (!text) return null;
+  const parts = String(text).split(URL_RE);
+  return parts.map((part, i) => {
+    if (i % 2 === 0) return part;
+    const href = /^https?:\/\//i.test(part) ? part : `https://${part}`;
+    return <a key={i} className="text-link" href={href} target="_blank" rel="noopener noreferrer">{part}</a>;
+  });
+}
+
 export function Loader() {
   return <div className="loader" role="status" aria-label="Завантаження"><span /></div>;
 }

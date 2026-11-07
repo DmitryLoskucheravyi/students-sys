@@ -13,9 +13,11 @@ usersRouter.get('/', async (req, res) => {
   if (role && !['teacher', 'student'].includes(role)) throw bad('Невідома роль');
   const rows = await q(
     `SELECT ${FIELDS},
-        (SELECT COUNT(*) FROM lesson_students ls JOIN lessons l ON l.id = ls.lesson_id
-          WHERE ls.student_id = users.id AND l.is_active = 1) AS lessons_as_student,
-        (SELECT COUNT(*) FROM lessons l WHERE l.teacher_id = users.id AND l.is_active = 1) AS lessons_as_teacher,
+        (SELECT COUNT(DISTINCT sc.lesson_id) FROM schedule_students ss
+           JOIN lesson_schedules sc ON sc.id = ss.schedule_id JOIN lessons l ON l.id = sc.lesson_id
+          WHERE ss.student_id = users.id AND sc.is_active = 1 AND l.is_active = 1) AS lessons_as_student,
+        (SELECT COUNT(DISTINCT sc.lesson_id) FROM lesson_schedules sc JOIN lessons l ON l.id = sc.lesson_id
+          WHERE sc.teacher_id = users.id AND sc.is_active = 1 AND l.is_active = 1) AS lessons_as_teacher,
         (SELECT COALESCE(SUM(s.lessons_total - s.lessons_used), 0) FROM subscriptions s
           WHERE s.student_id = users.id AND s.status = 'active' AND s.expires_on >= CURDATE()) AS lessons_left
        FROM users WHERE role IN ('teacher','student') ${role ? 'AND role = ?' : ''}
@@ -69,8 +71,14 @@ usersRouter.patch('/:id', async (req, res) => {
   if (b.is_active !== undefined) {
     const active = b.is_active ? 1 : 0;
     if (!active && u.role === 'teacher') {
-      const [{ n }] = await q('SELECT COUNT(*) n FROM lessons WHERE teacher_id=? AND is_active=1', [u.id]);
-      if (n) throw conflict(`У вчителя ${n} активн. уроків. Спершу передайте їх іншому.`);
+      const [{ n }] = await q(
+        `SELECT COUNT(*) n FROM lesson_schedules sc JOIN lessons l ON l.id = sc.lesson_id
+          WHERE sc.teacher_id=? AND sc.is_active=1 AND l.is_active=1
+            AND (sc.kind = 'weekly' AND (sc.end_date IS NULL OR sc.end_date >= CURDATE())
+              OR EXISTS (SELECT 1 FROM lesson_sessions se WHERE se.schedule_id = sc.id AND se.status = 'scheduled' AND se.starts_at > NOW()))`,
+        [u.id]
+      );
+      if (n) throw conflict(`Вчитель стоїть у розкладі (${n}). Спершу передайте ці заняття іншому.`);
     }
     // token_version розлогінює користувача одразу
     await q('UPDATE users SET is_active=?, token_version=token_version+1 WHERE id=?', [active, u.id]);

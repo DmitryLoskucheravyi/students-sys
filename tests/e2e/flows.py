@@ -108,26 +108,26 @@ with sync_playwright() as pw:
     shot(p, "09-lessons")
     p.get_by_role("button", name="Новий урок").click(); p.wait_for_load_state("networkidle")
     p.get_by_label("Назва").fill("Тест-урок"); choose(p, "Курс", "Тест-курс")
-    check("форма уроку без вчителя й учнів", p.locator(".modal").get_by_label("Вчитель").count() == 0)
+    check("форма уроку без вчителя й учнів", p.locator(".modal").get_by_label("Вчитель").count() == 0 and p.locator(".modal").get_by_label("Учні").count() == 0)
     shot(p, "10-lesson-form")
     p.locator(".modal").get_by_role("button", name="Створити").click(); toast(p, "Урок створено")
-    # після створення одразу відкривається склад: вчитель і учні
-    p.wait_for_selector(".modal >> text=Склад: Тест-урок"); p.wait_for_load_state("networkidle")
+    # після створення одразу відкривається постановка: тут обирають вчителя, учнів і час
+    p.wait_for_selector(".modal >> text=Додати в розклад"); p.wait_for_load_state("networkidle")
     choose(p, "Вчитель", "Петро Вчитель")
     p.get_by_label("Учні").click(); p.get_by_role("option", name="Соня Тестова").click(); p.keyboard.press("Escape")
-    p.locator(".modal").get_by_role("button", name="Зберегти").click(); toast(p, "Склад збережено")
-    p.wait_for_selector(".modal", state="detached"); p.wait_for_load_state("networkidle")
-    expect(p.locator(".lesson-row", has_text="Тест-урок").locator(".lesson-people")).to_contain_text("Петро Вчитель"); check("склад уроку збережено", True)
-    p.locator(".lesson-row", has_text="Тест-урок").get_by_role("button", name="В розклад").click()
-    p.wait_for_selector(".modal >> text=Додати в розклад"); p.wait_for_load_state("networkidle")
     p.locator(".weekdays button", has_text="Вт").click()
     shot(p, "11-schedule-form-weekly")
     p.locator(".modal").get_by_role("button", name="Додати", exact=True).click(); toast(p, "Додано в розклад")
     p.wait_for_selector(".modal", state="detached"); p.wait_for_load_state("networkidle")
-    expect(p.locator(".lesson-row", has_text="Тест-урок").locator(".slot-weekly")).to_contain_text("Вт 17:00"); check("постійний урок у розкладі", True)
+    check("у списку уроків немає плашок розкладу", p.locator(".lesson-row", has_text="Тест-урок").locator(".slot").count() == 0)
+    placements = [x for x in api(ctx, "GET", "/schedules").json() if x["title"] == "Тест-урок"]
+    check("постійний урок у розкладі з вчителем і учнем", len(placements) == 1 and placements[0]["weekdays"] == [2] and placements[0]["time"] == "17:00"
+          and placements[0]["teacher_name"] == "Петро Вчитель" and [s["name"] for s in placements[0]["students"]] == ["Соня Тестова"], str(placements))
 
     # накладка: той самий вчитель і час
     p.locator(".lesson-row", has_text="Тест-урок").get_by_role("button", name="В розклад").click(); p.wait_for_load_state("networkidle")
+    choose(p, "Вчитель", "Петро Вчитель")
+    p.get_by_label("Учні").click(); p.get_by_role("option", name="Соня Тестова").click(); p.keyboard.press("Escape")
     p.locator(".segmented label", has_text="Одноразово").click()
     # наступний вівторок
     tue = today + dt.timedelta(days=((1 - today.weekday()) % 7 or 7))
@@ -142,15 +142,19 @@ with sync_playwright() as pw:
     p.locator(".timepick-col").nth(1).get_by_role("button", name="00", exact=True).click()
     p.locator(".modal").get_by_role("button", name="Додати", exact=True).click(); toast(p, "Додано в розклад")
     p.wait_for_selector(".modal", state="detached"); p.wait_for_load_state("networkidle")
-    expect(p.locator(".lesson-row", has_text="Тест-урок").locator(".slot-once")).to_be_visible(); check("одноразовий урок у розкладі", True)
+    once = [x for x in api(ctx, "GET", "/schedules").json() if x["title"] == "Тест-урок" and x["kind"] == "once"]
+    check("одноразовий урок у розкладі", len(once) == 1 and once[0]["time"] == "19:00", str(once))
 
     lessons = api(ctx, "GET", "/lessons").json()
     lesson = next(l for l in lessons if l["title"] == "Тест-урок")
+    people = api(ctx, "GET", "/users").json()
+    petro_id = next(u["id"] for u in people if u["login"] == "petro"); sonia_id = next(u["id"] for u in people if u["login"] == "sonia")
 
     # --- Сьогоднішнє заняття, яке вже почалося, щоб провести його (через API менеджера)
     # У межах сьогодні: абонемент видано сьогодні, і вчорашнє заняття він не покриває.
     now = dt.datetime.now(); start = max(now - dt.timedelta(hours=2), now.replace(hour=0, minute=0, second=0, microsecond=0))
-    r = api(ctx, "POST", "/schedules", data={"lesson_id": lesson["id"], "kind": "once", "date": start.strftime("%Y-%m-%d"), "time": start.strftime("%H:%M")})
+    r = api(ctx, "POST", "/schedules", data={"lesson_id": lesson["id"], "kind": "once", "date": start.strftime("%Y-%m-%d"), "time": start.strftime("%H:%M"),
+                                              "teacher_id": petro_id, "student_ids": [sonia_id]})
     check("створено заняття в минулому для тесту", r.ok, r.text()[:120])
     past_id = r.json()["session_id"]
     ctx.close()
@@ -187,7 +191,7 @@ with sync_playwright() as pw:
     # Проведення: списання за скоригованою ціною
     subs_before = None
     p.goto(f"{BASE}/"); p.wait_for_load_state("networkidle")
-    r = api(t, "POST", f"/sessions/{past_id}/complete", data={"attended_ids": [lesson["students"][0]["id"]]})
+    r = api(t, "POST", f"/sessions/{past_id}/complete", data={"attended_ids": [sonia_id]})
     check("вчитель провів заняття", r.ok, r.text()[:150])
     r2 = api(t, "GET", f"/sessions/{past_id}").json()
     check("списано 420 ₴ зі скоригованого абонемента", r2["students"][0]["price_charged"] == 420, str(r2["students"]))

@@ -65,30 +65,32 @@ await sub(student, p8, 'Базовий', 8, 1, 380, 31);
 await sub(s2, p4, 'Старт', 4, 3, 450, 16);
 await sub(s3, p8, 'Базовий', 8, 2, 400, 31);
 
-const lesson = async (title, courseId, teacherId, minutes, location, students) => {
-  const r = await q('INSERT INTO lessons (title, course_id, teacher_id, duration_min, location) VALUES (?,?,?,?,?)', [
-    title, courseId, teacherId, minutes, location,
-  ]);
-  await q('INSERT INTO lesson_students (lesson_id, student_id) VALUES ?', [students.map((s) => [r.insertId, s])]);
+// Уроки — шаблони. Вчитель і учні з'являються лише в постановці в розклад.
+const lesson = async (title, courseId, minutes, location) =>
+  (await q('INSERT INTO lessons (title, course_id, duration_min, location) VALUES (?,?,?,?)', [title, courseId, minutes, location])).insertId;
+const webGroup = await lesson('Веб: група А', web, 90, 'Кабінет 2');
+const pyOne = await lesson('Python індивідуально', py, 60, 'https://zoom.us/j/1234567890');
+const webOne = await lesson('Веб: консультація', web, 45, 'https://meet.google.com/abc-defg-hij');
+
+const roster = (scheduleId, students) =>
+  q('INSERT INTO schedule_students (schedule_id, student_id) VALUES ?', [students.map((s) => [scheduleId, s])]);
+const monday = addDays(d, 1 - weekdayOf(d));
+const weekly = async (lessonId, teacherId, days, time, students) => {
+  const r = await q(
+    `INSERT INTO lesson_schedules (lesson_id, teacher_id, kind, weekday, weekdays, start_time, start_date) VALUES (?, ?, 'weekly', ?, ?, ?, ?)`,
+    [lessonId, teacherId, days[0], days.join(','), time, addDays(monday, -7)]
+  );
+  await roster(r.insertId, students);
   return r.insertId;
 };
-const webGroup = await lesson('Веб: група А', web, teacher, 90, 'Кабінет 2', [student, s2]);
-const pyOne = await lesson('Python індивідуально', py, teacher2, 60, 'Zoom', [student]);
-const webOne = await lesson('Веб: консультація', web, teacher, 45, 'Zoom', [s3]);
-
-const monday = addDays(d, 1 - weekdayOf(d));
-const weekly = (lessonId, weekday, time) =>
-  q(`INSERT INTO lesson_schedules (lesson_id, kind, weekday, start_time, start_date) VALUES (?, 'weekly', ?, ?, ?)`, [
-    lessonId, weekday, time, addDays(monday, -7),
-  ]);
-await weekly(webGroup, 1, '17:00');
-await weekly(webGroup, 4, '17:00');
-await weekly(pyOne, 3, '15:30');
+const webGroupSchedule = await weekly(webGroup, teacher, [1, 4], '17:00', [student, s2]);
+const pySchedule = await weekly(pyOne, teacher2, [3], '15:30', [student]);
 await ensureSessions(addDays(d, 35));
 
-const r = await q(`INSERT INTO lesson_schedules (lesson_id, kind, start_time, start_date) VALUES (?, 'once', '12:00', ?)`, [
-  webOne, addDays(monday, 5),
+const r = await q(`INSERT INTO lesson_schedules (lesson_id, teacher_id, kind, start_time, start_date) VALUES (?, ?, 'once', '12:00', ?)`, [
+  webOne, teacher, addDays(monday, 5),
 ]);
+await roster(r.insertId, [s3]);
 const onceStart = `${addDays(monday, 5)} 12:00:00`;
 await q('INSERT INTO lesson_sessions (lesson_id, schedule_id, original_starts_at, starts_at, ends_at) VALUES (?,?,?,?,?)', [
   webOne, r.insertId, onceStart, onceStart, addMinutes(onceStart, 45),
@@ -116,13 +118,13 @@ for (const s of webSteps.slice(0, 2)) {
   await q('INSERT INTO roadmap_progress (student_id, step_id, marked_by) VALUES (?,?,?)', [student, s.id, teacher]);
 }
 
-await q('INSERT INTO homework (lesson_id, title, description, due_at, created_by) VALUES (?,?,?,?,?)', [
-  webGroup, 'Адаптивна картка профілю',
-  'Зверстайте картку за макетом. Здайте папку проєкту архівом і скрін мобільної версії.',
+await q('INSERT INTO homework (lesson_id, schedule_id, title, description, due_at, created_by) VALUES (?,?,?,?,?,?)', [
+  webGroup, webGroupSchedule, 'Адаптивна картка профілю',
+  'Зверстайте картку за макетом. Здайте папку проєкту архівом і скрін мобільної версії. Макет: https://www.figma.com/community',
   `${addDays(d, 4)} 23:59:00`, teacher,
 ]);
-await q('INSERT INTO homework (lesson_id, title, description, due_at, created_by) VALUES (?,?,?,?,?)', [
-  pyOne, 'Калькулятор у консолі', 'Чотири дії та обробка ділення на нуль.', `${addDays(d, 6)} 20:00:00`, teacher2,
+await q('INSERT INTO homework (lesson_id, schedule_id, title, description, due_at, created_by) VALUES (?,?,?,?,?,?)', [
+  pyOne, pySchedule, 'Калькулятор у консолі', 'Чотири дії та обробка ділення на нуль.', `${addDays(d, 6)} 20:00:00`, teacher2,
 ]);
 
 console.log(`Готово. Входи:

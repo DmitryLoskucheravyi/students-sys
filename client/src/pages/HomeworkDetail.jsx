@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
-import { Button, DatePicker, ErrorNote, IconButton, Input, Loader, Modal, PageHead, Status, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
+import { Button, DatePicker, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Status, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
 import { IconDownload, IconEdit, IconFile, IconFolderZip, IconLeft, IconTick, IconTrash } from '../icons.jsx';
 import { dateTimeShort, fileSize, nowLocal, time } from '../fmt.js';
 import { HW_STATUS } from './Homework.jsx';
@@ -36,7 +36,7 @@ export default function HomeworkDetail() {
       </PageHead>
       <p className={`small ${late ? 'text-red' : 'muted'}`}>Здати до {dateTimeShort(hw.due_at)}</p>
       <p className="muted small">{[hw.lesson_title, hw.teacher_name].filter(Boolean).join(', ')}</p>
-      {hw.description && <p className="task">{hw.description}</p>}
+      {hw.description && <p className="task"><Linkify text={hw.description} /></p>}
 
       {isStudent ? <StudentWork hw={hw} onChange={reload} /> : <Submissions hw={hw} onChange={reload} />}
       {editing && <EditHomework hw={hw} onClose={() => setEditing(false)} onDone={() => { setEditing(false); reload(); }} />}
@@ -98,10 +98,10 @@ function StudentWork({ hw, onChange }) {
         {sub?.grade != null ? <span className="grade grade-big" title="Оцінка">{sub.grade}</span> : <Status kind={HW_STATUS[status][0]}>{HW_STATUS[status][1]}</Status>}
       </header>
       {sub?.feedback && (
-        <blockquote className="feedback"><IconTick size={20} /> {sub.feedback}</blockquote>
+        <blockquote className="feedback"><IconTick size={20} /> <span><Linkify text={sub.feedback} /></span></blockquote>
       )}
       {sub?.files?.length > 0 && <FileList files={sub.files} onRemove={canEdit ? removeFile : null} />}
-      {sub?.comment && <p className="muted small">Коментар: {sub.comment}</p>}
+      {sub?.comment && <p className="muted small">Коментар: <Linkify text={sub.comment} /></p>}
       {canEdit && <Uploader homeworkId={hw.id} resubmit={Boolean(sub)} canSendWithoutNew={status === 'returned' && sub.files.length > 0} onDone={onChange} />}
     </section>
   );
@@ -156,7 +156,7 @@ function ReviewSheet({ row, onClose, onDone }) {
     <Modal side title={row.student_name} onClose={onClose}>
       <div className="sheet">
         <p className="muted small">Здано {dateTimeShort(s.submitted_at)}</p>
-        {s.comment && <p className="note">{s.comment}</p>}
+        {s.comment && <p className="note"><Linkify text={s.comment} /></p>}
         <FileList files={s.files} />
         <div className="field">
           <div className="field-label">Оцінка</div>

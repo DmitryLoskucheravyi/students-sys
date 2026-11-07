@@ -4,7 +4,7 @@ import { api, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
 import { Button, DatePicker, Empty, ErrorNote, Input, Loader, Modal, PageHead, Select, Status, Textarea, TimePicker, useAction } from '../ui.jsx';
 import { IconHomework, IconPlus } from '../icons.jsx';
-import { addDays, dateTimeShort, nowLocal, todayISO } from '../fmt.js';
+import { WEEKDAYS, addDays, dateTimeShort, nowLocal, shortDate, todayISO } from '../fmt.js';
 
 export const HW_STATUS = {
   todo: ['warn', 'Треба здати'],
@@ -85,9 +85,14 @@ export default function Homework() {
   );
 }
 
+/** «Пн, Чт 17:00» або «12.11 10:00»: як впізнати постановку у списку. */
+const placementWhen = (p) => (p.kind === 'weekly'
+  ? `${p.weekdays.map((d) => WEEKDAYS[d - 1]).join(', ')} ${p.time}`
+  : `${shortDate(p.start_date).slice(0, 5)} ${p.time}`);
+
 function NewHomework({ onClose, onDone }) {
-  const lessons = useData('/lessons');
-  const [lessonId, setLessonId] = useState(null);
+  const placements = useData('/schedules');
+  const [scheduleId, setScheduleId] = useState(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(addDays(todayISO(), 7));
@@ -95,14 +100,18 @@ function NewHomework({ onClose, onDone }) {
   const [run, busy] = useAction();
   const submit = async (e) => {
     e.preventDefault();
-    const r = await run(() => api('/homework', { method: 'POST', body: { lesson_id: lessonId, title, description, due_at: `${date} ${time}:00` } }), 'Домашнє задано');
+    const r = await run(() => api('/homework', { method: 'POST', body: { schedule_id: scheduleId, title, description, due_at: `${date} ${time}:00` } }), 'Домашнє задано');
     if (r) onDone(r.id);
   };
   return (
     <Modal title="Задати домашнє" onClose={onClose}>
       <form className="form" onSubmit={submit}>
-        <Select label="Урок" value={lessonId} onChange={setLessonId}
-          options={(lessons.data ?? []).filter((l) => l.is_active).map((l) => ({ value: l.id, label: l.title, hint: l.teacher_name ?? 'без вчителя' }))} />
+        <Select label="Урок" value={scheduleId} onChange={setScheduleId} placeholder="Оберіть урок у розкладі"
+          options={(placements.data ?? []).map((p) => ({
+            value: p.id,
+            label: `${p.title} · ${placementWhen(p)}`,
+            hint: [p.teacher_name, p.students.map((s) => s.name).join(', ') || 'без учнів'].filter(Boolean).join(' · '),
+          }))} />
         <Input label="Назва" required maxLength={160} value={title} onChange={(e) => setTitle(e.target.value)} />
         <Textarea label="Завдання" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
         <div className="form-row">
@@ -111,7 +120,7 @@ function NewHomework({ onClose, onDone }) {
         </div>
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Назад</Button>
-          <Button type="submit" busy={busy} disabled={!lessonId}>Задати</Button>
+          <Button type="submit" busy={busy} disabled={!scheduleId}>Задати</Button>
         </div>
       </form>
     </Modal>

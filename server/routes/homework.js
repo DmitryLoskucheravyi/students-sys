@@ -96,11 +96,12 @@ async function inspectFiles(req) {
 }
 
 const HW_SELECT = `
-  SELECT h.id, h.lesson_id, h.session_id, h.title, h.description, h.due_at, h.created_at,
-         l.title AS lesson_title, l.teacher_id, u.name AS teacher_name, c.title AS course_title
+  SELECT h.id, h.lesson_id, h.schedule_id, h.session_id, h.title, h.description, h.due_at, h.created_at,
+         l.title AS lesson_title, sc.teacher_id, u.name AS teacher_name, c.title AS course_title
     FROM homework h
     JOIN lessons l ON l.id = h.lesson_id
-    LEFT JOIN users u ON u.id = l.teacher_id
+    LEFT JOIN lesson_schedules sc ON sc.id = h.schedule_id
+    LEFT JOIN users u ON u.id = sc.teacher_id
     LEFT JOIN courses c ON c.id = l.course_id`;
 
 async function loadHomework(homeworkId) {
@@ -108,8 +109,9 @@ async function loadHomework(homeworkId) {
   if (!h) throw notFound('Завдання не знайдено');
   return h;
 }
-async function isStudentOf(lessonId, studentId) {
-  const [hit] = await q('SELECT 1 FROM lesson_students WHERE lesson_id=? AND student_id=?', [lessonId, studentId]);
+/** Домашнє бачать лише учні постановки, якій його задали. */
+async function isStudentOf(hw, studentId) {
+  const [hit] = await q('SELECT 1 FROM schedule_students WHERE schedule_id=? AND student_id=?', [hw.schedule_id, studentId]);
   return Boolean(hit);
 }
 function assertStaff(user, hw) {
@@ -131,7 +133,7 @@ homeworkRouter.get('/', async (req, res) => {
   if (role === 'student') {
     const rows = await q(
       `${HW_SELECT}
-       JOIN lesson_students ls ON ls.lesson_id = h.lesson_id AND ls.student_id = ?
+       JOIN schedule_students ss ON ss.schedule_id = h.schedule_id AND ss.student_id = ?
        ORDER BY h.due_at DESC`,
       [me]
     );
@@ -148,10 +150,10 @@ homeworkRouter.get('/', async (req, res) => {
   }
   const rows = await q(
     `SELECT t.*,
-        (SELECT COUNT(*) FROM lesson_students ls WHERE ls.lesson_id = t.lesson_id) AS students_count,
+        (SELECT COUNT(*) FROM schedule_students ss WHERE ss.schedule_id = t.schedule_id) AS students_count,
         (SELECT COUNT(*) FROM submissions s WHERE s.homework_id = t.id) AS submitted_count,
         (SELECT COUNT(*) FROM submissions s WHERE s.homework_id = t.id AND s.status='submitted') AS to_review
-       FROM (${HW_SELECT} ${role === 'teacher' ? 'WHERE l.teacher_id = ?' : ''}) t
+       FROM (${HW_SELECT} ${role === 'teacher' ? 'WHERE sc.teacher_id = ?' : ''}) t
       ORDER BY to_review DESC, t.due_at DESC`,
     role === 'teacher' ? [me] : []
   );
@@ -160,18 +162,23 @@ homeworkRouter.get('/', async (req, res) => {
 
 homeworkRouter.post('/', requireRole('manager', 'teacher'), async (req, res) => {
   const b = req.body ?? {};
-  const lessonId = id(b.lesson_id, 'Урок');
-  const [lesson] = await q('SELECT teacher_id FROM lessons WHERE id=?', [lessonId]);
-  if (!lesson) throw bad('Урок не знайдено');
-  if (req.user.role === 'teacher' && lesson.teacher_id !== req.user.id) throw forbidden();
+  // Домашнє задають постановці: напряму або через її заняття.
+  let scheduleId = b.schedule_id ? id(b.schedule_id, 'Урок у розкладі') : null;
   let sessionId = null;
   if (b.session_id) {
     sessionId = id(b.session_id, 'Заняття');
-    const [s] = await q('SELECT id FROM lesson_sessions WHERE id=? AND lesson_id=?', [sessionId, lessonId]);
-    if (!s) throw bad('Заняття не належить цьому уроку');
+    const [s] = await q('SELECT schedule_id FROM lesson_sessions WHERE id=?', [sessionId]);
+    if (!s) throw bad('Заняття не знайдено');
+    if (scheduleId && scheduleId !== s.schedule_id) throw bad('Заняття не належить цьому уроку');
+    scheduleId = s.schedule_id;
   }
+  if (!scheduleId) throw bad('Оберіть урок у розкладі');
+  const [placement] = await q('SELECT lesson_id, teacher_id FROM lesson_schedules WHERE id=?', [scheduleId]);
+  if (!placement) throw bad('Урок у розкладі не знайдено');
+  if (req.user.role === 'teacher' && placement.teacher_id !== req.user.id) throw forbidden();
   const r = await q('INSERT INTO homework SET ?', [{
-    lesson_id: lessonId,
+    lesson_id: placement.lesson_id,
+    schedule_id: scheduleId,
     session_id: sessionId,
     title: str(b.title, 'Назва', { max: 160 }),
     description: str(b.description, 'Опис', { max: 5000, required: false }),
@@ -185,16 +192,16 @@ homeworkRouter.get('/:id', async (req, res) => {
   const hw = await loadHomework(id(req.params.id));
   const { role, id: me } = req.user;
   if (role === 'student') {
-    if (!(await isStudentOf(hw.lesson_id, me))) throw forbidden();
+    if (!(await isStudentOf(hw, me))) throw forbidden();
     const [submission] = await q('SELECT * FROM submissions WHERE homework_id=? AND student_id=?', [hw.id, me]);
     const files = submission ? await filesOf([submission.id]) : [];
     return res.json({ ...hw, submission: submission ? { ...submission, files } : null });
   }
   assertStaff(req.user, hw);
   const students = await q(
-    `SELECT u.id, u.name FROM lesson_students ls JOIN users u ON u.id = ls.student_id
-      WHERE ls.lesson_id=? ORDER BY u.name`,
-    [hw.lesson_id]
+    `SELECT u.id, u.name FROM schedule_students ss JOIN users u ON u.id = ss.student_id
+      WHERE ss.schedule_id=? ORDER BY u.name`,
+    [hw.schedule_id]
   );
   const subs = await q(
     `SELECT s.*, u.name AS student_name FROM submissions s JOIN users u ON u.id = s.student_id WHERE s.homework_id=?`,
@@ -245,7 +252,7 @@ homeworkRouter.post('/:id/submission', requireRole('student'), handleUpload, asy
   const persisted = [];
   try {
     const hw = await loadHomework(id(req.params.id));
-    if (!(await isStudentOf(hw.lesson_id, req.user.id))) throw forbidden();
+    if (!(await isStudentOf(hw, req.user.id))) throw forbidden();
     const rows = await inspectFiles(req);
     const comment = str(req.body?.comment, 'Коментар', { max: 3000, required: false });
 
@@ -341,11 +348,11 @@ homeworkRouter.post('/submissions/:id/review', requireRole('manager', 'teacher')
 filesRouter.get('/:id', async (req, res) => {
   const fileId = id(req.params.id);
   const [f] = await q(
-    `SELECT f.*, s.student_id, l.teacher_id
+    `SELECT f.*, s.student_id, sc.teacher_id
        FROM submission_files f
        JOIN submissions s ON s.id = f.submission_id
        JOIN homework h ON h.id = s.homework_id
-       JOIN lessons l ON l.id = h.lesson_id
+       LEFT JOIN lesson_schedules sc ON sc.id = h.schedule_id
       WHERE f.id=?`,
     [fileId]
   );

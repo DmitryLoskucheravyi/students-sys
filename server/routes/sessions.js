@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { q, tx } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { addDays, addMinutes, bad, conflict, dateTime, forbidden, id, idList, isoDate, notFound, nowStr, str, today } from '../lib.js';
-import { assertNoConflicts, ensureSessions } from '../schedule.js';
+import { assertNoConflicts, ensureSessions, rosterOf } from '../schedule.js';
 
 export const sessionsRouter = Router();
 export const requestsRouter = Router();
@@ -10,20 +10,21 @@ sessionsRouter.use(requireAuth);
 requestsRouter.use(requireRole('manager', 'teacher'));
 
 const SESSION_SELECT = `
-  SELECT se.id, se.lesson_id, se.starts_at, se.ends_at, se.original_starts_at, se.status, se.cancel_reason,
-         l.title, l.location, l.note, l.teacher_id, l.course_id,
+  SELECT se.id, se.lesson_id, se.schedule_id, se.starts_at, se.ends_at, se.original_starts_at, se.status, se.cancel_reason,
+         l.title, l.location, l.note, sc.teacher_id, l.course_id,
          c.title AS course_title, u.name AS teacher_name, sc.kind
     FROM lesson_sessions se
     JOIN lessons l ON l.id = se.lesson_id
-    LEFT JOIN users u ON u.id = l.teacher_id
     JOIN lesson_schedules sc ON sc.id = se.schedule_id
+    LEFT JOIN users u ON u.id = sc.teacher_id
     LEFT JOIN courses c ON c.id = l.course_id`;
 
-const STUDENT_SCOPE = `(EXISTS (SELECT 1 FROM lesson_students x WHERE x.lesson_id = se.lesson_id AND x.student_id = ?)
+// Учень бачить заняття своєї постановки, а також ті, на яких уже був (навіть якщо його потім прибрали).
+const STUDENT_SCOPE = `(EXISTS (SELECT 1 FROM schedule_students x WHERE x.schedule_id = se.schedule_id AND x.student_id = ?)
                      OR EXISTS (SELECT 1 FROM attendance a WHERE a.session_id = se.id AND a.student_id = ?))`;
 
 function scope(user) {
-  if (user.role === 'teacher') return { sql: 'l.teacher_id = ?', params: [user.id] };
+  if (user.role === 'teacher') return { sql: 'sc.teacher_id = ?', params: [user.id] };
   if (user.role === 'student') return { sql: STUDENT_SCOPE, params: [user.id, user.id] };
   return { sql: '1=1', params: [] };
 }
@@ -32,7 +33,7 @@ function scope(user) {
 async function attachPeople(rows, user) {
   if (!rows.length) return rows;
   const sessionIds = rows.map((r) => r.id);
-  const lessonIds = [...new Set(rows.map((r) => r.lesson_id))];
+  const scheduleIds = [...new Set(rows.map((r) => r.schedule_id))];
   const attendance = await q(
     `SELECT a.session_id, a.student_id, a.attended, a.price_charged, u.name
        FROM attendance a JOIN users u ON u.id = a.student_id WHERE a.session_id IN (?)`,
@@ -45,9 +46,9 @@ async function attachPeople(rows, user) {
     });
   }
   const roster = await q(
-    `SELECT ls.lesson_id, u.id, u.name FROM lesson_students ls JOIN users u ON u.id = ls.student_id
-      WHERE ls.lesson_id IN (?) ORDER BY u.name`,
-    [lessonIds]
+    `SELECT ss.schedule_id, u.id, u.name FROM schedule_students ss JOIN users u ON u.id = ss.student_id
+      WHERE ss.schedule_id IN (?) ORDER BY u.name`,
+    [scheduleIds]
   );
   return rows.map((r) => ({
     ...r,
@@ -56,7 +57,7 @@ async function attachPeople(rows, user) {
         ? attendance
             .filter((a) => a.session_id === r.id)
             .map((a) => ({ id: a.student_id, name: a.name, attended: a.attended, price_charged: a.price_charged }))
-        : roster.filter((s) => s.lesson_id === r.lesson_id).map((s) => ({ id: s.id, name: s.name })),
+        : roster.filter((s) => s.schedule_id === r.schedule_id).map((s) => ({ id: s.id, name: s.name })),
   }));
 }
 
@@ -71,7 +72,7 @@ sessionsRouter.get('/', async (req, res) => {
   const params = [`${from} 00:00:00`, `${addDays(to, 1)} 00:00:00`, ...s.params];
   if (req.user.role === 'manager') {
     if (req.query.teacher_id) {
-      where.push('l.teacher_id = ?');
+      where.push('sc.teacher_id = ?');
       params.push(id(req.query.teacher_id));
     }
     if (req.query.student_id) {
@@ -99,7 +100,7 @@ sessionsRouter.get('/summary', requireRole('student'), async (req, res) => {
   );
   const [{ todo }] = await q(
     `SELECT COUNT(*) AS todo FROM homework h
-       JOIN lesson_students ls ON ls.lesson_id = h.lesson_id AND ls.student_id = ?
+       JOIN schedule_students ss ON ss.schedule_id = h.schedule_id AND ss.student_id = ?
        LEFT JOIN submissions s ON s.homework_id = h.id AND s.student_id = ?
       WHERE s.id IS NULL OR s.status = 'returned'`,
     [me, me]
@@ -109,8 +110,11 @@ sessionsRouter.get('/summary', requireRole('student'), async (req, res) => {
 
 async function loadSession(sessionId, conn = q) {
   const [s] = await conn(
-    `SELECT se.*, l.teacher_id, l.duration_min, l.title, l.is_active AS lesson_active
-       FROM lesson_sessions se JOIN lessons l ON l.id = se.lesson_id WHERE se.id=?`,
+    `SELECT se.*, sc.teacher_id, l.duration_min, l.title, l.is_active AS lesson_active
+       FROM lesson_sessions se
+       JOIN lessons l ON l.id = se.lesson_id
+       JOIN lesson_schedules sc ON sc.id = se.schedule_id
+      WHERE se.id=?`,
     [sessionId]
   );
   if (!s) throw notFound('Заняття не знайдено');
@@ -120,10 +124,6 @@ function assertStaffOf(user, session) {
   if (user.role === 'manager') return;
   if (user.role === 'teacher' && session.teacher_id === user.id) return;
   throw forbidden('Це заняття веде інший вчитель');
-}
-async function rosterOf(lessonId, conn = q) {
-  const rows = await conn('SELECT student_id FROM lesson_students WHERE lesson_id=?', [lessonId]);
-  return rows.map((r) => r.student_id);
 }
 
 sessionsRouter.get('/:id', async (req, res) => {
@@ -165,7 +165,7 @@ async function applyReschedule(session, startsAt, t) {
   await assertNoConflicts(
     {
       teacherId: session.teacher_id,
-      studentIds: await rosterOf(session.lesson_id, t),
+      studentIds: await rosterOf(session.schedule_id, t),
       slots: [{ start: startsAt, end: endsAt }],
       excludeSessionId: session.id,
     },
@@ -213,7 +213,7 @@ sessionsRouter.post('/:id/complete', requireRole('manager', 'teacher'), async (r
   const warnings = [];
   await tx(async (t) => {
     const [s] = await t(
-      `SELECT se.*, l.teacher_id FROM lesson_sessions se JOIN lessons l ON l.id = se.lesson_id
+      `SELECT se.*, sc.teacher_id FROM lesson_sessions se JOIN lesson_schedules sc ON sc.id = se.schedule_id
         WHERE se.id=? FOR UPDATE`,
       [sessionId]
     );
@@ -224,8 +224,8 @@ sessionsRouter.post('/:id/complete', requireRole('manager', 'teacher'), async (r
 
     const sessionDate = s.starts_at.slice(0, 10);
     const roster = await t(
-      `SELECT u.id, u.name FROM lesson_students ls JOIN users u ON u.id = ls.student_id WHERE ls.lesson_id=?`,
-      [s.lesson_id]
+      `SELECT u.id, u.name FROM schedule_students ss JOIN users u ON u.id = ss.student_id WHERE ss.schedule_id=?`,
+      [s.schedule_id]
     );
     for (const student of roster) {
       const present = attended.has(student.id);
@@ -264,7 +264,7 @@ sessionsRouter.post('/:id/reopen', requireRole('manager', 'teacher'), async (req
   const sessionId = id(req.params.id);
   await tx(async (t) => {
     const [s] = await t(
-      `SELECT se.*, l.teacher_id FROM lesson_sessions se JOIN lessons l ON l.id = se.lesson_id
+      `SELECT se.*, sc.teacher_id FROM lesson_sessions se JOIN lesson_schedules sc ON sc.id = se.schedule_id
         WHERE se.id=? FOR UPDATE`,
       [sessionId]
     );
@@ -275,7 +275,7 @@ sessionsRouter.post('/:id/reopen', requireRole('manager', 'teacher'), async (req
       await assertNoConflicts(
         {
           teacherId: s.teacher_id,
-          studentIds: await rosterOf(s.lesson_id, t),
+          studentIds: await rosterOf(s.schedule_id, t),
           slots: [{ start: s.starts_at, end: s.ends_at }],
           excludeSessionId: s.id,
         },
@@ -302,7 +302,7 @@ sessionsRouter.post('/:id/reopen', requireRole('manager', 'teacher'), async (req
 sessionsRouter.post('/:id/requests', requireRole('student'), async (req, res) => {
   const sessionId = id(req.params.id);
   const session = await loadSession(sessionId);
-  const roster = await rosterOf(session.lesson_id);
+  const roster = await rosterOf(session.schedule_id);
   if (!roster.includes(req.user.id)) throw forbidden();
   if (session.status !== 'scheduled' || session.starts_at <= nowStr()) {
     throw conflict('Запит можна надіслати лише для майбутнього заняття');
@@ -336,7 +336,8 @@ requestsRouter.get('/', async (req, res) => {
          JOIN users u ON u.id = r.student_id
          JOIN lesson_sessions se ON se.id = r.session_id
          JOIN lessons l ON l.id = se.lesson_id
-        WHERE r.status='pending' ${isTeacher ? 'AND l.teacher_id = ?' : ''}
+         JOIN lesson_schedules sc ON sc.id = se.schedule_id
+        WHERE r.status='pending' ${isTeacher ? 'AND sc.teacher_id = ?' : ''}
         ORDER BY se.starts_at`,
       isTeacher ? [req.user.id] : []
     )

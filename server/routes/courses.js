@@ -8,13 +8,19 @@ import { bad, conflict, forbidden, id, idList, notFound, str } from '../lib.js';
 export const coursesRouter = Router();
 coursesRouter.use(requireAuth);
 
+// Хто веде й хто вчиться на курсі — визначають постановки уроків цього курсу в розкладі.
+const TAUGHT = `FROM lessons l JOIN lesson_schedules sc ON sc.lesson_id = l.id
+                WHERE l.course_id = %COURSE% AND sc.teacher_id = ? AND sc.is_active = 1 AND l.is_active = 1`;
+const STUDIED = `FROM lessons l JOIN lesson_schedules sc ON sc.lesson_id = l.id
+                 JOIN schedule_students ss ON ss.schedule_id = sc.id
+                 WHERE l.course_id = %COURSE% AND ss.student_id = ?`;
+const course = (sql, ref) => sql.replace('%COURSE%', ref);
+
 /** Вчитель редагує роадмап лише курсів, які сам веде. */
 async function canEdit(user, courseId) {
   if (user.role === 'manager') return true;
   if (user.role !== 'teacher') return false;
-  const [hit] = await q('SELECT 1 FROM lessons WHERE course_id=? AND teacher_id=? AND is_active=1 LIMIT 1', [
-    courseId, user.id,
-  ]);
+  const [hit] = await q(`SELECT 1 ${course(TAUGHT, '?')} LIMIT 1`, [courseId, user.id]);
   return Boolean(hit);
 }
 async function assertEdit(user, courseId) {
@@ -23,11 +29,7 @@ async function assertEdit(user, courseId) {
 async function canView(user, courseId) {
   if (user.role === 'manager') return true;
   if (user.role === 'teacher') return canEdit(user, courseId);
-  const [hit] = await q(
-    `SELECT 1 FROM lessons l JOIN lesson_students ls ON ls.lesson_id = l.id
-      WHERE l.course_id=? AND ls.student_id=? LIMIT 1`,
-    [courseId, user.id]
-  );
+  const [hit] = await q(`SELECT 1 ${course(STUDIED, '?')} LIMIT 1`, [courseId, user.id]);
   return Boolean(hit);
 }
 
@@ -37,14 +39,15 @@ coursesRouter.get('/', async (req, res) => {
     role === 'manager'
       ? ''
       : role === 'teacher'
-        ? 'WHERE EXISTS (SELECT 1 FROM lessons l WHERE l.course_id = c.id AND l.teacher_id = ? AND l.is_active = 1)'
-        : `WHERE EXISTS (SELECT 1 FROM lessons l JOIN lesson_students ls ON ls.lesson_id = l.id
-                          WHERE l.course_id = c.id AND ls.student_id = ?)`;
+        ? `WHERE EXISTS (SELECT 1 ${course(TAUGHT, 'c.id')})`
+        : `WHERE EXISTS (SELECT 1 ${course(STUDIED, 'c.id')})`;
   const rows = await q(
     `SELECT c.*,
         (SELECT COUNT(*) FROM roadmap_steps s WHERE s.course_id = c.id) AS steps_count,
-        (SELECT COUNT(DISTINCT ls.student_id) FROM lessons l JOIN lesson_students ls ON ls.lesson_id = l.id
-          WHERE l.course_id = c.id AND l.is_active = 1) AS students_count,
+        (SELECT COUNT(DISTINCT ss.student_id) FROM lessons l
+           JOIN lesson_schedules sc ON sc.lesson_id = l.id
+           JOIN schedule_students ss ON ss.schedule_id = sc.id
+          WHERE l.course_id = c.id AND l.is_active = 1 AND sc.is_active = 1) AS students_count,
         (SELECT COUNT(*) FROM roadmap_progress p JOIN roadmap_steps s ON s.id = p.step_id
           WHERE s.course_id = c.id AND p.student_id = ?) AS my_done
        FROM courses c ${scope} ORDER BY c.title`,
@@ -76,9 +79,10 @@ coursesRouter.get('/:id', async (req, res) => {
     ? []
     : await q(
         `SELECT DISTINCT u.id, u.name FROM users u
-           JOIN lesson_students ls ON ls.student_id = u.id
-           JOIN lessons l ON l.id = ls.lesson_id
-          WHERE l.course_id = ? AND l.is_active = 1 ${req.user.role === 'teacher' ? 'AND l.teacher_id = ?' : ''}
+           JOIN schedule_students ss ON ss.student_id = u.id
+           JOIN lesson_schedules sc ON sc.id = ss.schedule_id
+           JOIN lessons l ON l.id = sc.lesson_id
+          WHERE l.course_id = ? AND l.is_active = 1 AND sc.is_active = 1 ${req.user.role === 'teacher' ? 'AND sc.teacher_id = ?' : ''}
           ORDER BY u.name`,
         req.user.role === 'teacher' ? [courseId, req.user.id] : [courseId]
       );
@@ -224,10 +228,9 @@ coursesRouter.post('/:id/roadmap/import', async (req, res) => {
 });
 
 async function assertStudentOnCourse(user, courseId, studentId) {
-  const teacherFilter = user.role === 'teacher' ? 'AND l.teacher_id = ?' : '';
+  const teacherFilter = user.role === 'teacher' ? 'AND sc.teacher_id = ?' : '';
   const [onCourse] = await q(
-    `SELECT 1 FROM lessons l JOIN lesson_students ls ON ls.lesson_id = l.id
-      WHERE l.course_id=? AND ls.student_id=? ${teacherFilter} LIMIT 1`,
+    `SELECT 1 ${course(STUDIED, '?')} ${teacherFilter} LIMIT 1`,
     user.role === 'teacher' ? [courseId, studentId, user.id] : [courseId, studentId]
   );
   if (!onCourse) throw forbidden('Учень не вчиться у вас на цьому курсі');

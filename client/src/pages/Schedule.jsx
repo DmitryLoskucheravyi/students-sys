@@ -2,8 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth, useIsMobile } from '../session.jsx';
-import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageHead, Segmented, Select, Status, TimePicker, Textarea, WeekdayPicker, useAction, useUI } from '../ui.jsx';
-import { IconBan, IconClock, IconHomework, IconLeft, IconList, IconLesson, IconMove, IconOnce, IconPeople, IconPin, IconPlus, IconRepeat, IconRestore, IconRight, IconTick, IconTicket, IconUser } from '../icons.jsx';
+import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Segmented, Select, Status, TimePicker, Textarea, WeekdayPicker, useAction, useUI } from '../ui.jsx';
+import { IconBan, IconClock, IconClose, IconHomework, IconLeft, IconList, IconLesson, IconMove, IconOnce, IconPeople, IconPin, IconPlus, IconRepeat, IconRestore, IconRight, IconTick, IconTicket, IconUser } from '../icons.jsx';
 import { WEEKDAYS, addDays, dateTimeShort, mondayOf, money, nowLocal, parseDate, time, todayISO, weekTitle, weekdayDayMonth, weekdayOf } from '../fmt.js';
 
 const HOUR_PX = 56;
@@ -285,9 +285,24 @@ function SessionSheet({ id, onClose, onChange }) {
   const [run, busy] = useAction();
   const { toast, confirm } = useUI();
   const isStudent = user.role === 'student';
-  const canManage = user.role === 'manager' || (user.role === 'teacher' && s?.teacher_id === user.id);
+  const isManager = user.role === 'manager';
+  const canManage = isManager || (user.role === 'teacher' && s?.teacher_id === user.id);
 
   const done = () => { setMode(null); reload(); onChange(); };
+
+  // Прибирає всю постановку: майбутні заняття зникають, минулі лишаються в історії.
+  const unschedule = async () => {
+    const yes = await confirm({
+      title: s.kind === 'weekly' ? `Прибрати «${s.title}» з розкладу?` : 'Прибрати заняття з розкладу?',
+      text: s.kind === 'weekly' ? 'Зникнуть усі майбутні заняття цієї постановки. Минулі лишаться в історії.' : 'Заняття зникне з календаря.',
+      action: 'Прибрати', danger: true,
+    });
+    if (!yes) return;
+    if (await run(() => api(`/schedules/${s.schedule_id}`, { method: 'DELETE' }), 'Прибрано з розкладу')) {
+      onChange();
+      onClose();
+    }
+  };
 
   const reopen = async () => {
     const yes = await confirm({
@@ -318,14 +333,17 @@ function SessionSheet({ id, onClose, onChange }) {
           <dl className="facts">
             <div><dt><IconUser size={18} /><span className="sr">Вчитель</span></dt><dd>{s.teacher_name ?? 'Без вчителя'}</dd></div>
             {s.course_title && <div><dt><IconLesson size={18} /><span className="sr">Курс</span></dt><dd>{s.course_title}</dd></div>}
-            {s.location && <div><dt><IconPin size={18} /><span className="sr">Місце</span></dt><dd>{s.location}</dd></div>}
+            {s.location && <div><dt><IconPin size={18} /><span className="sr">Місце</span></dt><dd><Linkify text={s.location} /></dd></div>}
             <div><dt>{s.kind === 'weekly' ? <IconRepeat size={18} /> : <IconOnce size={18} />}<span className="sr">Тип</span></dt><dd>{s.kind === 'weekly' ? 'Постійний урок' : 'Одноразовий урок'}</dd></div>
           </dl>
-          {s.note && <p className="note">{s.note}</p>}
+          {s.note && <p className="note"><Linkify text={s.note} /></p>}
 
           {s.students && (
             <section>
-              <h3><IconPeople size={18} /> Учні</h3>
+              <div className="section-head">
+                <h3><IconPeople size={18} /> Учні</h3>
+                {isManager && !mode && <Button variant="ghost" small onClick={() => setMode('people')}>Змінити склад</Button>}
+              </div>
               {s.students.length === 0 && <p className="muted small">Учнів ще не додано</p>}
               <ul className="roster">
                 {s.students.map((st) => (
@@ -369,8 +387,10 @@ function SessionSheet({ id, onClose, onChange }) {
               {s.status === 'scheduled' && <Button variant="ghost" icon={<IconMove size={18} />} onClick={() => setMode('reschedule')}>Перенести</Button>}
               {s.status === 'scheduled' && <Button variant="ghost" icon={<IconBan size={18} />} onClick={() => setMode('cancel')}>Скасувати</Button>}
               {s.status !== 'scheduled' && <Button variant="ghost" busy={busy} icon={<IconRestore size={18} />} onClick={reopen}>Повернути в план</Button>}
+              {isManager && <Button variant="ghost" busy={busy} icon={<IconClose size={18} />} onClick={unschedule}>Прибрати з розкладу</Button>}
             </div>
           )}
+          {mode === 'people' && <PlacementForm scheduleId={s.schedule_id} onCancel={() => setMode(null)} onDone={done} />}
           {isStudent && !mode && s.status === 'scheduled' && future && (
             pendingMine
               ? <p className="note"><IconClock size={16} /> Запит надіслано. Чекає на відповідь.</p>
@@ -499,10 +519,57 @@ function HomeworkForm({ session, onCancel, onDone }) {
   );
 }
 
-/* Постановка уроку в розклад: постійно або одноразово */
+/** Вибір вчителя й учнів постановки. Вимкнених, які вже в ній, теж показуємо: інакше їх не прибрати. */
+function usePeopleOptions(current = { teacherId: null, studentIds: [] }) {
+  const people = useData('/users');
+  const list = people.data ?? [];
+  const label = (u) => (u.is_active ? u.name : `${u.name} (вимкнений)`);
+  return {
+    teachers: list.filter((u) => u.role === 'teacher' && (u.is_active || u.id === current.teacherId)).map((u) => ({ value: u.id, label: label(u) })),
+    pupils: list.filter((u) => u.role === 'student' && (u.is_active || current.studentIds.includes(u.id))).map((u) => ({ value: u.id, label: label(u) })),
+  };
+}
+
+function PeopleFields({ teacherId, setTeacherId, students, setStudents, options }) {
+  return (
+    <>
+      <Select label="Вчитель" value={teacherId} onChange={setTeacherId} clearable="Без вчителя" placeholder="Без вчителя" options={options.teachers} />
+      <Select label="Учні" multiple value={students} onChange={setStudents} options={options.pupils} placeholder="Оберіть учнів" />
+    </>
+  );
+}
+
+/* Склад постановки з картки заняття: діє на всі майбутні заняття цієї постановки */
+function PlacementForm({ scheduleId, onCancel, onDone }) {
+  const { data: placement } = useData(`/schedules/${scheduleId}`);
+  const [teacherId, setTeacherId] = useState(undefined);
+  const [students, setStudents] = useState(undefined);
+  const [run, busy] = useAction();
+  const options = usePeopleOptions({ teacherId: placement?.teacher_id ?? null, studentIds: placement?.students.map((s) => s.id) ?? [] });
+  if (!placement) return <Loader />;
+  const tId = teacherId === undefined ? placement.teacher_id : teacherId;
+  const sIds = students === undefined ? placement.students.map((s) => s.id) : students;
+  const go = async (e) => {
+    e.preventDefault();
+    if (await run(() => api(`/schedules/${scheduleId}`, { method: 'PATCH', body: { teacher_id: tId, student_ids: sIds } }), 'Склад збережено')) onDone();
+  };
+  return (
+    <form className="sheet-form" onSubmit={go}>
+      <h3>Склад</h3>
+      <PeopleFields teacherId={tId} setTeacherId={setTeacherId} students={sIds} setStudents={setStudents} options={options} />
+      {placement.kind === 'weekly' && <p className="muted small">Зміна діє на всі майбутні заняття. Минулі й списання не зміняться.</p>}
+      <FormActions onCancel={onCancel} action="Зберегти" busy={busy} />
+    </form>
+  );
+}
+
+/* Постановка уроку в розклад: урок, вчитель, учні, постійно або одноразово */
 export function ScheduleForm({ preset = {}, onClose, onDone }) {
   const today = todayISO();
   const { data: lessons, loading } = useData('/lessons');
+  const options = usePeopleOptions();
+  const [teacherId, setTeacherId] = useState(null);
+  const [students, setStudents] = useState([]);
   const [lessonId, setLessonId] = useState(preset.lessonId ?? null);
   const [kind, setKind] = useState(preset.date ? 'once' : 'weekly');
   const [weekdays, setWeekdays] = useState(preset.date ? [weekdayOf(preset.date)] : []);
@@ -513,13 +580,13 @@ export function ScheduleForm({ preset = {}, onClose, onDone }) {
   const [run, busy] = useAction();
 
   const active = (lessons ?? []).filter((l) => l.is_active);
-  const lesson = active.find((l) => l.id === lessonId);
 
   const submit = async (e) => {
     e.preventDefault();
+    const people = { teacher_id: teacherId, student_ids: students };
     const body = kind === 'once'
-      ? { lesson_id: lessonId, kind, date, time: t }
-      : { lesson_id: lessonId, kind, weekdays, time: t, start_date: startDate, end_date: endDate || null };
+      ? { lesson_id: lessonId, kind, date, time: t, ...people }
+      : { lesson_id: lessonId, kind, weekdays, time: t, start_date: startDate, end_date: endDate || null, ...people };
     if (await run(() => api('/schedules', { method: 'POST', body }), 'Додано в розклад')) onDone();
   };
   const incomplete = !lessonId || !t || (kind === 'weekly' && !weekdays.length);
@@ -531,7 +598,8 @@ export function ScheduleForm({ preset = {}, onClose, onDone }) {
       ) : (
         <form className="form" onSubmit={submit}>
           <Select label="Урок" value={lessonId} onChange={setLessonId} placeholder="Оберіть урок"
-            options={active.map((l) => ({ value: l.id, label: l.title, hint: `${l.teacher_name ?? 'без вчителя'}, ${l.duration_min} хв` }))} />
+            options={active.map((l) => ({ value: l.id, label: l.title, hint: [l.course_title, `${l.duration_min} хв`].filter(Boolean).join(', ') }))} />
+          <PeopleFields teacherId={teacherId} setTeacherId={setTeacherId} students={students} setStudents={setStudents} options={options} />
           <Segmented label="Як часто" value={kind} onChange={setKind} options={[
             { value: 'weekly', label: 'Постійно', icon: <IconRepeat size={18} /> },
             { value: 'once', label: 'Одноразово', icon: <IconOnce size={18} /> },
@@ -551,7 +619,6 @@ export function ScheduleForm({ preset = {}, onClose, onDone }) {
               <TimePicker label="Час" value={t} onChange={setT} />
             </div>
           )}
-          {lesson && <p className="muted small">{lesson.students.length ? lesson.students.map((s) => s.name).join(', ') : 'У цьому уроці ще немає учнів'}</p>}
           <div className="form-actions">
             <Button variant="ghost" onClick={onClose}>Назад</Button>
             <Button type="submit" busy={busy} disabled={incomplete}>Додати</Button>

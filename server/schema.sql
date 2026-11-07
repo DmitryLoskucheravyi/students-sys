@@ -92,7 +92,8 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   INDEX idx_subs_student (student_id, status, expires_on)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Урок як сутність: що, хто веде, хто вчиться. Коли саме — у lesson_schedules.
+-- Урок — шаблон: назва, курс, тривалість, місце. Хто веде, хто вчиться і коли — у lesson_schedules.
+-- teacher_id і lesson_students лишилися від старої моделі: з них переноситься склад під час міграції.
 CREATE TABLE IF NOT EXISTS lessons (
   id INT AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(120) NOT NULL,
@@ -117,19 +118,32 @@ CREATE TABLE IF NOT EXISTS lesson_students (
   INDEX idx_ls_student (student_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Правило розкладу: постійне (щотижня) або одноразове.
+-- Постановка уроку в розклад: постійно (дні тижня) або одноразово, зі своїм вчителем і учнями.
 CREATE TABLE IF NOT EXISTS lesson_schedules (
   id INT AUTO_INCREMENT PRIMARY KEY,
   lesson_id INT NOT NULL,
+  teacher_id INT NULL,
   kind ENUM('weekly','once') NOT NULL,
-  weekday TINYINT NULL,            -- 1 = Пн ... 7 = Нд
+  weekday TINYINT NULL,            -- старі записи: один день, 1 = Пн ... 7 = Нд
+  weekdays VARCHAR(20) NULL,       -- дні постановки через кому, напр. "1,4"
   start_time TIME NOT NULL,
   start_date DATE NOT NULL,
   end_date DATE NULL,
   materialized_until DATE NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
+  FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE,
+  FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_schedules_teacher (teacher_id, is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS schedule_students (
+  schedule_id INT NOT NULL,
+  student_id INT NOT NULL,
+  PRIMARY KEY (schedule_id, student_id),
+  FOREIGN KEY (schedule_id) REFERENCES lesson_schedules(id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_ss_student (student_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Конкретне заняття в календарі. Скасування і перенесення змінюють лише його.
@@ -182,9 +196,11 @@ CREATE TABLE IF NOT EXISTS session_requests (
   INDEX idx_req_status (status, session_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Домашнє належить постановці: його бачать лише учні цієї групи.
 CREATE TABLE IF NOT EXISTS homework (
   id INT AUTO_INCREMENT PRIMARY KEY,
   lesson_id INT NOT NULL,
+  schedule_id INT NULL,
   session_id INT NULL,
   title VARCHAR(160) NOT NULL,
   description TEXT NULL,
@@ -192,6 +208,7 @@ CREATE TABLE IF NOT EXISTS homework (
   created_by INT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE,
+  FOREIGN KEY (schedule_id) REFERENCES lesson_schedules(id) ON DELETE SET NULL,
   FOREIGN KEY (session_id) REFERENCES lesson_sessions(id) ON DELETE SET NULL,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
   INDEX idx_hw_lesson (lesson_id, due_at)
