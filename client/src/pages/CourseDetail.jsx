@@ -8,6 +8,7 @@ import { dateTimeShort, nowLocal, plural } from '../fmt.js';
 import { CourseForm } from './Courses.jsx';
 import { HW_STATUS } from './Homework.jsx';
 import RoadmapAi from './RoadmapAi.jsx';
+import { CourseIcon, themeClass } from '../courseLook.jsx';
 
 /** Частка пройденого етапу: підпункти рахуються по одному, етап без підпунктів — цілим. */
 const stepShare = (s, doneIds, doneSubs) => {
@@ -299,9 +300,10 @@ export default function CourseDetail() {
   };
 
   return (
-    <>
+    // Тема курсу перефарбовує акценти сторінки: дорогу, кружки етапів, кнопки.
+    <div className={`course-page ${themeClass(course.theme)}`}>
       <Link to="/courses" className="back"><IconLeft size={18} /> Курси</Link>
-      <PageHead title={course.title}>
+      <PageHead title={<span className="course-title"><CourseIcon course={course} size={26} big />{course.title}</span>}>
         {isManager && <Button variant="ghost" icon={<IconPeople size={18} />} onClick={() => setPeopleOpen(true)}>Учні курсу: {course.students.length}</Button>}
         {course.can_edit && <Button variant="ghost" icon={<IconSpark size={18} />} onClick={() => setAiOpen(true)}>Роадмап зі ШІ</Button>}
         {course.can_edit && <Button variant={mode === 'edit' ? 'primary' : 'ghost'} icon={<IconRoadmap size={18} />} onClick={() => setMode(mode === 'edit' ? 'view' : 'edit')}>{mode === 'edit' ? 'Готово' : 'Редагувати роадмап'}</Button>}
@@ -346,7 +348,7 @@ export default function CourseDetail() {
       {editCourse && <CourseForm course={course} onClose={() => setEditCourse(false)} onDone={() => { setEditCourse(false); reload(); }} />}
       {aiOpen && <RoadmapAi course={course} onClose={() => setAiOpen(false)} onDone={() => { setAiOpen(false); setMode('view'); reload(); }} />}
       {peopleOpen && <CourseStudents course={course} onClose={() => setPeopleOpen(false)} onChange={reload} />}
-    </>
+    </div>
   );
 }
 

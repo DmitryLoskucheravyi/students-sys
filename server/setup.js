@@ -46,6 +46,10 @@ async function migrate(conn, { hadRoster, hadSchedules }) {
   if (!(await columnInfo(conn, 'lesson_sessions', 'location'))) {
     await conn.query('ALTER TABLE lesson_sessions ADD COLUMN location VARCHAR(200) NULL');
   }
+  // Вигляд курсу: іконка й колірна тема. Порожні значення означають шкільний стандарт.
+  if (!(await columnInfo(conn, 'courses', 'icon'))) {
+    await conn.query('ALTER TABLE courses ADD COLUMN icon VARCHAR(20) NULL, ADD COLUMN theme VARCHAR(20) NULL');
+  }
   // Учень бачить сповіщення про оцінку чи відгук, доки не відкриє роботу.
   if (!(await columnInfo(conn, 'submissions', 'seen_at'))) {
     await conn.query('ALTER TABLE submissions ADD COLUMN seen_at DATETIME NULL');

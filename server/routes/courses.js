@@ -86,11 +86,24 @@ coursesRouter.get('/', async (req, res) => {
   res.json(rows);
 });
 
+// Набори мають збігатися з client/src/courseLook.jsx.
+const COURSE_ICONS = ['roadmap', 'code', 'ts', 'js', 'py', 'web', 'blocks', 'terminal', 'db', 'mobile', 'game', 'ai', 'design'];
+const COURSE_THEMES = ['school', 'typed', 'script', 'snake', 'web'];
+function pick(v, list, label) {
+  if (v == null || v === '') return null;
+  if (!list.includes(v)) throw bad(`${label}: оберіть зі списку`);
+  return v;
+}
+const parseLook = (b) => ({ icon: pick(b.icon, COURSE_ICONS, 'Іконка'), theme: pick(b.theme, COURSE_THEMES, 'Тема') });
+
 coursesRouter.post('/', requireRole('manager'), async (req, res) => {
   const b = req.body ?? {};
-  const r = await q('INSERT INTO courses (title, summary) VALUES (?,?)', [
+  const look = parseLook(b);
+  const r = await q('INSERT INTO courses (title, summary, icon, theme) VALUES (?,?,?,?)', [
     str(b.title, 'Назва', { max: 120 }),
     str(b.summary, 'Опис', { max: 300, required: false }),
+    look.icon,
+    look.theme,
   ]);
   res.status(201).json((await q('SELECT * FROM courses WHERE id=?', [r.insertId]))[0]);
 });
@@ -249,11 +262,13 @@ coursesRouter.delete('/:id/students/:studentId', requireRole('manager'), async (
 coursesRouter.patch('/:id', requireRole('manager'), async (req, res) => {
   const courseId = id(req.params.id);
   const b = req.body ?? {};
-  const r = await q('UPDATE courses SET title=?, summary=? WHERE id=?', [
-    str(b.title, 'Назва', { max: 120 }),
-    str(b.summary, 'Опис', { max: 300, required: false }),
-    courseId,
-  ]);
+  const fields = [str(b.title, 'Назва', { max: 120 }), str(b.summary, 'Опис', { max: 300, required: false })];
+  // Старі клієнти не надсилають вигляд курсу: тоді його не чіпаємо.
+  const hasLook = 'icon' in b || 'theme' in b;
+  const look = parseLook(b);
+  const r = hasLook
+    ? await q('UPDATE courses SET title=?, summary=?, icon=?, theme=? WHERE id=?', [...fields, look.icon, look.theme, courseId])
+    : await q('UPDATE courses SET title=?, summary=? WHERE id=?', [...fields, courseId]);
   if (!r.affectedRows) throw notFound();
   res.json({ ok: true });
 });

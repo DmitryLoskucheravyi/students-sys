@@ -48,6 +48,9 @@ const py = await course('Python', 'Основи програмування й а
   ['Фінальний бот', 'Telegram-бот із базою даних'],
 ]);
 
+await q(`UPDATE courses SET icon='web', theme='web' WHERE id=?`, [web]);
+await q(`UPDATE courses SET icon='py', theme='snake' WHERE id=?`, [py]);
+
 const plan = async (name, count, price, days) =>
   (await q('INSERT INTO plans (name, lessons_count, price_per_lesson, valid_days) VALUES (?,?,?,?)', [name, count, price, days])).insertId;
 const p4 = await plan('Старт', 4, 450, 30);

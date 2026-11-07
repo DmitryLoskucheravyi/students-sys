@@ -1123,3 +1123,61 @@ button.stop:active { transform: scale(0.94); }
 .block.is-next { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--red); z-index: 3; animation: next-pulse 1.6s var(--ease) 2; }
 @keyframes next-pulse { 50% { box-shadow: 0 0 0 2px var(--paper), 0 0 0 9px rgb(214 17 43 / 0.25); } }
 @media (prefers-reduced-motion: reduce) { .block.is-next { animation: none; } }
+/* Теми курсу: перевизначають акценти всередині картки чи сторінки курсу */
+.ct-typed { --red: #2b67ad; --red-fill: #3178c6; --red-hover: #255fa3; --red-soft: #e8f1fb; --ia: var(--red); --ct-2: #7fb2e8; }
+.ct-script { --red: #8a6200; --red-fill: #f0c419; --red-hover: #dcb000; --red-soft: #fff7d6; --ia: #b88a00; --ct-2: #323330; --ct-on: #2a2100; }
+.ct-snake { --red: #2f5f92; --red-fill: #3a72a8; --red-hover: #2f6194; --red-soft: #eaf1f8; --ia: #e0b419; --ct-2: #ffd43b; }
+.ct-web { --red: #c2410c; --red-fill: #e4572e; --red-hover: #c8481f; --red-soft: #fdede6; --ia: var(--red); --ct-2: #2f80c8; }
+.ct-school { --ct-2: #f6b7bf; }
+:root[data-theme='dark'] .ct-typed { --red: #7fb2ec; --red-fill: #3b82d4; --red-hover: #4a8fdc; --red-soft: #182a40; }
+:root[data-theme='dark'] .ct-script { --red: #f3d25c; --red-fill: #e6bb17; --red-hover: #f0c932; --red-soft: #33290a; --ia: #f3d25c; --ct-2: #f7f3e3; }
+:root[data-theme='dark'] .ct-snake { --red: #8db8e6; --red-fill: #4380bd; --red-hover: #5090cc; --red-soft: #182838; --ia: #ffd43b; }
+:root[data-theme='dark'] .ct-web { --red: #ff9466; --red-fill: #e2602f; --red-hover: #ec7140; --red-soft: #3a1d12; }
+/* На жовтій заливці світлий текст не читається */
+.ct-script .btn-primary, .ct-script .stop.is-done, .ct-script button.stop.is-done:hover, .ct-script .status-scheduled,
+.ct-script .course-ico, .ct-script .look-swatch i:first-child { color: var(--ct-on); --ia: var(--ct-on); }
+.ct-script .stop.is-done svg { color: var(--ct-on); }
+/* Зміїна тема: поточний етап підсвічено жовтим, як другий колір теми */
+.ct-snake .stop.is-current { box-shadow: 0 0 0 5px rgb(255 212 59 / 0.35); }
+
+/* Іконка курсу на плашці теми */
+.course-ico {
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+  background: var(--red-fill); color: #fff; --ia: currentColor;
+}
+.course-ico.is-big { width: 52px; height: 52px; border-radius: 14px; }
+.course-ico text { fill: currentColor; }
+.course-title { display: inline-flex; align-items: center; gap: 14px; }
+.course-page .progress i { background: var(--red-fill); }
+.course .course-meta { padding-left: 58px; }
+@media (min-width: 900px) { .course .course-meta { padding-left: 0; } }
+
+/* Вибір вигляду курсу */
+.look { display: grid; gap: 14px; }
+.look-preview { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 14px; background: var(--red-soft); }
+.look-preview > div { flex: 1; display: grid; gap: 8px; min-width: 0; }
+.look-preview strong { font: 600 16px/1.2 var(--display); overflow-wrap: anywhere; }
+.look-set { margin: 0; padding: 0; border: 0; min-width: 0; }
+.look-set legend { padding: 0 0 8px; font-size: 13.5px; color: var(--muted); }
+.look-icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+.look-icon {
+  display: grid; place-items: center; height: 44px; border-radius: 10px; border: 1.5px solid var(--line);
+  background: var(--paper); color: var(--ink); cursor: pointer; --ia: var(--red);
+}
+.look-icon:hover { border-color: var(--red); }
+.look-icon.is-on { border-color: var(--red-fill); background: var(--red-soft); color: var(--red); box-shadow: inset 0 0 0 1px var(--red-fill); }
+.look-themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.look-theme {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-align: left; border-radius: 12px;
+  border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; cursor: pointer;
+}
+.look-theme:hover { border-color: var(--red-fill); }
+.look-theme.is-on { border-color: var(--red-fill); background: var(--red-soft); box-shadow: inset 0 0 0 1px var(--red-fill); }
+.look-theme > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.look-theme strong { font-size: 14px; }
+.look-theme small { font-size: 12px; color: var(--muted); }
+.look-swatch { flex: none; display: flex; }
+.look-swatch i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--paper); margin-left: -6px; }
+.look-swatch i:first-child { margin-left: 0; background: var(--red-fill); }
+.look-swatch i:nth-child(2) { background: var(--ct-2); }
+.look-swatch i:nth-child(3) { background: var(--red-soft); box-shadow: inset 0 0 0 1px var(--line); }
