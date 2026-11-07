@@ -67,8 +67,10 @@ with sync_playwright() as pw:
     check("після вильоту сцену прибрано", p.locator(".book3d canvas").count() == 0)
     bits = p.locator(".bits span").all_text_contents()
     check("цифри у фоні окремі: по одній", len(bits) >= 3 and all(x in ("0", "1") for x in bits), str(bits))
-    moves = p.evaluate("[...document.querySelectorAll('.bits span')].map(s => s.style.getPropertyValue('--dx') + s.style.getPropertyValue('--dy'))")
+    moves = p.evaluate("[...document.querySelectorAll('.bits span')].map(s => s.style.getPropertyValue('--dx'))")
     check("кожна цифра пливе у свій бік", len(set(moves)) == len(moves), str(moves))
+    ys = p.evaluate("[...document.querySelectorAll('.bits span')].map(s => new DOMMatrix(getComputedStyle(s).transform).m42)")
+    check("цифри рухаються лише по горизонталі", all(abs(y) < 0.01 for y in ys), str(ys))
     c.close()
     c, p = new(b); p.goto(BASE); p.wait_for_selector(".bs-logo")
     for _ in range(60):

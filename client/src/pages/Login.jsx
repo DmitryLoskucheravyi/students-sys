@@ -37,14 +37,14 @@ function Bits() {
     let timer;
     const spawn = () => {
       const id = ++n;
-      const angle = (Math.random() < 0.5 ? Math.PI : 0) + rand(-0.5, 0.5);
-      const dist = rand(50, 160);
+      // Лише по горизонталі: ліворуч або праворуч
+      const dx = (Math.random() < 0.5 ? -1 : 1) * Math.round(rand(50, 160));
       setBits((list) => [...list.slice(-15), {
         id,
         text: Math.random() < 0.5 ? '0' : '1',
         style: {
           top: `${rand(3, 92)}%`, left: `${rand(3, 94)}%`, fontSize: `${Math.round(rand(12, 24))}px`,
-          '--dx': `${Math.round(Math.cos(angle) * dist)}px`, '--dy': `${Math.round(Math.sin(angle) * dist)}px`,
+          '--dx': `${dx}px`,
           '--peak': rand(0.25, 0.5).toFixed(2),
           animationDuration: `${rand(3.5, 7.5).toFixed(1)}s`,
         },
