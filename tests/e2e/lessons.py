@@ -278,6 +278,23 @@ with sync_playwright() as pw:
     form.get_by_role("button", name="Списати").click(); toast(m, "Уроки списано")
     m.wait_for_selector(".modal", state="detached"); m.wait_for_load_state("networkidle")
     expect(m.locator(".sub-row", has_text="Кіра Минула").locator(".sub-left strong")).to_have_text("6"); check("залишок одразу оновився: 6 із 8", True)
+    # Колір залишку: більше половини зелений, до половини помаранчевий, 1–2 заняття червоний
+    levels = m.evaluate("""() => Object.fromEntries([...document.querySelectorAll('.sub-row')].map(r => {
+      const l = r.querySelector('.sub-left'); return [r.querySelector('h3').textContent, [l.className.split(' ').pop(), l.textContent, Math.round(l.getBoundingClientRect().height)]]; }))""")
+    check("6 із 8: зелена плашка", levels["Кіра Минула"][0] == "is-ok", str(levels.get("Кіра Минула")))
+    check("1 із 4: червона плашка", levels["Дарина Бойко"][0] == "is-low", str(levels.get("Дарина Бойко")))
+    check("залишок одним рядком", all(v[2] < 40 for v in levels.values()), str(levels))
+    manual_ids = lambda: {c["writeoff_id"] for c in api(mc, "GET", f"/subscriptions/{late_sub['id']}/charges").json() if c["kind"] == "manual"}
+    kept = manual_ids()
+    api(mc, "POST", f"/subscriptions/{late_sub['id']}/writeoffs", data={"lessons": 3})
+    m.reload(); m.wait_for_load_state("networkidle")
+    check("3 із 8: помаранчева плашка", "is-mid" in m.locator(".sub-row", has_text="Кіра Минула").locator(".sub-left").get_attribute("class"))
+    m.screenshot(path=str(OUT / "sub-left-colors.png"))
+    api(mc, "POST", f"/subscriptions/{late_sub['id']}/writeoffs", data={"lessons": 1})
+    m.reload(); m.wait_for_load_state("networkidle")
+    check("2 із 8: червона плашка", "is-low" in m.locator(".sub-row", has_text="Кіра Минула").locator(".sub-left").get_attribute("class"))
+    for w in manual_ids() - kept: api(mc, "DELETE", f"/subscriptions/{late_sub['id']}/writeoffs/{w}")
+    m.reload(); m.wait_for_load_state("networkidle")
     check("на абонементі використано 2", subs_of()["lessons_used"] == 2)
     stats_after = api(mc, "GET", f"/stats?from={today}&to={today}").json()["earned"]
     check("статистика: відпрацьовано +600 ₴ і +2 уроки", stats_after["amount"] - stats_before["amount"] == 600 and stats_after["lessons"] - stats_before["lessons"] == 2, str(stats_after))

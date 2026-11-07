@@ -11,6 +11,12 @@ export const subState = (s) => {
   return s.lessons_left <= 1 ? ['warn', 'Закінчується'] : ['completed', 'Діє'];
 };
 
+/** Колір залишку: 1–2 заняття (або нуль) — червоний, до половини — помаранчевий, більше половини — зелений. */
+export const leftLevel = (s) => {
+  if (s.lessons_left <= 2) return 'is-low';
+  return s.lessons_left > s.lessons_total / 2 ? 'is-ok' : 'is-mid';
+};
+
 export default function Subscriptions() {
   const [tab, setTab] = useState('issued');
   const subs = useData('/subscriptions');
@@ -47,7 +53,9 @@ export default function Subscriptions() {
                       <h3>{s.student_name}</h3>
                       <p className="muted small">{s.name}, до {shortDate(s.expires_on)}</p>
                     </div>
-                    <div className="sub-left"><strong>{s.lessons_left}</strong><small>із {s.lessons_total}</small></div>
+                    <div className={`sub-left ${leftLevel(s)}`} title={`Залишилось занять: ${s.lessons_left} із ${s.lessons_total}`}>
+                      <strong>{s.lessons_left}</strong><small>із {s.lessons_total}</small>
+                    </div>
                     <div className="sub-price"><strong>{money(s.price_per_lesson)}</strong><small>за заняття</small></div>
                     <Status kind={kind}>{text}</Status>
                     <div className="row-actions">
