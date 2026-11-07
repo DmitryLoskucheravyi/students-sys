@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
   login VARCHAR(40) NOT NULL UNIQUE,
   password_hash VARCHAR(100) NOT NULL,
   phone VARCHAR(30) NULL,
+  avatar VARCHAR(32) NULL,        -- id з готового набору аватарок
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   token_version INT NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

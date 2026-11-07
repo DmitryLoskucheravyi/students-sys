@@ -3,9 +3,15 @@ import { api } from '../api.js';
 import { ThemeButton, useAuth } from '../session.jsx';
 import { Button, PageHead, PasswordInput, useAction } from '../ui.jsx';
 import { IconLogout } from '../icons.jsx';
+import { Avatar, AvatarPicker } from '../avatars.jsx';
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, setUser, logout } = useAuth();
+  const [runAvatar, savingAvatar] = useAction();
+  const pickAvatar = async (avatar) => {
+    const r = await runAvatar(() => api('/auth/avatar', { method: 'PATCH', body: { avatar } }), 'Аватарку змінено');
+    if (r) setUser((u) => ({ ...u, avatar: r.avatar }));
+  };
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [run, busy] = useAction();
@@ -21,8 +27,17 @@ export default function Profile() {
 
   return (
     <>
-      <PageHead title={user.name} />
-      <p className="muted small">Логін: {user.login}{user.phone ? `, ${user.phone}` : ''}</p>
+      <div className="profile-head">
+        <Avatar user={user} size={64} />
+        <div>
+          <PageHead title={user.name} />
+          <p className="muted small">Логін: {user.login}{user.phone ? `, ${user.phone}` : ''}</p>
+        </div>
+      </div>
+      <section className="profile-form profile-avatar" aria-busy={savingAvatar}>
+        <h2>Аватарка</h2>
+        <AvatarPicker value={user.avatar} onChange={pickAvatar} name={user.name} />
+      </section>
       <form className="form profile-form" onSubmit={submit}>
         <h2>Зміна пароля</h2>
         <PasswordInput label="Поточний пароль" value={current} onChange={setCurrent} autoComplete="current-password" required />

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { api, useData } from '../api.js';
 import { Button, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageHead, PasswordInput, Segmented, Select, useAction, useUI } from '../ui.jsx';
 import { IconBan, IconEdit, IconKey, IconPeople, IconPlus, IconRestore, IconTrash } from '../icons.jsx';
-import { initials, lessonsWord, randomPassword } from '../fmt.js';
+import { lessonsWord, randomPassword } from '../fmt.js';
+import { Avatar, AvatarPicker } from '../avatars.jsx';
 
 export default function People() {
   const [role, setRole] = useState('student');
@@ -43,7 +44,7 @@ export default function People() {
         <ul className="rows">
           {list.map((u) => (
             <li key={u.id} className={`row person-row ${u.is_active ? '' : 'is-off'}`}>
-              <span className="avatar avatar-red">{initials(u.name)}</span>
+              <Avatar user={u} className="avatar-red" />
               <div className="row-main">
                 <h3>{u.name}</h3>
                 <p className="muted small">{u.login}{u.phone ? `, ${u.phone}` : ''}{u.is_active ? '' : ', вимкнено'}</p>
@@ -124,6 +125,7 @@ function PersonForm({ person, onClose, onDone }) {
   const [phone, setPhone] = useState(person.phone ?? '');
   const [password, setPassword] = useState(() => (isNew ? randomPassword() : ''));
   const [rooms, setRooms] = useState(() => (person.rooms ?? []).map(toRow));
+  const [avatar, setAvatar] = useState(person.avatar ?? null);
   const [run, busy] = useAction();
   const title = isNew ? (person.role === 'student' ? 'Новий учень' : 'Новий вчитель') : 'Редагувати';
 
@@ -134,7 +136,7 @@ function PersonForm({ person, onClose, onDone }) {
     const ok = await run(
       () => api(isNew ? '/users' : `/users/${person.id}`, {
         method: isNew ? 'POST' : 'PATCH',
-        body: isNew ? { role: person.role, name, login, phone, password, ...extra } : { name, login, phone, ...extra },
+        body: isNew ? { role: person.role, name, login, phone, password, avatar, ...extra } : { name, login, phone, avatar, ...extra },
       }),
       isNew ? 'Акаунт створено' : 'Зміни збережено'
     );
@@ -147,6 +149,10 @@ function PersonForm({ person, onClose, onDone }) {
         <Input label="Логін" required autoCapitalize="none" spellCheck={false} maxLength={40} hint="Латиниця, цифри, крапка, дефіс" value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="off" />
         <Input label="Телефон" type="tel" maxLength={30} value={phone} onChange={(e) => setPhone(e.target.value)} />
         {isNew && <PasswordInput generate value={password} onChange={setPassword} autoComplete="new-password" minLength={8} required hint="Мінімум 8 символів" />}
+        <fieldset className="look-set">
+          <legend>Аватарка</legend>
+          <AvatarPicker value={avatar} onChange={setAvatar} name={name} />
+        </fieldset>
         {isTeacher && <RoomsEditor rooms={rooms} setRooms={setRooms} />}
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Назад</Button>

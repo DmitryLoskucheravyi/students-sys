@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { q } from './db.js';
 import { HttpError, str } from './lib.js';
+import { parseAvatar } from './avatars.js';
 
 const COOKIE = 'zoshyt_session';
 const SECRET = process.env.JWT_SECRET;
@@ -23,7 +24,7 @@ function setCookie(res, user) {
   });
 }
 
-const publicUser = (u) => ({ id: u.id, role: u.role, name: u.name, login: u.login, phone: u.phone });
+const publicUser = (u) => ({ id: u.id, role: u.role, name: u.name, login: u.login, phone: u.phone, avatar: u.avatar ?? null });
 
 export async function authenticate(req, _res, next) {
   req.user = null;
@@ -101,6 +102,13 @@ authRouter.post('/logout', (_req, res) => {
 
 authRouter.get('/me', (req, res) => {
   res.json(req.user ? publicUser(req.user) : null);
+});
+
+/** Своя аватарка: лише з готового набору. */
+authRouter.patch('/avatar', requireAuth, async (req, res) => {
+  const avatar = parseAvatar(req.body?.avatar ?? null);
+  await q('UPDATE users SET avatar=? WHERE id=?', [avatar, req.user.id]);
+  res.json({ avatar });
 });
 
 authRouter.post('/password', requireAuth, async (req, res) => {

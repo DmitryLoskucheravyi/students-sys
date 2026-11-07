@@ -8,7 +8,7 @@ import { api } from './api.js';
 import { UIProvider } from './ui.jsx';
 import { AuthCtx, ThemeButton, useAuth } from './session.jsx';
 import { IconCalendar, IconChart, IconHomework, IconLesson, IconLogout, IconPeople, IconRoadmap, IconTicket } from './icons.jsx';
-import { initials } from './fmt.js';
+import { Avatar } from './avatars.jsx';
 import Login from './pages/Login.jsx';
 import Schedule from './pages/Schedule.jsx';
 import Lessons from './pages/Lessons.jsx';
@@ -178,7 +178,7 @@ function Shell() {
               <NavLink to="/stats" className="theme-btn top-link" aria-label="Статистика" title="Статистика"><IconChart /></NavLink>
             )}
             <ThemeButton />
-            <NavLink to="/profile" className="avatar" aria-label={`Профіль: ${user.name}`}>{initials(user.name)}</NavLink>
+            <NavLink to="/profile" className="avatar-link" aria-label={`Профіль: ${user.name}`}><Avatar user={user} /></NavLink>
           </div>
         </div>
         <nav className="rail-nav" aria-label="Основна навігація">
@@ -195,7 +195,7 @@ function Shell() {
         </nav>
         <div className="rail-foot">
           <NavLink to="/profile" className="rail-user" title={rail.collapsed ? user.name : undefined}>
-            <span className="avatar">{initials(user.name)}</span>
+            <Avatar user={user} />
             <span className="rail-user-text">
               <strong>{user.name}</strong>
               <small>{ROLE_NAME[user.role]}</small>

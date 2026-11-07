@@ -2,11 +2,12 @@ import { Router } from 'express';
 import { q, tx } from '../db.js';
 import { hashPassword, requireRole, validatePassword } from '../auth.js';
 import { bad, conflict, id, notFound, str } from '../lib.js';
+import { parseAvatar } from '../avatars.js';
 
 export const usersRouter = Router();
 usersRouter.use(requireRole('manager'));
 
-const FIELDS = 'id, role, name, login, phone, is_active, created_at';
+const FIELDS = 'id, role, name, login, phone, avatar, is_active, created_at';
 const MAX_ROOMS = 10;
 
 /** Кабінети вчителя: сервіс і посилання. Посилання лише http(s), бо його відкривають учні. */
@@ -86,13 +87,14 @@ usersRouter.post('/', async (req, res) => {
   const login = parseLogin(req.body.login);
   const phone = str(req.body.phone, 'Телефон', { max: 30, required: false });
   const password = validatePassword(req.body.password);
+  const avatar = parseAvatar(req.body.avatar) ?? null;
   const rooms = role === 'teacher' ? parseRooms(req.body.rooms) ?? [] : [];
   if (rooms.some((r) => r.id)) throw bad('Новий кабінет не може мати id');
   await assertLoginFree(login);
   const hash = await hashPassword(password);
   const userId = await tx(async (t) => {
-    const r = await t('INSERT INTO users (role, name, login, password_hash, phone) VALUES (?,?,?,?,?)', [
-      role, name, login, hash, phone,
+    const r = await t('INSERT INTO users (role, name, login, password_hash, phone, avatar) VALUES (?,?,?,?,?,?)', [
+      role, name, login, hash, phone, avatar,
     ]);
     await saveRooms(t, r.insertId, rooms);
     return r.insertId;
@@ -115,9 +117,10 @@ usersRouter.patch('/:id', async (req, res) => {
   const login = b.login !== undefined ? parseLogin(b.login) : u.login;
   if (login !== u.login) await assertLoginFree(login, u.id);
   const rooms = parseRooms(b.rooms);
+  const avatar = parseAvatar(b.avatar);
   if (rooms !== undefined && u.role !== 'teacher') throw bad('Кабінети бувають лише у вчителя');
   await tx(async (t) => {
-    await t('UPDATE users SET name=?, phone=?, login=? WHERE id=?', [name, phone, login, u.id]);
+    await t('UPDATE users SET name=?, phone=?, login=?, avatar=? WHERE id=?', [name, phone, login, avatar === undefined ? u.avatar : avatar, u.id]);
     if (rooms !== undefined) await saveRooms(t, u.id, rooms);
   });
 

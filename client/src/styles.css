@@ -1238,3 +1238,20 @@ button.stop:active { transform: scale(0.94); }
 .look-swatch i:first-child { margin-left: 0; background: var(--red-fill); }
 .look-swatch i:nth-child(2) { background: var(--ct-2); }
 .look-swatch i:nth-child(3) { background: var(--red-soft); box-shadow: inset 0 0 0 1px var(--line); }
+/* Аватарки з набору */
+.avatar.has-art { background: none; overflow: hidden; }
+.avatar.has-art svg { display: block; }
+.avatar-link { display: block; border-radius: 50%; }
+.avatar-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 8px; }
+.avatar-opt {
+  display: grid; place-items: center; aspect-ratio: 1; padding: 3px; border: 2px solid transparent; border-radius: 50%;
+  background: none; cursor: pointer; transition: transform 0.15s var(--ease), border-color 0.15s;
+}
+.avatar-opt svg { width: 100%; height: auto; max-width: 52px; }
+.avatar-opt .avatar-none { width: 100%; max-width: 52px; height: auto; aspect-ratio: 1; font-size: 15px; }
+.avatar-opt.is-on { border-color: var(--red); }
+.avatar-opt:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+@media (hover: hover) { .avatar-opt:hover { transform: scale(1.08); } }
+.profile-head { display: flex; align-items: center; gap: 16px; }
+.profile-head .page-head { margin-bottom: 4px; }
+.profile-avatar { margin: 18px 0; max-width: 560px; }
