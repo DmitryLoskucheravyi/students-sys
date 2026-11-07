@@ -9,18 +9,42 @@ import { WEEKDAYS, addDays, dateTimeShort, mondayOf, money, nowLocal, parseDate,
 
 // Висота години: блок на годину вміщує назву, час, вчителя й учнів.
 const HOUR_PX = 88;
-// Години до 10:00 низькі: ніч і ранок займають мало місця, але заняття там видно й можна відкрити.
-const COMPACT_UNTIL = 10;
+// Години без жодного заняття за тиждень низькі: порожні рядки складаються в купку.
 const COMPACT_PX = 16;
 const DAY_MIN = 24 * 60;
-const COMPACT_MIN = COMPACT_UNTIL * 60;
-const COMPACT_Y = COMPACT_UNTIL * COMPACT_PX;
-/** Хвилина доби → пікселі від верху сітки. */
-const yOf = (min) => (min <= COMPACT_MIN ? (min / 60) * COMPACT_PX : COMPACT_Y + ((min - COMPACT_MIN) / 60) * HOUR_PX);
-/** Пікселі від верху сітки → хвилина доби. */
-const minuteAt = (y) => (y <= COMPACT_Y ? (y / COMPACT_PX) * 60 : COMPACT_MIN + ((y - COMPACT_Y) / HOUR_PX) * 60);
-const DAY_PX = yOf(DAY_MIN);
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
+
+/** Години доби, у які за показаний тиждень є хоч одне заняття. Хвіст після півночі теж рахується. */
+function busyHours(sessions) {
+  const busy = new Set();
+  const mark = (fromMin, toMin) => {
+    for (let h = Math.floor(fromMin / 60); h < Math.min(24, Math.ceil(toMin / 60)); h++) busy.add(h);
+  };
+  for (const s of sessions) {
+    const from = minutes(s.starts_at);
+    if (s.ends_at.slice(0, 10) === s.starts_at.slice(0, 10)) mark(from, Math.max(from + 1, minutes(s.ends_at)));
+    else { mark(from, DAY_MIN); mark(0, minutes(s.ends_at)); }
+  }
+  return busy;
+}
+
+/**
+ * Шкала сітки: зайняті години звичайні, решта низькі.
+ * yOf переводить хвилину доби в пікселі, minuteAt навпаки.
+ */
+function makeScale(busy) {
+  const heights = HOURS.map((h) => (busy.has(h) ? HOUR_PX : COMPACT_PX));
+  const tops = heights.reduce((acc, hgt, i) => [...acc, acc[i] + hgt], [0]);
+  const yOf = (min) => {
+    const h = Math.min(23, Math.floor(min / 60));
+    return tops[h] + ((min - h * 60) / 60) * heights[h];
+  };
+  const minuteAt = (y) => {
+    const h = Math.max(0, tops.findIndex((t, i) => i < 24 && y >= t && y < tops[i + 1]));
+    return h * 60 + ((y - tops[h]) / heights[h]) * 60;
+  };
+  return { heights, yOf, minuteAt, dayPx: tops[24], busy };
+}
 const currentMinute = () => {
   const now = new Date();
   return now.getHours() * 60 + now.getMinutes();
@@ -58,6 +82,15 @@ export default function Schedule() {
     summary.reload();
   };
 
+  // Учень відкриває розклад: одразу показуємо найближче наступне заняття, навіть якщо воно на іншому тижні.
+  const nextLesson = isStudent ? summary.data?.next ?? null : null;
+  const jumped = useRef(false);
+  useEffect(() => {
+    if (!nextLesson || jumped.current) return;
+    jumped.current = true;
+    setDay(nextLesson.starts_at.slice(0, 10));
+  }, [nextLesson]);
+
   const teachers = (people.data ?? []).filter((u) => u.role === 'teacher' && u.is_active);
   const students = (people.data ?? []).filter((u) => u.role === 'student' && u.is_active);
 
@@ -91,7 +124,7 @@ export default function Schedule() {
       {!error && !sessions && loading && <Loader />}
       {narrow && <DayStrip monday={monday} day={day} today={today} sessions={ready ? sessions : null} onPick={setDay} />}
       {sessions && (
-        <TimeGrid days={narrow ? [day] : weekDays} sessions={sessions} ready={ready} today={today} onOpen={setOpenId}
+        <TimeGrid days={narrow ? [day] : weekDays} sessions={sessions} ready={ready} today={today} onOpen={setOpenId} focusId={nextLesson?.id}
           onSlot={isManager ? (date, t) => setAdding({ date, time: t }) : null} />
       )}
       {sessions && (
@@ -182,22 +215,35 @@ const minutes = (dt) => Number(dt.slice(11, 13)) * 60 + Number(dt.slice(14, 16))
 const sessionsOfDay = (sessions, d) => sessions.filter((s) => s.starts_at.slice(0, 10) === d
   || (s.starts_at.slice(0, 10) < d && s.ends_at > `${d} 00:00:00`));
 
-function TimeGrid({ days, sessions, ready, today, onOpen, onSlot }) {
+function TimeGrid({ days, sessions, ready, today, onOpen, onSlot, focusId }) {
   const single = days.length === 1;
   const box = useRef(null);
   const scrolledFor = useRef(null);
   const [nowMin, setNowMin] = useState(currentMinute);
   const daysKey = days.join();
+  // Шкала спільна для всього тижня: година із заняттям у будь-який день розгорнута в усіх днях.
+  const busyKey = [...busyHours(sessions)].sort((a, b) => a - b).join();
+  const scale = useMemo(() => makeScale(new Set(busyKey ? busyKey.split(',').map(Number) : [])), [busyKey]);
+  const { yOf, minuteAt, dayPx } = scale;
 
   useEffect(() => {
     const timer = setInterval(() => setNowMin(currentMinute()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // Доба не влазить в екран: показуємо поточний час або перше заняття, а не північ.
+  // Доба не влазить в екран: показуємо найближче заняття учня, поточний час або перше заняття, а не північ.
   useLayoutEffect(() => {
-    if (!ready || !box.current || scrolledFor.current === daysKey) return;
-    scrolledFor.current = daysKey;
+    const key = `${daysKey}|${focusId ?? ''}`;
+    if (!ready || !box.current || scrolledFor.current === key) return;
+    const target = focusId ? box.current.querySelector(`[data-session="${focusId}"]`) : null;
+    if (focusId && !target && scrolledFor.current?.startsWith(`${daysKey}|`)) return;
+    scrolledFor.current = key;
+    if (target) {
+      box.current.scrollTop = Math.max(0, target.offsetTop - 24);
+      // Фокус без прокрутки сторінки: сітка вже прокручена до заняття.
+      target.querySelector('.block-open')?.focus({ preventScroll: true });
+      return;
+    }
     const shown = days.flatMap((d) => sessionsOfDay(sessions, d)).filter((s) => s.status !== 'cancelled');
     const startHour = (s) => (s.starts_at.slice(0, 10) === days[0] || !single ? minutes(s.starts_at) / 60 : 0);
     let hour = 8;
@@ -210,7 +256,7 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot }) {
       hour = Math.min(...shown.map(startHour)) - (single ? 0.5 : 1);
     }
     box.current.scrollTop = yOf(Math.max(0, hour) * 60);
-  }, [ready, daysKey, days, single, sessions, today]);
+  }, [ready, daysKey, days, single, sessions, today, focusId, yOf]);
 
   const clickSlot = (e, day) => {
     if (!onSlot || e.target !== e.currentTarget) return;
@@ -231,13 +277,13 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot }) {
           ))}
         </div>
       )}
-      <div className="week-body" style={{ height: DAY_PX }}>
+      <div className="week-body" style={{ height: dayPx }}>
         {/* Лінії годин окремим шаром: години до 10:00 нижчі, тож фон-візерунок тут не підходить */}
         <div className="hour-rows" aria-hidden="true">
-          {HOURS.map((h) => <i key={h} className={h < COMPACT_UNTIL ? 'is-compact' : ''} style={{ height: yOf((h + 1) * 60) - yOf(h * 60) }} />)}
+          {HOURS.map((h) => <i key={h} className={scale.busy.has(h) ? '' : 'is-compact'} style={{ height: scale.heights[h] }} />)}
         </div>
         <div className="week-hours">
-          {HOURS.map((h) => <span key={h} className={h < COMPACT_UNTIL ? 'is-compact' : ''} style={{ top: yOf(h * 60) }}>{String(h).padStart(2, '0')}:00</span>)}
+          {HOURS.map((h) => <span key={h} className={scale.busy.has(h) ? '' : 'is-compact'} style={{ top: yOf(h * 60) }}>{String(h).padStart(2, '0')}:00</span>)}
         </div>
         {days.map((d) => (
           <div key={d} className={`week-col ${d === today ? 'is-today' : ''} ${onSlot ? 'can-add' : ''}`} onClick={(e) => clickSlot(e, d)}>
@@ -245,13 +291,13 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot }) {
               const from = s.starts_at.slice(0, 10) === d ? minutes(s.starts_at) : 0;
               const to = s.ends_at.slice(0, 10) === d ? minutes(s.ends_at) : DAY_MIN;
               const minH = single ? 40 : 30;
-              const top = Math.min(yOf(from), DAY_PX - minH);
+              const top = Math.min(yOf(from), dayPx - minH);
               const height = Math.max(minH, yOf(to) - yOf(from) - 2);
               // Посилання відкривається прямо з сітки; для скасованого заняття воно вже не потрібне.
               const link = s.status !== 'cancelled' ? firstUrl(s.location) : null;
               const names = s.students?.map((x) => x.name).join(', ');
               return (
-                <div key={s.id} className={`block ${blockClass(s)} ${height < 40 ? 'is-short' : ''} ${link ? 'has-link' : ''}`}
+                <div key={s.id} data-session={s.id} className={`block ${blockClass(s)} ${height < 40 ? 'is-short' : ''} ${link ? 'has-link' : ''} ${s.id === focusId ? 'is-next' : ''}`}
                   style={{ top, height, left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}>
                   <button type="button" className="block-open" title={`${s.title}, ${time(s.starts_at)}–${time(s.ends_at)}`} onClick={() => onOpen(s.id)}>
                     <strong>{s.title}</strong>

@@ -55,15 +55,33 @@ with sync_playwright() as pw:
         return post(mc, "/schedules", {"lesson_id": lesson_id, "kind": "once", "date": str(date), "time": hhmm, "teacher_id": t_id, "student_ids": [s_id, s2_id]})
     early = once(next_mon, "00:00"); late = once(next_mon + dt.timedelta(days=1), "23:30")
     check("заняття о 00:00 і о 23:30 створюються", early.ok and late.ok, text_of(late))
-    # Шкала: години до 10:00 по 16 px, далі по 88 px
-    def y(hours): return min(hours, 10) * 16 + max(0, hours - 10) * 88
-    m.goto(BASE); m.wait_for_selector(".week")
+    # Шкала: години без занять за тиждень по 16 px, години із заняттями по 88 px
+    def busy_hours(sess):
+        busy = set()
+        for s in sess:
+            st, en = s["starts_at"], s["ends_at"]
+            f = int(st[11:13]) * 60 + int(st[14:16]); t = int(en[11:13]) * 60 + int(en[14:16])
+            for a, b2 in ([(f, max(f + 1, t))] if st[:10] == en[:10] else [(f, 1440), (0, t)]):
+                busy.update(range(a // 60, min(24, -(-b2 // 60))))
+        return busy
+    def scale():
+        rows = m.evaluate("[...document.querySelectorAll('.hour-rows i')].map(e => e.getBoundingClientRect().height)")
+        tops = [0]
+        for r in rows: tops.append(tops[-1] + r)
+        def y(hours):
+            h = min(23, int(hours)); return tops[h] + (hours - h) * rows[h]
+        return rows, y
+    m.goto(BASE); m.wait_for_selector(".week"); m.wait_for_load_state("networkidle")
+    rows, y = scale()
+    week_sess = api(mc, "GET", f"/sessions?from={monday}&to={monday + dt.timedelta(days=6)}").json()
+    busy = busy_hours(week_sess)
     labels = m.locator(".week-hours span").all_inner_texts()
     check("сітка містить 24 години 00:00-23:00", labels == [f"{h:02d}:00" for h in range(24)], f"{labels[:2]}..{labels[-1:]}")
     h = m.evaluate("document.querySelector('.week-body').getBoundingClientRect().height")
-    check("висота сітки: 10 низьких годин і 14 звичайних", h == y(24), f"{h} vs {y(24)}")
-    rows = m.evaluate("[...document.querySelectorAll('.hour-rows i')].map(e => e.getBoundingClientRect().height)")
-    check("години до 10:00 низькі, далі звичайні", rows[:10] == [16] * 10 and rows[10:] == [88] * 14, str(rows[:12]))
+    check("висота сітки дорівнює сумі рядків", abs(h - sum(rows)) < 1, f"{h} vs {sum(rows)}")
+    expected = [88 if hr in busy else 16 for hr in range(24)]
+    check("години із заняттями за тиждень звичайні, порожні низькі", rows == expected, f"{rows} vs {expected}")
+    check("на тижні є й низькі, й звичайні години", 16 in rows and 88 in rows, str(rows))
     if today.weekday() >= 0:
         st = m.evaluate("document.querySelector('.week').scrollTop")
         exp = y(max(0, now.hour + now.minute / 60 - 1))
@@ -71,6 +89,8 @@ with sync_playwright() as pw:
         check("сітка відкривається на поточному часі", abs(st - min(exp, maxs)) < 60, f"{st} vs {exp}")
     check("лінія поточного часу видима в сітці", m.locator(".now-line").count() == 1)
     m.get_by_label("Наступний тиждень").click(); m.wait_for_load_state("networkidle"); m.wait_for_timeout(250)
+    rows, y = scale()
+    check("наступний тиждень: година 00:00 розгорнута, бо в ній заняття", rows[0] == 88 and rows[23] == 88, str(rows))
     st = m.evaluate("document.querySelector('.week').scrollTop")
     check("наступний тиждень прокручено до першого заняття (00:00)", st == 0, str(st))
     midnight = m.locator(".week-col").nth(0).locator(".block", has_text="Нічний урок")
@@ -84,26 +104,26 @@ with sync_playwright() as pw:
     check("висота блока через північ додатна", head.evaluate("e=>e.getBoundingClientRect().height") >= 26 and tail.evaluate("e=>e.getBoundingClientRect().height") >= 28)
     squash = head.evaluate("e => { const r = e.querySelector('strong').getBoundingClientRect(); const b = e.getBoundingClientRect(); return { h: r.height, inside: r.top >= b.top && r.bottom <= b.bottom }; }")
     check("назва короткого блока читається, не сплющена", squash["h"] >= 14 and squash["inside"], str(squash))
-    check("блок не вилазить за низ доби", head.evaluate("e=>parseFloat(e.style.top)+e.getBoundingClientRect().height") <= y(24) + 1)
+    check("блок не вилазить за низ доби", head.evaluate("e=>parseFloat(e.style.top)+e.getBoundingClientRect().height") <= sum(rows) + 1)
     # Клік по порожній клітинці в різні години
     m.evaluate("document.querySelector('.week').scrollTop = 0")
     col = m.locator(".week-col").nth(4); bx = col.bounding_box()
-    m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + y(3) + 5)
+    m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + y(3.4))
     expect(m.locator(".modal")).to_be_visible()
     expect(m.get_by_label("Час", exact=True)).to_contain_text("03:00"); check("клік по клітинці 03:xx підставляє 03:00", True)
     m.get_by_label("Закрити").click()
     m.evaluate("(()=>{const w=document.querySelector('.week');w.scrollTop=w.scrollHeight})()"); m.wait_for_timeout(100)
     bx = col.bounding_box()
-    m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + y(23) + 40)
+    m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + y(23.5))
     expect(m.get_by_label("Час", exact=True)).to_contain_text("23:00")
     m.get_by_label("Закрити").click()
     m.evaluate("document.querySelector('.week').scrollTop = 0"); bx = col.bounding_box()
-    m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + y(10) + 30)
-    expect(m.get_by_label("Час", exact=True)).to_contain_text("10:00"); check("межа низьких годин: клік після 10:00 дає 10:00", True)
+    m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + y(10.5))
+    expect(m.get_by_label("Час", exact=True)).to_contain_text("10:00"); check("клік у годину 10:xx дає 10:00", True)
     m.get_by_label("Закрити").click()
     m.evaluate("(()=>{const w=document.querySelector('.week');w.scrollTop=w.scrollHeight})()"); m.wait_for_timeout(100)
     bx = col.bounding_box()
-    m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + y(23) + 40)
+    m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + y(23.5))
     expect(m.get_by_label("Час", exact=True)).to_contain_text("23:00"); check("остання клітинка підставляє 23:00", True)
     m.get_by_label("Закрити").click()
     head_top = m.evaluate("document.querySelector('.week-head').getBoundingClientRect().top - document.querySelector('.week').getBoundingClientRect().top")
@@ -121,7 +141,13 @@ with sync_playwright() as pw:
     sp.wait_for_selector(".week.is-single")
     check("телефон: одна колонка", sp.locator(".week-col").count() == 1)
     check("телефон: 24 години", sp.locator(".week-hours span").count() == 24)
-    check("телефон: відкрито сьогодні", sp.locator(".day-strip .is-selected.is-today").count() == 1)
+    # Учень відкриває день найближчого заняття; без занять попереду — сьогодні.
+    nxt = sp.evaluate("fetch('/api/sessions/summary').then(r => r.json()).then(d => d.next)")
+    sp.wait_for_timeout(300)
+    want_day = int(nxt["starts_at"][8:10]) if nxt else today.day
+    check("телефон: відкрито день найближчого заняття", str(want_day) in sp.locator(".week-nav strong").inner_text(), f"{nxt and nxt['starts_at']} → {sp.locator('.week-nav strong').inner_text()}")
+    if sp.get_by_role("button", name="Сьогодні").count(): sp.get_by_role("button", name="Сьогодні").click(); sp.wait_for_timeout(120)
+    check("телефон: «Сьогодні» відкриває поточний день", sp.locator(".day-strip .is-selected.is-today").count() == 1)
     check("телефон: сітка, а не список", sp.locator(".agenda").count() == 0)
     check("телефон: без гориз. прокрутки", over(sp) <= 0, str(over(sp)))
     strip_h = sp.locator(".day-strip button").first.bounding_box()
@@ -396,7 +422,10 @@ with sync_playwright() as pw:
     # Сесія зникла посеред роботи: перекидає на вхід
     c2, p2 = new(b)
     login(p2, "nightstd", "nightpass1"); p2.context.clear_cookies()
-    p2.get_by_role("link", name="Завдання").first.click(); p2.wait_for_timeout(600)
+    p2.wait_for_timeout(300)
+    # Сповіщення теж ходять на сервер, тож вихід міг уже статися сам; інакше його спричинить перехід.
+    if p2.locator(".rail-nav a[href='/homework']").count(): p2.locator(".rail-nav a[href='/homework']").first.click()
+    p2.wait_for_timeout(600)
     check("протухла сесія веде на вхід", p2.get_by_role("button", name="Увійти").count() == 1)
     b.close()
 

@@ -600,7 +600,13 @@ img { display: block; max-width: 100%; }
 button.stop:active { transform: scale(0.94); }
 .stop.is-done { background: var(--red-fill); border-color: var(--red-fill); color: #fff; animation: stop-done 0.34s var(--ease); }
 .stop.is-current { border-color: var(--red); color: var(--red); box-shadow: 0 0 0 5px var(--red-soft); }
-.stop-ring { position: absolute; inset: -6px; width: 52px; height: 52px; transform: rotate(-90deg); pointer-events: none; }
+/* Етап із частково пройденими підпунктами: рамка сіра, а кільце заповнює її червоним на пройдену частку */
+.stop:has(.stop-ring) { border-color: var(--grid-strong); }
+.stop-ring {
+  /* Кільце лягає точно на рамку кружка й заповнює її: центр збігається з центром кружка */
+  position: absolute; top: 50%; left: 50%; width: 46px; height: 46px; margin: 0;
+  transform: translate(-50%, -50%) rotate(-90deg); pointer-events: none;
+}
 .stop-ring circle { fill: none; stroke: var(--red-fill); stroke-width: 4; transition: stroke-dasharray 0.4s var(--ease); }
 @keyframes stop-done { 0% { transform: scale(0.8); } 60% { transform: scale(1.1); } }
 .road-text { margin-left: var(--road-text, 114px); padding-top: 6px; min-width: 0; max-width: 820px; }
@@ -835,7 +841,7 @@ button.stop:active { transform: scale(0.94); }
   .road { --road-w: 32px; }
   .road-mark path { stroke-width: 3; stroke-dasharray: 14 14; }
   .stop { top: 6px; width: 56px; height: 56px; font-size: 18px; border-width: 3px; }
-  .stop .stop-ring { inset: -7px; width: 70px; height: 70px; }
+  .stop .stop-ring { width: 58px; height: 58px; }
   .road-row { min-height: 120px; padding-bottom: 28px; }
   .road-text { padding-top: 10px; }
   .shell { display: grid; padding-bottom: 0; }
@@ -1113,3 +1119,7 @@ button.stop:active { transform: scale(0.94); }
 .sub-state.is-low { --state-bg: var(--left-low-bg); --state-ink: var(--left-low-ink); }
 .sub-state.is-off { --state-bg: var(--wash); --state-ink: var(--muted); box-shadow: inset 0 0 0 1px var(--grid-strong); }
 .sub-row > .sub-left { margin-left: auto; }
+/* Найближче заняття учня: виділене кільцем, на нього стає фокус */
+.block.is-next { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--red); z-index: 3; animation: next-pulse 1.6s var(--ease) 2; }
+@keyframes next-pulse { 50% { box-shadow: 0 0 0 2px var(--paper), 0 0 0 9px rgb(214 17 43 / 0.25); } }
+@media (prefers-reduced-motion: reduce) { .block.is-next { animation: none; } }

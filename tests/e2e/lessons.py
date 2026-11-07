@@ -1,5 +1,5 @@
 """Урок — шаблон; вчитель і учні задаються в постановці в розклад. Плюс клікабельні посилання, статистика й дорога роадмапа."""
-import datetime as dt, os, pathlib, sys
+import datetime as dt, os, pathlib, re, sys
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
@@ -118,7 +118,7 @@ with sync_playwright() as pw:
     m.goto(BASE); m.wait_for_load_state("networkidle")
     if next_week.isocalendar()[1] != today.isocalendar()[1]:
         m.get_by_label("Наступний тиждень").click(); m.wait_for_load_state("networkidle")
-    m.evaluate("document.querySelector('.week').scrollTop = 10 * 16 + 6 * 88")
+    m.locator(".week-col").nth(0).locator(".block", has_text="Шаблон-урок").first.scroll_into_view_if_needed()
     m.locator(".week-col").nth(0).locator(".block", has_text="Шаблон-урок").first.click(); m.wait_for_selector(".sheet")
     m.get_by_role("button", name="Змінити місце").click()
     field = m.get_by_label("Місце або посилання")
@@ -423,9 +423,8 @@ with sync_playwright() as pw:
     c, p = new(b, 1440, 900); login(p, "manager", "manager123"); p.wait_for_selector(".week")
     page_w = p.locator(".page").bounding_box()["width"]; week_w = p.locator(".week").bounding_box()["width"]
     check("розклад на всю ширину сторінки", week_w >= page_w - 90, f"{week_w} із {page_w}")
-    early_blk = p.evaluate("""(() => { const rows = [...document.querySelectorAll('.hour-rows i')].map(e => e.getBoundingClientRect().height);
-      return { early: rows.slice(0, 10).reduce((a, b) => a + b, 0), hour10: rows[10] }; })()""")
-    check("ніч і ранок (00-10) займають менше, ніж дві звичайні години", early_blk["early"] < 2 * early_blk["hour10"], str(early_blk))
+    grid_rows = p.evaluate("[...document.querySelectorAll('.hour-rows i')].map(e => e.getBoundingClientRect().height)")
+    check("година з постійним заняттям (17:00) розгорнута, порожня (04:00) згорнута", grid_rows[17] == 88 and grid_rows[4] == 16, str(grid_rows))
     rail = p.locator(".rail"); handle = p.locator(".rail-resizer")
     w0 = rail.bounding_box()["width"]
     hb = handle.bounding_box(); p.mouse.move(hb["x"] + hb["width"] / 2, hb["y"] + 300); p.mouse.down(); p.mouse.move(hb["x"] + 80, hb["y"] + 300, steps=6); p.mouse.up()
@@ -455,6 +454,20 @@ with sync_playwright() as pw:
     c, p = new(b, 390, 800); login(p, "manager", "manager123")
     check("на телефоні ручки немає, панель як була", p.locator(".rail-resizer").is_hidden() and over(p) <= 0)
     c.close()
+
+    # 14б. Учень відкриває розклад: фокус на найближчому наступному занятті
+    for w in [1360, 390]:
+        c, p = new(b, w, 800); login(p, "student", "student123")
+        nxt = p.evaluate("fetch('/api/sessions/summary').then(r => r.json()).then(d => d.next)")
+        blk = p.locator(f".block[data-session='{nxt['id']}']")
+        expect(blk).to_have_class(re.compile("is-next"))
+        inside = p.evaluate("""(id) => { const w = document.querySelector('.week'), b = document.querySelector(`.block[data-session="${id}"]`);
+          const wr = w.getBoundingClientRect(), br = b.getBoundingClientRect(); return br.top >= wr.top - 1 && br.top < wr.bottom; }""", nxt["id"])
+        focused = p.evaluate("document.activeElement?.closest('.block')?.dataset.session")
+        check(f"{w}px: найближче заняття видно в сітці й на ньому фокус", inside and focused == str(nxt["id"]), f"{inside}, {focused}, {nxt['starts_at']}")
+        if w == 390: p.screenshot(path=str(OUT / "student-next-mobile.png"))
+        else: p.screenshot(path=str(OUT / "student-next.png"))
+        c.close()
 
     # 12. Роадмап: дорога на всю ширину
     web = next(c for c in api(mc, "GET", "/courses").json() if c["title"] == "Веброзробка")
