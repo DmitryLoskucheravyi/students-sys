@@ -50,7 +50,7 @@ with sync_playwright() as pw:
     tc, t = new(b); login(t, "teacher", "teacher123")
     t.goto(f"{BASE}/homework?tab=quizzes"); t.wait_for_load_state("networkidle")
     t.get_by_role("button", name="Новий тест").click(); t.wait_for_url("**/quizzes/new")
-    check("вчителя попереджено про модерацію", "перевірить менеджер" in t.locator("main").inner_text())
+    expect(t.locator("main")).to_contain_text("перевірить менеджер"); check("вчителя попереджено про модерацію", True)
     check("тест вчителя на модерації", api(tc, "POST", "/quizzes", data={**QUIZ, "title": "JS від вчителя"}).json()["status"] == "pending")
     tq = api(tc, "GET", "/quizzes").json()
     check("вчитель бачить лише свої тести", [z["title"] for z in tq] == ["JS від вчителя"] and tq[0]["status"] == "pending", str([z['title'] for z in tq]))
@@ -59,7 +59,7 @@ with sync_playwright() as pw:
     check("вчитель не бачить чужий тест", api(tc, "GET", f"/quizzes/{quizzes[0]['id']}").status == 404)
     check("неперевірений тест не відкрити учневі", api(mc, "POST", f"/quizzes/{jsq}/assignments", data={"student_id": my[0]["student_id"]}).status == 400)
     t.goto(f"{BASE}/homework?tab=quizzes"); t.wait_for_load_state("networkidle")
-    check("вкладка тестів у вчителя зі статусом", "На модерації" in t.locator("main").inner_text())
+    expect(t.locator("main")).to_contain_text("На модерації"); check("вкладка тестів у вчителя зі статусом", True)
     shot(t, "is3-teacher-tests")
 
     # 2. Менеджер: розділ модерації, бейдж, відхилення з причиною, повторне надсилання, схвалення
