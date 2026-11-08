@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
-import { Button, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Select, Stepper, Textarea, useAction, useUI } from '../ui.jsx';
+import { Button, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageTools, Select, Stepper, Textarea, useAction, useUI } from '../ui.jsx';
 import { IconArchive, IconCalendar, IconEdit, IconLesson, IconPlus, IconRestore } from '../icons.jsx';
 import { ScheduleForm } from './Schedule.jsx';
 
@@ -29,9 +29,9 @@ export default function Lessons() {
 
   return (
     <>
-      <PageHead title="Уроки">
+      <PageTools title="Уроки">
         {isManager && <Button icon={<IconPlus size={18} />} onClick={() => setEditing({})}>Новий урок</Button>}
-      </PageHead>
+      </PageTools>
       {error && <ErrorNote text={error} onRetry={reload} />}
       {!data && loading && <Loader />}
       {data && !active.length && !archived.length && (

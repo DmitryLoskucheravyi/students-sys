@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useData } from '../api.js';
-import { Button, Empty, ErrorNote, Loader, PageHead, Status } from '../ui.jsx';
+import { Button, Empty, ErrorNote, Loader, PageTools, Status } from '../ui.jsx';
 import { IconTicket } from '../icons.jsx';
 import { money, shortDate } from '../fmt.js';
 import { ChargesModal, subState, ticketClass } from './Subscriptions.jsx';
@@ -10,7 +10,7 @@ export default function MySubscription() {
   const [history, setHistory] = useState(null);
   return (
     <>
-      <PageHead title="Абонемент" />
+      <PageTools title="Абонемент" />
       {error && <ErrorNote text={error} onRetry={reload} />}
       {!data && loading && <Loader />}
       {data && !data.length && <Empty icon={<IconTicket size={36} />} title="Абонемента ще немає. Зверніться до менеджера." />}

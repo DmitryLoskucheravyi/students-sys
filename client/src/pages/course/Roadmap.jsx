@@ -102,6 +102,8 @@ export function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, o
   const finishRef = useRef(null);
   const [box, setBox] = useState(null);
   const [overrides, setOverrides] = useState({});
+  const measureRef = useRef(null);
+  const followUntil = useRef(0);
 
   useLayoutEffect(() => {
     const el = listRef.current;
@@ -122,6 +124,7 @@ export function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, o
       const finish = flag ? { x: f.offsetLeft + flag.offsetLeft + flag.offsetWidth / 2, y: f.offsetTop + flag.offsetTop + flag.offsetHeight / 2 } : null;
       setBox({ rows, finish });
     };
+    measureRef.current = measure;
     measure();
     // Спрацьовує щокадру під час розгортання, тому дорога рухається разом із рядками.
     const observer = new ResizeObserver(measure);
@@ -129,6 +132,18 @@ export function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, o
     if (rootRef.current) observer.observe(rootRef.current);
     return () => observer.disconnect();
   }, [steps.length, mobile]);
+
+  // Під час розгортання етапу перемірюємо дорогу щокадру, доки йде анімація: вона тягнеться плавно, без ривка в кінці.
+  const follow = () => {
+    const running = followUntil.current > performance.now();
+    followUntil.current = performance.now() + 480;
+    if (running) return;
+    const tick = () => {
+      measureRef.current?.();
+      if (performance.now() < followUntil.current) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  };
 
   const firstOpen = steps.findIndex((s) => !doneIds.has(s.id));
   const allDone = firstOpen === -1;
@@ -171,7 +186,6 @@ export function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, o
           {tail && <path d={tail} pathLength="1" className={`road-done ${allDone ? 'is-done' : ''}`}
             style={{ strokeDashoffset: lastDone ? 0 : 1, opacity: lastDone ? 1 : 0 }} />}
         </g>
-        <g className="road-mark">{segments.map((s) => <path key={s.id} d={s.d} />)}{tail && <path d={tail} />}</g>
       </svg>
       <ol ref={listRef} className="road-list">
         {steps.map((s, i) => {
@@ -212,7 +226,7 @@ export function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, o
                 {total > 0 && (
                   <>
                     <SubToggle open={open} done={subsDone} total={total} label={`${subsDone} із ${total}`}
-                      onClick={() => setOverrides({ ...overrides, [s.id]: !open })} />
+                      onClick={() => { setOverrides({ ...overrides, [s.id]: !open }); follow(); }} />
                     <Collapse open={open}>
                       <ul className="subs">
                         {s.substeps.map((x, k) => {

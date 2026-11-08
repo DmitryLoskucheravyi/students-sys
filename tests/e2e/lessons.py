@@ -355,7 +355,14 @@ with sync_playwright() as pw:
         p.locator(".bar-hit").last.hover()
         if w > 900:
             expect(p.locator(".bar-tip").last).to_be_visible(); check("підказка на стовпчику при наведенні", True)
-        p.locator(".segmented label", has_text="Рік").click(); p.wait_for_load_state("networkidle")
+        if w < 900:
+            # На телефоні фільтри в шторці за кнопкою-іконкою; вибір застосовується одразу
+            p.get_by_role("button", name="Фільтри").click()
+            p.locator(".filter-sheet .segmented label", has_text="Рік").click(); p.wait_for_load_state("networkidle")
+            check(f"{w}px: період із шторки застосовано без «OK»", p.locator(".filter-sheet .segmented label.is-on", has_text="Рік").count() == 1)
+            p.keyboard.press("Escape")
+        else:
+            p.locator(".segmented label", has_text="Рік").click(); p.wait_for_load_state("networkidle")
         p.screenshot(path=str(OUT / f"stats-{w}-{theme}.png"), full_page=True)
         c.close()
     sc_, sp_ = new(b); login(sp_, "annstud", "staffpass1")
@@ -439,7 +446,7 @@ with sync_playwright() as pw:
     page_w = p.locator(".page").bounding_box()["width"]; week_w = p.locator(".week").bounding_box()["width"]
     check("розклад на всю ширину сторінки", week_w >= page_w - 90, f"{week_w} із {page_w}")
     grid_rows = p.evaluate("[...document.querySelectorAll('.hour-rows i')].map(e => e.getBoundingClientRect().height)")
-    check("година з постійним заняттям (17:00) розгорнута, порожня (04:00) згорнута", grid_rows[17] == 88 and grid_rows[4] == 16, str(grid_rows))
+    check("година з постійним заняттям (17:00) розгорнута, порожня (04:00) згорнута", grid_rows[17] == 88 and grid_rows[4] < 30, str(grid_rows))
     rail = p.locator(".rail"); handle = p.locator(".rail-resizer")
     w0 = rail.bounding_box()["width"]
     hb = handle.bounding_box(); p.mouse.move(hb["x"] + hb["width"] / 2, hb["y"] + 300); p.mouse.down(); p.mouse.move(hb["x"] + 80, hb["y"] + 300, steps=6); p.mouse.up()

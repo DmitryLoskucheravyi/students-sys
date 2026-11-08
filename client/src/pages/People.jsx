@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api, useData } from '../api.js';
-import { Button, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageHead, PasswordInput, Segmented, Select, useAction, useUI } from '../ui.jsx';
+import { Button, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageTools, PasswordInput, Segmented, Select, useAction, useUI } from '../ui.jsx';
 import { IconBan, IconClose, IconEdit, IconKey, IconPeople, IconPlus, IconRestore, IconSearch, IconTrash } from '../icons.jsx';
 import { lessonsWord, randomPassword } from '../fmt.js';
 import { Avatar, AvatarPicker } from '../avatars.jsx';
@@ -39,17 +39,17 @@ export default function People() {
 
   return (
     <>
-      <PageHead title="Люди">
-        <Button icon={<IconPlus size={18} />} onClick={() => setEditing({ role })}>{isStudent ? 'Новий учень' : 'Новий вчитель'}</Button>
-      </PageHead>
-      <div className="tabs">
+      <PageTools title="Люди" filtered={role !== 'student'} filters={
         <Segmented value={role} onChange={setRole} options={[
           { value: 'student', label: 'Учні', count: (data ?? []).filter((u) => u.role === 'student' && u.is_active).length },
           { value: 'teacher', label: 'Вчителі', count: (data ?? []).filter((u) => u.role === 'teacher' && u.is_active).length },
         ]} />
-      </div>
+      }>
+        <Button icon={<IconPlus size={18} />} onClick={() => setEditing({ role })}>{isStudent ? 'Новий учень' : 'Новий вчитель'}</Button>
+      </PageTools>
       {error && <ErrorNote text={error} onRetry={reload} />}
       {!data && loading && <Loader />}
+      {/* Пошук — єдиний фільтр, що лишається вгорі сторінки */}
       {all.length > 0 && (
         <div className="people-search">
           <IconSearch size={18} />

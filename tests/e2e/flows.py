@@ -49,7 +49,7 @@ with sync_playwright() as pw:
     p.get_by_label("Логін").fill("manager"); p.locator("input[type=password]").fill("wrongpass1")
     p.get_by_role("button", name="Увійти").click()
     expect(p.locator(".form-error")).to_contain_text("Неправильний"); check("неправильний пароль відхилено", True)
-    login(p, "manager", "manager123"); check("менеджер увійшов", p.locator(".page-head h1").inner_text() == "Розклад")
+    login(p, "manager", "manager123"); check("менеджер увійшов", p.get_by_role("heading", level=1).inner_text() == "Розклад")
     shot(p, "02-manager-schedule")
 
     # --- Менеджер створює людей
@@ -85,7 +85,10 @@ with sync_playwright() as pw:
     expect(p.locator(".field-hint", has_text="до базової")).to_contain_text("−80")
     check("різниця вартості показана", True); shot(p, "06-issue")
     p.locator(".modal").get_by_role("button", name="Видати").click(); toast(p, "Абонемент видано")
-    expect(p.locator(".sub-row", has_text="Соня Тестова")).to_contain_text("420"); check("абонемент видано з ціною 420", True)
+    expect(p.locator(".sub-row", has_text="Соня Тестова")).to_be_visible()
+    sub = next(x for x in api(ctx, "GET", "/subscriptions").json() if x["student_name"] == "Соня Тестова")
+    check("абонемент видано з ціною 420", float(sub["price_per_lesson"]) == 420, str(sub["price_per_lesson"]))
+    check("у картці абонемента немає ціни за заняття", "420" not in p.locator(".sub-row", has_text="Соня Тестова").inner_text())
     p.wait_for_timeout(300); shot(p, "07-subscriptions")
 
     # --- Курс і роадмап

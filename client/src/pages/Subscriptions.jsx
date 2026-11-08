@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api, useData } from '../api.js';
-import { Button, DatePicker, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageHead, Segmented, Select, Stepper, useAction, useUI } from '../ui.jsx';
+import { Button, DatePicker, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageTools, Segmented, Select, Stepper, useAction, useUI } from '../ui.jsx';
 import { Avatar, Who } from '../avatars.jsx';
 import { IconAlert, IconClock, IconClose, IconEdit, IconHourglass, IconList, IconMinus, IconPlus, IconTick, IconTicket } from '../icons.jsx';
 import { addDays, dateTimeShort, lessonsWord, money, shortDate, todayISO } from '../fmt.js';
@@ -74,14 +74,13 @@ export default function Subscriptions() {
 
   return (
     <>
-      <PageHead title="Абонементи">
+      <PageTools title="Абонементи" filtered={tab !== 'issued'} filters={
+        <Segmented value={tab} onChange={setTab} options={[{ value: 'issued', label: 'Видані' }, { value: 'plans', label: 'Види' }]} />
+      }>
         {tab === 'issued'
           ? <Button icon={<IconPlus size={18} />} onClick={() => setIssuing(true)}>Видати абонемент</Button>
           : <Button icon={<IconPlus size={18} />} onClick={() => setEditingPlan({})}>Новий абонемент</Button>}
-      </PageHead>
-      <div className="tabs">
-        <Segmented value={tab} onChange={setTab} options={[{ value: 'issued', label: 'Видані' }, { value: 'plans', label: 'Види' }]} />
-      </div>
+      </PageTools>
 
       {tab === 'issued' && (
         <>
@@ -102,11 +101,10 @@ export default function Subscriptions() {
                     <div className={`sub-left ${leftLevel(s)}`} title={`Залишилось занять: ${s.lessons_left} із ${s.lessons_total}`}>
                       <strong>{s.lessons_left}</strong><small>із {s.lessons_total}</small>
                     </div>
-                    <div className="sub-price"><strong>{money(s.price_per_lesson)}</strong><small>за заняття</small></div>
                     <div className="row-actions">
-                      <Button variant="ghost" small icon={<IconMinus size={16} />} disabled={s.lessons_left <= 0} onClick={() => setWritingOff(s)}>Списати</Button>
-                      <Button variant="ghost" small icon={<IconList size={16} />} onClick={() => setHistory(s)}>Списання</Button>
-                      <Button variant="ghost" small icon={<IconEdit size={16} />} onClick={() => setEditingSub(s)}>Змінити</Button>
+                      <IconButton label="Списати" disabled={s.lessons_left <= 0} onClick={() => setWritingOff(s)}><IconMinus size={18} /></IconButton>
+                      <IconButton label="Списання" onClick={() => setHistory(s)}><IconList size={18} /></IconButton>
+                      <IconButton label="Змінити" onClick={() => setEditingSub(s)}><IconEdit size={18} /></IconButton>
                     </div>
                   </li>
                 );
@@ -126,8 +124,7 @@ export default function Subscriptions() {
               <li key={p.id} className={`ticket ${ticketClass(p.color)} ${p.is_active ? '' : 'is-off'}`}>
                 <div className="ticket-main">
                   <h3>{p.name}</h3>
-                  <p className="ticket-count">{lessonsWord(p.lessons_count)}</p>
-                  <p className="small">{p.valid_days} днів</p>
+                  <p className="ticket-count">{lessonsWord(p.lessons_count)}<span aria-hidden="true">·</span>{p.valid_days} днів</p>
                 </div>
                 <div className="ticket-stub">
                   <strong>{money(p.price_per_lesson)}</strong>

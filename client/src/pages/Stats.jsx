@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useData } from '../api.js';
-import { ErrorNote, Loader, PageHead, Segmented } from '../ui.jsx';
+import { ErrorNote, Loader, PageTools, Segmented } from '../ui.jsx';
 import { MONTHS, addDays, money, todayISO } from '../fmt.js';
 
 /* Невелика аналітика для менеджера: гроші з абонементів і заняття. */
@@ -70,10 +70,7 @@ export default function Stats() {
 
   return (
     <>
-      <PageHead title="Статистика" />
-      <div className="stats-bar">
-        <Segmented value={period} onChange={setPeriod} options={PERIODS} />
-      </div>
+      <PageTools title="Статистика" filters={<Segmented value={period} onChange={setPeriod} options={PERIODS} />} />
       {error && <ErrorNote text={error} onRetry={reload} />}
       {!s && !error && <Loader />}
       {s && (

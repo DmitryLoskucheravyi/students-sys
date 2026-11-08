@@ -2,16 +2,16 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth, useIsMobile } from '../session.jsx';
-import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Linkify, Loader, firstUrl, Modal, PageHead, Segmented, Select, Status, TimePicker, Textarea, WeekdayPicker, useAction, useUI } from '../ui.jsx';
+import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Linkify, Loader, firstUrl, Modal, PageTools, Segmented, Select, Status, TimePicker, Textarea, WeekdayPicker, useAction, useUI } from '../ui.jsx';
 import { Avatar, Faces, Who } from '../avatars.jsx';
-import { IconBan, IconClock, IconClose, IconEdit, IconExternal, IconHomework, IconLeft, IconList, IconLesson, IconMove, IconOnce, IconPeople, IconPin, IconPlus, IconRepeat, IconRestore, IconRight, IconTick, IconTicket, IconUser } from '../icons.jsx';
+import { IconBan, IconClock, IconClose, IconDown, IconEdit, IconExternal, IconHomework, IconLeft, IconList, IconLesson, IconMove, IconOnce, IconPeople, IconPin, IconPlus, IconRepeat, IconRestore, IconRight, IconTick, IconTicket, IconUp, IconUser } from '../icons.jsx';
 import { TopicPicker } from './HomeworkTopics.jsx';
 import { WEEKDAYS, addDays, dateTimeShort, mondayOf, money, nowLocal, parseDate, shortDate, time, todayISO, weekTitle, weekdayDayMonth, weekdayOf } from '../fmt.js';
 
 // Висота години: блок на годину вміщує назву, час, вчителя й учнів.
 const HOUR_PX = 88;
-// Години без жодного заняття за тиждень низькі: порожні рядки складаються в купку.
-const COMPACT_PX = 16;
+// Згорнуті вільні години: кожен проміжок поспіль стискається в одну смужку такої висоти.
+const FOLD_PX = 30;
 const DAY_MIN = 24 * 60;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
@@ -29,12 +29,29 @@ function busyHours(sessions) {
   return busy;
 }
 
+/** Проміжки вільних годин поспіль: [[від, до), …]. */
+function idleRuns(busy) {
+  const runs = [];
+  for (const h of HOURS) {
+    if (busy.has(h)) continue;
+    const last = runs.at(-1);
+    if (last && last[1] === h) last[1] = h + 1;
+    else runs.push([h, h + 1]);
+  }
+  return runs;
+}
+
 /**
- * Шкала сітки: зайняті години звичайні, решта низькі.
+ * Шкала сітки: зайняті години звичайні; вільні або теж звичайні, або згорнуті — проміжок стає смужкою FOLD_PX.
  * yOf переводить хвилину доби в пікселі, minuteAt навпаки.
  */
-function makeScale(busy) {
-  const heights = HOURS.map((h) => (busy.has(h) ? HOUR_PX : COMPACT_PX));
+function makeScale(busy, folded) {
+  const runs = idleRuns(busy);
+  const heights = HOURS.map((h) => {
+    if (busy.has(h) || !folded) return HOUR_PX;
+    const [from, to] = runs.find(([a, b]) => h >= a && h < b);
+    return FOLD_PX / (to - from);
+  });
   const tops = heights.reduce((acc, hgt, i) => [...acc, acc[i] + hgt], [0]);
   const yOf = (min) => {
     const h = Math.min(23, Math.floor(min / 60));
@@ -44,7 +61,7 @@ function makeScale(busy) {
     const h = Math.max(0, tops.findIndex((t, i) => i < 24 && y >= t && y < tops[i + 1]));
     return h * 60 + ((y - tops[h]) / heights[h]) * 60;
   };
-  return { heights, yOf, minuteAt, dayPx: tops[24], busy };
+  return { heights, tops, yOf, minuteAt, dayPx: tops[24], busy, runs, folded };
 }
 const currentMinute = () => {
   const now = new Date();
@@ -97,9 +114,16 @@ export default function Schedule() {
 
   return (
     <>
-      <PageHead title="Розклад">
+      <PageTools title="Розклад" filtered={Boolean(teacherId || studentId)} filters={isManager && (
+        <>
+          <Select compact placeholder="Усі вчителі" clearable="Усі вчителі" value={teacherId} onChange={setTeacherId}
+            options={teachers.map((t) => ({ value: t.id, label: t.name }))} />
+          <Select compact placeholder="Усі учні" clearable="Усі учні" value={studentId} onChange={setStudentId}
+            options={students.map((s) => ({ value: s.id, label: s.name, icon: <Avatar user={s} size={22} /> }))} />
+        </>
+      )}>
         {isManager && <Button icon={<IconPlus size={18} />} onClick={() => setAdding({})}>Додати в розклад</Button>}
-      </PageHead>
+      </PageTools>
 
       {isStudent && summary.data && <StudentSummary data={summary.data} onOpen={setOpenId} />}
       {!isStudent && requests.data?.length > 0 && <Requests items={requests.data} onChange={refresh} onOpen={setOpenId} />}
@@ -111,14 +135,6 @@ export default function Schedule() {
           <IconButton label={narrow ? 'Наступний день' : 'Наступний тиждень'} onClick={() => setDay(addDays(day, step))}><IconRight /></IconButton>
           {(narrow ? day !== today : monday !== mondayOf(today)) && <Button variant="ghost" small onClick={() => setDay(today)}>Сьогодні</Button>}
         </div>
-        {isManager && (
-          <div className="week-filters">
-            <Select compact placeholder="Усі вчителі" clearable="Усі вчителі" value={teacherId} onChange={setTeacherId}
-              options={teachers.map((t) => ({ value: t.id, label: t.name }))} />
-            <Select compact placeholder="Усі учні" clearable="Усі учні" value={studentId} onChange={setStudentId}
-              options={students.map((s) => ({ value: s.id, label: s.name, icon: <Avatar user={s} size={22} /> }))} />
-          </div>
-        )}
       </div>
 
       {error && <ErrorNote text={error} onRetry={reload} />}
@@ -222,10 +238,22 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot, focusId }) {
   const scrolledFor = useRef(null);
   const [nowMin, setNowMin] = useState(currentMinute);
   const daysKey = days.join();
-  // Шкала спільна для всього тижня: година із заняттям у будь-який день розгорнута в усіх днях.
-  const busyKey = [...busyHours(sessions)].sort((a, b) => a - b).join();
-  const scale = useMemo(() => makeScale(new Set(busyKey ? busyKey.split(',').map(Number) : [])), [busyKey]);
+  // Десктоп: шкала спільна для тижня — година із заняттям у будь-який день розгорнута в усіх днях.
+  // Телефон: рахується лише показаний день.
+  const busyKey = [...busyHours(single ? sessionsOfDay(sessions, days[0]) : sessions)].sort((a, b) => a - b).join();
+  // Вільні години згорнуті, якщо є хоч одне заняття; без занять — розгорнуті. Стрілка перемикає для цього дня чи тижня.
+  const [foldPick, setFoldPick] = useState(null);
+  const folded = foldPick?.key === daysKey ? foldPick.value : Boolean(busyKey);
+  // Плавна зміна висот — лише коли години згортає чи розгортає стрілка, а не при переході між днями.
+  const [animating, setAnimating] = useState(false);
+  const setFolded = (value) => {
+    setFoldPick({ key: daysKey, value });
+    setAnimating(true);
+    setTimeout(() => setAnimating(false), 400);
+  };
+  const scale = useMemo(() => makeScale(new Set(busyKey ? busyKey.split(',').map(Number) : []), folded), [busyKey, folded]);
   const { yOf, minuteAt, dayPx } = scale;
+  const hh = (h) => `${String(h).padStart(2, '0')}:00`; // 24 → «24:00»: кінець доби
 
   useEffect(() => {
     const timer = setInterval(() => setNowMin(currentMinute()), 60000);
@@ -266,7 +294,7 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot, focusId }) {
   };
 
   return (
-    <div ref={box} className={`week ${single ? 'is-single' : ''}`} style={{ '--hour': `${HOUR_PX}px`, '--days': days.length }} tabIndex={0} role="group" aria-label="Сітка розкладу">
+    <div ref={box} className={`week ${single ? 'is-single' : ''} ${animating ? 'is-folding' : ''}`} style={{ '--hour': `${HOUR_PX}px`, '--days': days.length }} tabIndex={0} role="group" aria-label="Сітка розкладу">
       {!single && (
         <div className="week-head">
           <span />
@@ -281,11 +309,23 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot, focusId }) {
       <div className="week-body" style={{ height: dayPx }}>
         {/* Лінії годин окремим шаром: години до 10:00 нижчі, тож фон-візерунок тут не підходить */}
         <div className="hour-rows" aria-hidden="true">
-          {HOURS.map((h) => <i key={h} className={scale.busy.has(h) ? '' : 'is-compact'} style={{ height: scale.heights[h] }} />)}
+          {HOURS.map((h) => <i key={h} className={!scale.busy.has(h) && folded ? 'is-folded' : ''} style={{ height: scale.heights[h] }} />)}
         </div>
         <div className="week-hours">
-          {HOURS.map((h) => <span key={h} className={scale.busy.has(h) ? '' : 'is-compact'} style={{ top: yOf(h * 60) }}>{String(h).padStart(2, '0')}:00</span>)}
+          {HOURS.map((h) => <span key={h} className={!scale.busy.has(h) && folded ? 'is-folded' : ''} style={{ top: yOf(h * 60) }}>{hh(h)}</span>)}
         </div>
+        {/* Стрілки вільних годин: згорнутий проміжок — смужка на всю ширину, розгорнутий — стрілка біля першої години */}
+        {scale.runs.map(([from, to]) => (folded ? (
+          <button key={from} type="button" className="fold-bar" style={{ top: scale.tops[from], height: FOLD_PX }}
+            aria-label={`Розгорнути вільні години ${hh(from)}–${hh(to)}`} onClick={() => setFolded(false)}>
+            <IconDown size={14} /><span>{hh(from)}–{hh(to)}</span>
+          </button>
+        ) : (
+          <button key={from} type="button" className="fold-up" style={{ top: scale.tops[from] }}
+            aria-label={`Згорнути вільні години ${hh(from)}–${hh(to)}`} title="Згорнути вільні години" onClick={() => setFolded(true)}>
+            <IconUp size={14} />
+          </button>
+        )))}
         {days.map((d) => (
           <div key={d} className={`week-col ${d === today ? 'is-today' : ''} ${onSlot ? 'can-add' : ''}`} onClick={(e) => clickSlot(e, d)}>
             {layoutDay(sessionsOfDay(sessions, d)).map(({ s, lane, lanes }) => {

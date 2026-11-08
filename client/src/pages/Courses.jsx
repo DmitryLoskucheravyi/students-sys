@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
-import { Button, Empty, ErrorNote, Input, Loader, Modal, PageHead, Textarea, useAction } from '../ui.jsx';
+import { Button, Empty, ErrorNote, Input, Loader, Modal, PageTools, Textarea, useAction } from '../ui.jsx';
 import { IconPlus, IconRoadmap } from '../icons.jsx';
 import { plural, studentsWord } from '../fmt.js';
 import { CourseIcon, CourseLookPicker, themeClass } from '../courseLook.jsx';
@@ -16,9 +16,9 @@ export default function Courses() {
 
   return (
     <>
-      <PageHead title="Курси">
+      <PageTools title="Курси">
         {isManager && <Button icon={<IconPlus size={18} />} onClick={() => setAdding(true)}>Новий курс</Button>}
-      </PageHead>
+      </PageTools>
       {error && <ErrorNote text={error} onRetry={reload} />}
       {!data && loading && <Loader />}
       {data && !data.length && <Empty icon={<IconRoadmap size={36} />} title={isManager ? 'Створіть перший курс' : 'Курсів поки немає'} />}

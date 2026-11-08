@@ -55,7 +55,7 @@ with sync_playwright() as pw:
         return post(mc, "/schedules", {"lesson_id": lesson_id, "kind": "once", "date": str(date), "time": hhmm, "teacher_id": t_id, "student_ids": [s_id, s2_id]})
     early = once(next_mon, "00:00"); late = once(next_mon + dt.timedelta(days=1), "23:30")
     check("заняття о 00:00 і о 23:30 створюються", early.ok and late.ok, text_of(late))
-    # Шкала: години без занять за тиждень по 16 px, години із заняттями по 88 px
+    # Шкала: години із заняттями по 88 px, вільні проміжки згорнуті в смужку 30 px
     def busy_hours(sess):
         busy = set()
         for s in sess:
@@ -75,13 +75,14 @@ with sync_playwright() as pw:
     rows, y = scale()
     week_sess = api(mc, "GET", f"/sessions?from={monday}&to={monday + dt.timedelta(days=6)}").json()
     busy = busy_hours(week_sess)
-    labels = m.locator(".week-hours span").all_inner_texts()
+    labels = m.locator(".week-hours span").all_text_contents()
     check("сітка містить 24 години 00:00-23:00", labels == [f"{h:02d}:00" for h in range(24)], f"{labels[:2]}..{labels[-1:]}")
     h = m.evaluate("document.querySelector('.week-body').getBoundingClientRect().height")
     check("висота сітки дорівнює сумі рядків", abs(h - sum(rows)) < 1, f"{h} vs {sum(rows)}")
-    expected = [88 if hr in busy else 16 for hr in range(24)]
-    check("години із заняттями за тиждень звичайні, порожні низькі", rows == expected, f"{rows} vs {expected}")
-    check("на тижні є й низькі, й звичайні години", 16 in rows and 88 in rows, str(rows))
+    ok = all((r == 88) if hr in busy else (r < 30) for hr, r in enumerate(rows))
+    check("години із заняттями за тиждень звичайні, вільні згорнуті", ok, str(rows))
+    check("на тижні є й згорнуті, й звичайні години", any(r < 30 for r in rows) and 88 in rows, str(rows))
+    check("кожен вільний проміжок — смужка зі стрілкою", m.locator(".fold-bar").count() >= 1)
     if today.weekday() >= 0:
         st = m.evaluate("document.querySelector('.week').scrollTop")
         exp = y(max(0, now.hour + now.minute / 60 - 1))
@@ -105,7 +106,10 @@ with sync_playwright() as pw:
     squash = head.evaluate("e => { const r = e.querySelector('strong').getBoundingClientRect(); const b = e.getBoundingClientRect(); return { h: r.height, inside: r.top >= b.top && r.bottom <= b.bottom }; }")
     check("назва короткого блока читається, не сплющена", squash["h"] >= 14 and squash["inside"], str(squash))
     check("блок не вилазить за низ доби", head.evaluate("e=>parseFloat(e.style.top)+e.getBoundingClientRect().height") <= sum(rows) + 1)
-    # Клік по порожній клітинці в різні години
+    # Стрілка на смужці розгортає вільні години; далі клік по порожній клітинці в різні години
+    m.locator(".fold-bar").first.click(); m.wait_for_timeout(500)
+    rows, y = scale()
+    check("стрілка розгортає вільні години до звичайної висоти", all(r == 88 for r in rows) and m.locator(".fold-up").count() >= 1, str(rows))
     m.evaluate("document.querySelector('.week').scrollTop = 0")
     col = m.locator(".week-col").nth(4); bx = col.bounding_box()
     m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + y(3.4))
@@ -117,7 +121,7 @@ with sync_playwright() as pw:
     m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + y(23.5))
     expect(m.get_by_label("Час", exact=True)).to_contain_text("23:00")
     m.get_by_label("Закрити").click()
-    m.evaluate("document.querySelector('.week').scrollTop = 0"); bx = col.bounding_box()
+    m.evaluate(f"document.querySelector('.week').scrollTop = {y(10)}"); m.wait_for_timeout(100); bx = col.bounding_box()
     m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + y(10.5))
     expect(m.get_by_label("Час", exact=True)).to_contain_text("10:00"); check("клік у годину 10:xx дає 10:00", True)
     m.get_by_label("Закрити").click()
@@ -185,8 +189,12 @@ with sync_playwright() as pw:
     mm.wait_for_selector(".week.is-single"); check("менеджер, телефон: без гориз. прокрутки", over(mm) <= 0)
     shot(mm, "f6-mob-manager")
     # Сітка відкривається на поточному часі, тому спершу йдемо на порожню нічну клітинку.
+    # Вільні години дня згорнуті: стрілка на смужці розгортає їх.
+    if mm.locator(".fold-bar").count():
+        mm.locator(".fold-bar").first.tap(); mm.wait_for_timeout(500)
     mm.evaluate("document.querySelector('.week').scrollTop = 0"); mm.wait_for_timeout(100)
     box = mm.locator(".week-col").bounding_box()
+    check("стрілка згортання — в колонці годин, не на клітинці", mm.locator(".fold-up").first.bounding_box()["x"] + 22 <= box["x"] + 1)
     mm.touchscreen.tap(box["x"] + box["width"] - 12, box["y"] + 20)
     expect(mm.locator(".modal")).to_be_visible(); check("менеджер, телефон: тап по клітинці відкриває форму", True)
     mm.get_by_label("Закрити").click()

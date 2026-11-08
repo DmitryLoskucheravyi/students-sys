@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
-import { Button, DatePicker, Empty, ErrorNote, Input, LateTag, Loader, Modal, PageHead, Segmented, Select, Status, Textarea, TimePicker, useAction } from '../ui.jsx';
+import { Button, DatePicker, Empty, ErrorNote, Input, LateTag, Loader, Modal, PageTools, Segmented, Select, Status, Textarea, TimePicker, useAction } from '../ui.jsx';
 import { IconHomework, IconLesson, IconPlus, IconRoadmap, IconSpark } from '../icons.jsx';
 import { WEEKDAYS, addDays, dateTimeShort, nowLocal, shortDate, todayISO } from '../fmt.js';
 import { TopicPicker } from './HomeworkTopics.jsx';
@@ -31,7 +31,10 @@ export default function Homework() {
 
   return (
     <>
-      <PageHead title="Завдання">
+      <PageTools title="Завдання" filtered={tab !== 'homework'} filters={!isStudent && (
+        <Segmented value={tab} onChange={(v) => setParams(v === 'quizzes' ? { tab: 'quizzes' } : {}, { replace: true })}
+          options={[{ value: 'homework', label: 'Домашні' }, { value: 'quizzes', label: 'Тести' }]} />
+      )}>
         {!isStudent && tab === 'homework' && <HomeworkAdd />}
         {tab === 'quizzes' && (
           <>
@@ -39,13 +42,7 @@ export default function Homework() {
             <Button icon={<IconPlus size={18} />} onClick={() => navigate('/quizzes/new')}>Новий тест</Button>
           </>
         )}
-      </PageHead>
-      {!isStudent && (
-        <div className="tabs-row">
-          <Segmented value={tab} onChange={(v) => setParams(v === 'quizzes' ? { tab: 'quizzes' } : {}, { replace: true })}
-            options={[{ value: 'homework', label: 'Домашні' }, { value: 'quizzes', label: 'Тести' }]} />
-        </div>
-      )}
+      </PageTools>
       {isStudent && <MyQuizzes />}
       {tab === 'quizzes' ? <QuizList isManager={isManager} /> : <HomeworkList isStudent={isStudent} />}
     </>

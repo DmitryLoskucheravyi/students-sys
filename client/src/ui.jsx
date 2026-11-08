@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { IconCalendar, IconClock, IconClose, IconDice, IconDown, IconEye, IconEyeOff, IconLeft, IconMinus, IconPlus, IconRight, IconTick } from './icons.jsx';
+import { useIsMobile } from './session.jsx';
+import { IconCalendar, IconClock, IconClose, IconDice, IconDown, IconEye, IconEyeOff, IconFilters, IconLeft, IconMinus, IconPlus, IconRight, IconTick } from './icons.jsx';
 import { MONTHS, WEEKDAYS, addDays, parseDate, randomPassword, shortDate, toISO, todayISO, weekdayOf } from './fmt.js';
 
 /* Тости та підтвердження */
@@ -523,6 +524,50 @@ export function Empty({ icon, title, action }) {
       <p>{title}</p>
       {action}
     </div>
+  );
+}
+
+/**
+ * Шапка розділу (Розклад, Курси, Люди…): назва лише для скрінрідерів, а фільтри й кнопки — в панелі,
+ * що на телефоні зафіксована внизу над меню, а з десктопа стоїть угорі сторінки.
+ * На телефоні фільтри сховані за кнопкою-іконкою: шторка, зміни застосовуються одразу, без «OK».
+ * filtered — чи відрізняється вибір від типового: тоді на кнопці крапка.
+ * Висоту панелі віддає в --dock-h, щоб сторінка й сповіщення не ховались під нею.
+ */
+export function PageTools({ title, filters, filtered = false, children }) {
+  const dock = useRef(null);
+  const mobile = useIsMobile();
+  const [sheet, setSheet] = useState(false);
+  const has = Boolean(filters || children);
+  useLayoutEffect(() => {
+    const el = dock.current;
+    if (!el) return undefined;
+    const root = document.documentElement;
+    const set = () => root.style.setProperty('--dock-h', `${el.offsetHeight}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => { ro.disconnect(); root.style.removeProperty('--dock-h'); };
+  }, [has]);
+  return (
+    <header className="page-tools">
+      <h1 className="sr">{title}</h1>
+      {has && (
+        <div className="page-dock" ref={dock}>
+          {filters && (mobile ? (
+            <button type="button" className={`dock-filter ${filtered ? 'is-on' : ''}`} aria-label="Фільтри" title="Фільтри" aria-haspopup="dialog" onClick={() => setSheet(true)}>
+              <IconFilters size={20} />
+            </button>
+          ) : <div className="dock-filters">{filters}</div>)}
+          {children && <div className="dock-actions">{children}</div>}
+        </div>
+      )}
+      {sheet && mobile && filters && (
+        <Modal title="Фільтри" onClose={() => setSheet(false)}>
+          <div className="filter-sheet">{filters}</div>
+        </Modal>
+      )}
+    </header>
   );
 }
 
