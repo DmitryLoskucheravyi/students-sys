@@ -7,19 +7,24 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "concurrently -n api,web -c red,gray \"node --watch server/index.js\" \"vite\"",
-    "build": "vite build",
-    "start": "node server/index.js",
-    "db:setup": "node server/setup.js",
-    "seed": "node server/seed.js",
+    "dev": "npm run build:server && concurrently -n tsc,api,web -c blue,red,gray \"tsc -p tsconfig.server.json --watch --preserveWatchOutput\" \"node --watch-path=dist/server dist/server/main.js\" \"vite\"",
+    "build": "vite build && npm run build:server",
+    "build:server": "tsc -p tsconfig.server.json",
+    "start": "node dist/server/main.js",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit",
+    "db:setup": "npm run build:server && node dist/server/setup.js",
+    "seed": "npm run build:server && node dist/server/seed.js",
     "test": "npm run test:unit && npm run build && npm run test:e2e",
-    "test:unit": "node --test \"tests/unit/*.test.js\"",
-    "test:e2e": "node tests/run.mjs",
+    "test:unit": "node --import tsx --test \"tests/unit/*.test.js\"",
+    "test:e2e": "npm run build:server && node tests/run.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1163.0",
     "@aws-sdk/lib-storage": "^3.1163.0",
+    "@nestjs/common": "^12.4.0",
+    "@nestjs/core": "^12.4.0",
+    "@nestjs/platform-express": "^12.4.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "dotenv": "^18.0.9",
@@ -29,17 +34,26 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.5.0",
     "mysql2": "^3.24.6",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
     "three": "^0.170.0"
   },
   "devDependencies": {
     "@fontsource-variable/onest": "^5.3.1",
     "@fontsource-variable/unbounded": "^5.3.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^26.6.6",
     "@vitejs/plugin-react": "^6.2.1",
     "concurrently": "^10.0.6",
     "fflate": "^0.8.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
     "vite": "^8.3.6"
   }
 }

@@ -8,3 +8,4 @@ uploads/
 .vercel/
 tests/e2e/shots/
 __pycache__/
+dist/

@@ -17,6 +17,16 @@ npm start        # http://127.0.0.1:3000
 
 Без демо-даних достатньо `npm run db:setup`: буде створено лише менеджера `manager / manager123`.
 
+## Структура
+
+- `client/` — інтерфейс: React 19 і Vite.
+- `server/` — API на NestJS і TypeScript. Збирається в `dist/server` (`npm run build:server`).
+  - `main.ts` — запуск: база, middleware, статичні файли клієнта.
+  - `modules/<розділ>/` — контролер (маршрути й ролі), сервіс (логіка й SQL) і модуль. Розділи: auth, users, plans, courses, lessons, sessions, homework, quizzes, stats, health.
+  - `common/` — вхід за cookie, глобальний guard ролей (`@Auth()`, `@Roles(...)`, `@CurrentUser()`) і фільтр помилок: клієнт завжди отримує `{ error }`.
+  - `setup.ts` і `schema.sql` — схема та міграції, `seed.ts` — демо-дані.
+- Перевірка типів без збірки: `npm run typecheck`.
+
 ## Демо-входи
 
 Лише для локальної бази. У проді пароль менеджера задає `INITIAL_MANAGER_PASSWORD`.

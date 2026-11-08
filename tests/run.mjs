@@ -75,9 +75,9 @@ async function waitUntilUp() {
 
 async function runSuite(file, env) {
   await dropTestDb(env);
-  const seed = spawnSync(process.execPath, ['server/seed.js'], { cwd: root, env, stdio: ['ignore', 'ignore', 'inherit'] });
+  const seed = spawnSync(process.execPath, ['dist/server/seed.js'], { cwd: root, env, stdio: ['ignore', 'ignore', 'inherit'] });
   if (seed.status !== 0) throw new Error('Не вдалося заповнити тестову базу');
-  const server = spawn(process.execPath, ['server/index.js'], { cwd: root, env, stdio: ['ignore', 'ignore', 'pipe'] });
+  const server = spawn(process.execPath, ['dist/server/main.js'], { cwd: root, env, stdio: ['ignore', 'ignore', 'pipe'] });
   let serverErrors = '';
   server.stderr.on('data', (c) => { serverErrors += c; });
   try {
