@@ -76,7 +76,9 @@ async function migrate(conn: Connection, { hadRoster, hadSchedules }: { hadRoste
   }
   // Публічне посилання на тест.
   if (!(await columnInfo(conn, 'quizzes', 'share_token'))) {
-    await conn.query('ALTER TABLE quizzes ADD COLUMN share_token VARCHAR(32) NULL UNIQUE');
+    // TiDB не вміє додати колонку разом з UNIQUE: індекс окремим кроком.
+    await conn.query('ALTER TABLE quizzes ADD COLUMN share_token VARCHAR(32) NULL');
+    await conn.query('CREATE UNIQUE INDEX uq_quizzes_share ON quizzes (share_token)');
   }
   // Колір виду абонемента: ним фарбується квиток учня.
   if (!(await columnInfo(conn, 'plans', 'color'))) {
