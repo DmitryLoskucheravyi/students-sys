@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, uploadForm, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
 import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, LateTag, Linkify, Loader, Modal, PageHead, Select, Status, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
 import { Who } from '../avatars.jsx';
 import Login from './Login.jsx';
+import { setSound, sfx, soundOn } from '../sound.js';
 import { IconClose, IconCopy, IconDown, IconEdit, IconExternal, IconImage, IconLeft, IconPlus, IconQuiz, IconRestore, IconRight, IconSpark, IconTick, IconTrash, IconUp, IconUser } from '../icons.jsx';
 import { dateTimeShort, isLate, nowLocal, plural, time } from '../fmt.js';
 import { TopicChips, TopicPicker } from './HomeworkTopics.jsx';
@@ -539,7 +540,8 @@ function QuizQuestions({ questions, done, review, answers, onPick, image }) {
                     onClick={() => onPick(x, o.id)}>
                     <span className="q-box" aria-hidden="true">{mark === 'tick' ? <IconTick size={14} /> : mark === 'cross' ? <IconClose size={14} /> : null}</span>
                     <span>{o.text}</span>
-                    {review && on && <span className="sr">, обрано</span>}
+                    {review && on && done && <span className="q-yours">ваш вибір</span>}
+                    {review && on && !done && <span className="sr">, обрано</span>}
                   </button>
                 );
               })}
@@ -556,15 +558,183 @@ const pickIn = (answers, x, optionId) => {
   return { ...answers, [x.id]: x.multiple ? (cur.includes(optionId) ? cur.filter((v) => v !== optionId) : [...cur, optionId]) : [optionId] };
 };
 
-/** Результат: бал і відсоток правильних. */
-function ScoreBox({ score, max, children }) {
+/** Текст тесту не копіюється: ні виділенням, ні контекстним меню, ні перетягуванням. */
+const noCopy = {
+  onCopy: (e) => e.preventDefault(),
+  onCut: (e) => e.preventDefault(),
+  onContextMenu: (e) => e.preventDefault(),
+  onDragStart: (e) => e.preventDefault(),
+};
+
+const LETTERS = 'ABCDEF';
+
+function SoundToggle() {
+  const [on, setOn] = useState(soundOn);
   return (
-    <section className={`quiz-score ${score / max >= 0.5 ? 'is-good' : 'is-low'}`} aria-label="Результат">
-      <strong>{score}<small> з {max}</small></strong>
-      <div>
-        <p>{Math.round((score / max) * 100)}% правильних відповідей</p>
+    <button type="button" className="qr-sound" aria-pressed={on} aria-label={on ? 'Вимкнути звук' : 'Увімкнути звук'} title={on ? 'Звук увімкнено' : 'Звук вимкнено'}
+      onClick={() => { setSound(!on); setOn(!on); if (!on) sfx.pick(); }}>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M4 9.500h3.500L12 5.500v13l-4.500-4H4z" />
+        {on ? <path className="ia" d="M15.500 9a4 4 0 0 1 0 6M18 6.500a7.500 7.500 0 0 1 0 11" /> : <path className="ia" d="M16 9.500l5 5M21 9.500l-5 5" />}
+      </svg>
+    </button>
+  );
+}
+
+/**
+ * Проходження тесту по одному питанню. Одиночний вибір сам переходить далі; кілька відповідей — кнопкою «Далі».
+ * Можна пропустити питання й повернутися назад, перейти до будь-якого через крапки вгорі.
+ * Правильні відповіді не показуються: їх видно лише після «Завершити тест».
+ * Клавіші: 1–6 обирають варіант, ← і → гортають, Enter — далі.
+ */
+function QuizRunner({ questions, image, busy, onFinish }) {
+  const [answers, setAnswers] = useState({});
+  const [i, setI] = useState(0);
+  const [dir, setDir] = useState('next');
+  const [skipped, setSkipped] = useState(() => new Set());
+  const timer = useRef(0);
+  const { confirm } = useUI();
+  const x = questions[i];
+  const last = i === questions.length - 1;
+  const has = (q) => Boolean(answers[q.id]?.length);
+  const answered = questions.filter(has).length;
+
+  const go = (to, how) => {
+    clearTimeout(timer.current);
+    if (to < 0 || to >= questions.length || to === i) return;
+    setDir(to > i ? 'next' : 'prev');
+    setI(to);
+    (how === 'skip' ? sfx.skip : to > i ? sfx.next : sfx.back)();
+  };
+  const next = () => {
+    if (!has(x)) setSkipped((s) => new Set(s).add(x.id));
+    go(i + 1, has(x) ? 'next' : 'skip');
+  };
+  const pick = (o) => {
+    const on = (answers[x.id] ?? []).includes(o.id);
+    const nextAnswers = pickIn(answers, x, o.id);
+    setAnswers(nextAnswers);
+    setSkipped((s) => { const n = new Set(s); n.delete(x.id); return n; });
+    (on && x.multiple ? sfx.unpick : sfx.pick)();
+    // Одиночний вибір: коротка пауза, щоб побачити позначку, і далі.
+    clearTimeout(timer.current);
+    if (!x.multiple && !last) timer.current = setTimeout(() => { setDir('next'); setI((k) => k + 1); sfx.next(); }, 420);
+  };
+  const finish = async () => {
+    clearTimeout(timer.current);
+    const left = questions.length - answered;
+    if (left > 0) {
+      const yes = await confirm({ title: 'Завершити тест?', text: `Без відповіді ${left} ${plural(left, 'питання', 'питання', 'питань')}. Їх буде зараховано як неправильні.`, action: 'Завершити' });
+      if (!yes) return;
+    }
+    onFinish(answers);
+  };
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.closest?.('input, textarea, .modal')) return;
+      const k = Number(e.key);
+      if (k >= 1 && k <= x.options.length) { e.preventDefault(); pick(x.options[k - 1]); }
+      else if (e.key === 'ArrowRight' || (e.key === 'Enter' && !e.target.closest?.('button'))) { e.preventDefault(); if (last) finish(); else next(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); go(i - 1); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  const chosen = answers[x.id] ?? [];
+  return (
+    <div className="qr" {...noCopy}>
+      <div className="qr-top">
+        <span className="qr-count">Питання <b>{i + 1}</b> з {questions.length}</span>
+        <SoundToggle />
+      </div>
+      <span className="qr-bar" aria-hidden="true"><i style={{ width: `${(answered / questions.length) * 100}%` }} /></span>
+      <ol className="qr-dots" aria-label="Питання тесту">
+        {questions.map((q, k) => (
+          <li key={q.id}>
+            <button type="button" className={`qr-dot ${k === i ? 'is-current' : ''} ${has(q) ? 'is-done' : skipped.has(q.id) ? 'is-skipped' : ''}`}
+              aria-label={`Питання ${k + 1}${has(q) ? ', є відповідь' : skipped.has(q.id) ? ', пропущено' : ''}`} aria-current={k === i ? 'step' : undefined}
+              onClick={() => go(k)}>{k + 1}</button>
+          </li>
+        ))}
+      </ol>
+
+      <div className="qr-stage">
+        <article key={x.id} className={`q-card qr-card is-${dir}`} aria-live="polite">
+          <header className="q-head">
+            <h3>Питання {i + 1}</h3>
+            {x.multiple && <span className="qr-multi">Кілька правильних</span>}
+          </header>
+          <p className="q-text">{x.text}</p>
+          {x.image && <img className="q-img" src={image(x.image)} alt={`Картинка до питання ${i + 1}`} draggable="false" />}
+          <div className="q-opts" role={x.multiple ? 'group' : 'radiogroup'} aria-label={`Варіанти питання ${i + 1}`}>
+            {x.options.map((o, k) => {
+              const on = chosen.includes(o.id);
+              return (
+                <button key={o.id} type="button" style={{ '--k': k }} className={`q-opt qr-opt ${x.multiple ? 'is-multi' : ''} ${on ? 'is-on' : ''}`}
+                  role={x.multiple ? 'checkbox' : 'radio'} aria-checked={on} onClick={() => pick(o)}>
+                  <span className="qr-key" aria-hidden="true">{on ? <IconTick size={14} /> : LETTERS[k]}</span>
+                  <span>{o.text}</span>
+                </button>
+              );
+            })}
+          </div>
+        </article>
+      </div>
+
+      <div className="quiz-submit qr-nav">
+        <Button variant="ghost" icon={<IconLeft size={18} />} disabled={i === 0} onClick={() => go(i - 1)}>Назад</Button>
+        <span className="muted small qr-left">Відповіли на {answered} з {questions.length}</span>
+        {last
+          ? <Button busy={busy} icon={<IconTick size={18} />} onClick={finish}>Завершити тест</Button>
+          : has(x)
+            ? <Button icon={<IconRight size={18} />} onClick={next}>Далі</Button>
+            : <Button variant="ghost" icon={<IconRight size={18} />} onClick={next}>Пропустити</Button>}
+      </div>
+    </div>
+  );
+}
+
+/** Результат: кільце з часткою правильних, бал і короткий відгук. Звук і конфеті — один раз при показі. */
+function ResultHero({ score, max, fresh, children }) {
+  const share = max ? score / max : 0;
+  const good = share >= 0.5;
+  const title = share === 1 ? 'Ідеально!' : share >= 0.8 ? 'Чудовий результат' : good ? 'Добре, так тримати' : 'Варто повторити тему';
+  useEffect(() => { if (fresh) (good ? sfx.win : sfx.soft)(); }, [fresh, good]);
+  return (
+    <section className={`quiz-score qr-result ${good ? 'is-good' : 'is-low'} ${fresh ? 'is-fresh' : ''}`} aria-label="Результат">
+      {fresh && share >= 0.8 && (
+        <div className="qr-confetti" aria-hidden="true">
+          {Array.from({ length: 18 }, (_, k) => <i key={k} style={{ '--x': `${(k * 37) % 100}%`, '--d': `${(k % 6) * 90}ms`, '--r': `${(k * 47) % 360}deg`, '--c': k % 3 }} />)}
+        </div>
+      )}
+      <div className="qr-dial">
+        <svg className="qr-ring" viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="52" className="qr-ring-bg" />
+          <circle cx="60" cy="60" r="52" className="qr-ring-fg" pathLength="1" style={{ '--share': share }} />
+        </svg>
+        <div className="qr-score">
+          <strong>{score}<small> з {max}</small></strong>
+          <span>{Math.round(share * 100)}%</span>
+        </div>
+      </div>
+      <div className="qr-verdict">
+        <h2>{title}</h2>
+        <p>{Math.round(share * 100)}% правильних відповідей</p>
         {children}
       </div>
+    </section>
+  );
+}
+
+/** Розбір після завершення: усі питання з правильними відповідями й позначкою «правильно / помилка». */
+function QuizReview({ questions, image }) {
+  return (
+    <section className="qr-review" {...noCopy}>
+      <h2>Відповіді</h2>
+      <QuizQuestions questions={questions} done review answers={{}} onPick={() => {}} image={image} />
     </section>
   );
 }
@@ -577,11 +747,10 @@ export function PublicQuiz() {
   const { token } = useParams();
   const { user, setUser } = useAuth();
   const { data: z, loading, error, reload } = useData(`/public/quizzes/${token}?u=${user?.id ?? 0}`);
-  const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
+  const [round, setRound] = useState(0);
   const [signIn, setSignIn] = useState(false);
   const [run, busy] = useAction();
-  const { confirm } = useUI();
   const image = (name) => `/api/public/quizzes/${token}/images/${name}`;
 
   if (signIn && !user) return <Login onLogin={(u) => { setUser(u); setSignIn(false); }} />;
@@ -589,57 +758,45 @@ export function PublicQuiz() {
   if (!z) return loading ? <Loader /> : null;
 
   const isStudent = user?.role === 'student';
-  const answered = z.questions.filter((x) => answers[x.id]?.length).length;
-  const submit = async () => {
-    const left = z.questions.length - answered;
-    if (left > 0) {
-      const yes = await confirm({ title: 'Завершити тест?', text: `Без відповіді ${left} ${plural(left, 'питання', 'питання', 'питань')}. Їх буде зараховано як неправильні.`, action: 'Завершити' });
-      if (!yes) return;
-    }
+  const finish = async (answers) => {
     const r = await run(() => api(`/public/quizzes/${token}/check`, { method: 'POST', body: { answers } }));
     if (r) { setResult(r); if (r.recorded) notify(); window.scrollTo({ top: 0 }); }
   };
-  const again = () => { setResult(null); setAnswers({}); window.scrollTo({ top: 0 }); };
+  const again = () => { setResult(null); setRound((n) => n + 1); window.scrollTo({ top: 0 }); };
 
   return (
-    <div className="pq">
+    <div className="pq" {...noCopy}>
       <PublicHead />
       <h1 className="pq-title">{z.title}</h1>
       <p className="muted small">{questionsWord(z.questions.length)}</p>
-      {z.description && <p className="task"><Linkify text={z.description} /></p>}
+      {z.description && !result && <p className="task"><Linkify text={z.description} /></p>}
 
       {result ? (
-        <ScoreBox score={result.score} max={result.max_score}>
-          <p className="small">
-            {result.recorded ? <>Результат записано у ваші тести.{result.assignment_id && <> <Link to={`/tests/${result.assignment_id}`}>Відкрити</Link></>}</>
-              : result.already ? 'Ви вже проходили цей тест, тому записано перший результат. Цю спробу не збережено.'
-              : user ? 'Результат ніде не зберігається: записується лише для учнів.'
-              : 'Результат ніде не зберігається. Увійдіть як учень, щоб він записався.'}
+        <>
+          <ResultHero score={result.score} max={result.max_score} fresh>
+            <p className="small">
+              {result.recorded ? <>Результат записано у ваші тести.{result.assignment_id && <> <Link to={`/tests/${result.assignment_id}`}>Відкрити</Link></>}</>
+                : result.already ? 'Ви вже проходили цей тест, тому записано перший результат. Цю спробу не збережено.'
+                : user ? 'Результат ніде не зберігається: записується лише для учнів.'
+                : 'Результат ніде не зберігається. Увійдіть як учень, щоб він записався.'}
+            </p>
+            <div className="qr-actions">
+              {!result.recorded && <Button variant="ghost" small icon={<IconRestore size={16} />} onClick={again}>Пройти ще раз</Button>}
+              {user ? <Link className="btn btn-primary btn-small" to="/">До застосунку</Link> : <Button small onClick={() => setSignIn(true)}>Увійти</Button>}
+            </div>
+          </ResultHero>
+          <QuizReview questions={result.questions} image={image} />
+        </>
+      ) : (
+        <>
+          <p className={`note small pq-who ${isStudent ? 'is-student' : ''}`}>
+            {isStudent
+              ? (z.mine?.submitted_at ? `Ви вже проходили цей тест: ${z.mine.score} з ${z.mine.max_score}. Нова спроба не запишеться.` : `${user.name}, результат запишеться у ваші тести.`)
+              : user ? 'Ви увійшли не як учень: результат побачите, але він не запишеться.'
+              : <>Можна пройти без входу, результат побачите одразу, але він не збережеться. <button type="button" className="link-btn" onClick={() => setSignIn(true)}>Увійти як учень</button></>}
           </p>
-        </ScoreBox>
-      ) : (
-        <p className={`note small pq-who ${isStudent ? 'is-student' : ''}`}>
-          {isStudent
-            ? (z.mine?.submitted_at ? `Ви вже проходили цей тест: ${z.mine.score} з ${z.mine.max_score}. Нова спроба не запишеться.` : `${user.name}, результат запишеться у ваші тести.`)
-            : user ? 'Ви увійшли не як учень: результат побачите, але він не запишеться.'
-            : <>Можна пройти без входу, результат побачите одразу, але він не збережеться. <button type="button" className="link-btn" onClick={() => setSignIn(true)}>Увійти як учень</button></>}
-        </p>
-      )}
-
-      {result
-        ? <QuizQuestions questions={result.questions} done review answers={answers} onPick={() => {}} image={image} />
-        : <QuizQuestions questions={z.questions} done={false} review={false} answers={answers} onPick={(x, o) => setAnswers((a) => pickIn(a, x, o))} image={image} />}
-
-      {result ? (
-        <div className="quiz-submit">
-          {!result.recorded && <Button variant="ghost" icon={<IconRestore size={18} />} onClick={again}>Пройти ще раз</Button>}
-          {user ? <Link className="btn btn-primary" to="/">До застосунку</Link> : <Button onClick={() => setSignIn(true)}>Увійти</Button>}
-        </div>
-      ) : (
-        <div className="quiz-submit">
-          <span className="muted small">Відповіли на {answered} з {z.questions.length}</span>
-          <Button busy={busy} icon={<IconRight size={18} />} onClick={submit}>Завершити тест</Button>
-        </div>
+          <QuizRunner key={round} questions={z.questions} image={image} busy={busy} onFinish={finish} />
+        </>
       )}
     </div>
   );
@@ -692,9 +849,8 @@ export function QuizTake() {
   const { id } = useParams();
   const { user } = useAuth();
   const { data: a, loading, error, reload } = useData(`/quizzes/assignments/${id}`);
-  const [answers, setAnswers] = useState({});
+  const [fresh, setFresh] = useState(false);
   const [run, busy] = useAction();
-  const { confirm } = useUI();
   const isStudent = user.role === 'student';
   const back = isStudent ? '/homework' : a ? `/quizzes/${a.quiz_id}` : '/homework';
 
@@ -702,46 +858,36 @@ export function QuizTake() {
   if (!a) return loading ? <Loader /> : null;
 
   const done = Boolean(a.submitted_at);
-  const answered = a.questions.filter((x) => answers[x.id]?.length).length;
-  const pick = (x, optionId) => setAnswers(pickIn(answers, x, optionId));
-  const submit = async () => {
-    const left = a.questions.length - answered;
-    if (left > 0) {
-      const yes = await confirm({ title: 'Здати тест?', text: `Без відповіді ${left} ${plural(left, 'питання', 'питання', 'питань')}. Їх буде зараховано як неправильні.`, action: 'Здати' });
-      if (!yes) return;
-    }
+  const finish = async (answers) => {
     const r = await run(() => api(`/quizzes/assignments/${a.id}/submit`, { method: 'POST', body: { answers } }), 'Тест здано');
-    if (r) { notify(); reload(); window.scrollTo({ top: 0 }); }
+    if (r) { notify(); setFresh(true); reload(); window.scrollTo({ top: 0 }); }
   };
 
   return (
-    <>
+    <div {...noCopy}>
       <Link to={back} className="back"><IconLeft size={18} /> {isStudent ? 'Завдання' : a.quiz_title}</Link>
       <PageHead title={a.quiz_title} />
       <p className="muted small">
         {[!isStudent && a.student_name, a.course_title, questionsWord(a.questions.length), a.due_at && !done && `пройти до ${dateTimeShort(a.due_at)}`].filter(Boolean).join(' · ')}
       </p>
-      {a.description && <p className="task"><Linkify text={a.description} /></p>}
+      {a.description && !done && <p className="task"><Linkify text={a.description} /></p>}
       <TopicChips topics={a.topics} />
 
       {done && (
-        <section className={`quiz-score ${a.score / a.max_score >= 0.5 ? 'is-good' : 'is-low'}`} aria-label="Результат">
-          <strong>{a.score}<small> з {a.max_score}</small></strong>
-          <div>
-            <p>{Math.round((a.score / a.max_score) * 100)}% правильних відповідей</p>
-            <p className="muted small">Пройдено {dateTimeShort(a.submitted_at)}{isLate(a.submitted_at, a.due_at) && <> <LateTag /></>}. Нижче видно правильні відповіді.</p>
-          </div>
-        </section>
+        <>
+          <ResultHero score={a.score} max={a.max_score} fresh={fresh}>
+            <p className="small">Пройдено {dateTimeShort(a.submitted_at)}{isLate(a.submitted_at, a.due_at) && <> <LateTag /></>}</p>
+          </ResultHero>
+          <QuizReview questions={a.questions} image={imageUrl} />
+        </>
       )}
-      {!done && !isStudent && <p className="note small">Учень ще не пройшов тест. Правильні відповіді позначено.</p>}
-
-      <QuizQuestions questions={a.questions} done={done} review={done || !isStudent} answers={answers} onPick={pick} image={imageUrl} />
-      {!done && isStudent && (
-        <div className="quiz-submit">
-          <span className="muted small">Відповіли на {answered} з {a.questions.length}</span>
-          <Button busy={busy} icon={<IconRight size={18} />} onClick={submit}>Здати тест</Button>
-        </div>
+      {!done && !isStudent && (
+        <>
+          <p className="note small">Учень ще не пройшов тест. Правильні відповіді позначено.</p>
+          <QuizQuestions questions={a.questions} done={false} review answers={{}} onPick={() => {}} image={imageUrl} />
+        </>
       )}
-    </>
+      {!done && isStudent && <QuizRunner questions={a.questions} image={imageUrl} busy={busy} onFinish={finish} />}
+    </div>
   );
 }

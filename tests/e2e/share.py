@@ -34,8 +34,8 @@ QUIZ = {"title": "Публічний тест", "description": "Перевір �
 ]}
 
 def answer(p, right=True):
-    p.locator(".q-card").nth(0).get_by_role("radio", name="4" if right else "5", exact=True).click()
-    p.locator(".q-card").nth(1).get_by_role("radio", name="Python" if right else "HTML", exact=True).click()
+    p.get_by_role("radio", name="4" if right else "5", exact=True).click()
+    p.get_by_role("radio", name="Python" if right else "HTML", exact=True).click()
 
 with sync_playwright() as pw:
     b = pw.chromium.launch(headless=True)
