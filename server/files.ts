@@ -1,4 +1,6 @@
 import { open } from 'node:fs/promises';
+import type { Response } from 'express';
+import { openFile } from './storage.js';
 
 /* Перевірка вмісту завантажених файлів: за першими байтами, а не за розширенням. */
 
@@ -27,4 +29,35 @@ export function imageMime(b: Buffer): string | null {
 export function contentDisposition(name: string, inline: boolean): string {
   const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, '_');
   return `${inline ? 'inline' : 'attachment'}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
+}
+
+/**
+ * Віддає збережений файл: заголовки безпеки, розмір, назва. Якщо файл зник — 404 у звичному форматі {error},
+ * навіть коли помилка трапилась уже під час передачі (тоді з'єднання просто обривається).
+ */
+export async function sendStored(
+  res: Response,
+  f: { storedName: string; mime: string; size: number; filename: string; inline: boolean; cache: string },
+  missingMessage = 'Файл не знайдено'
+): Promise<void> {
+  const missing = () => {
+    if (res.headersSent) return void res.destroy();
+    for (const header of ['Content-Length', 'Content-Disposition', 'Content-Type', 'Cache-Control']) res.removeHeader(header);
+    res.status(404).json({ error: missingMessage });
+  };
+  let stream: NodeJS.ReadableStream;
+  try {
+    stream = await openFile(f.storedName);
+  } catch (e) {
+    console.error(`Файл ${f.storedName}: ${(e as Error).name}`);
+    missing();
+    return;
+  }
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Type', f.mime);
+  res.setHeader('Content-Length', f.size);
+  res.setHeader('Cache-Control', f.cache);
+  res.setHeader('Content-Disposition', contentDisposition(f.filename, f.inline));
+  stream.on('error', missing);
+  stream.pipe(res);
 }

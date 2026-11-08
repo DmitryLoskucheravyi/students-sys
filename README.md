@@ -23,7 +23,18 @@ npm start        # http://127.0.0.1:3000
 - `server/` — API на NestJS і TypeScript. Збирається в `dist/server` (`npm run build:server`).
   - `main.ts` — запуск: база, middleware, статичні файли клієнта.
   - `modules/<розділ>/` — контролер (маршрути й ролі), сервіс (логіка й SQL) і модуль. Розділи: auth, users, plans, courses, lessons, sessions, homework, quizzes, stats, health.
+  - `modules/quizzes/` розкладено за обов'язками:
+    - `quiz-grading.ts` — оцінювання, чисті функції;
+    - `quiz-input.ts` — розбір форми;
+    - `quiz-policy.ts` — правила доступу;
+    - `quiz.repository.ts` — усі SQL;
+    - сервіси тестів і модерації, призначень, картинок, публічних посилань.
+  - `files.ts` — перевірка вмісту файлів і спільна віддача збережених файлів.
   - `common/` — вхід за cookie, глобальний guard ролей (`@Auth()`, `@Roles(...)`, `@CurrentUser()`) і фільтр помилок: клієнт завжди отримує `{ error }`.
+- `client/src/pages/quizzes/` і `client/src/pages/course/` — сторінки тестів і курсу, розкладені на модулі:
+  - списки, редактор, проходження, публічне посилання;
+  - дорога роадмапу, редактор роадмапу, учні курсу.
+- `client/src/quizImport.js`, `codeHighlight.js`, `fmt.js` — чисті функції без React, їх перевіряють юніт-тести.
   - `setup.ts` і `schema.sql` — схема та міграції, `seed.ts` — демо-дані.
 - Перевірка типів без збірки: `npm run typecheck`.
 

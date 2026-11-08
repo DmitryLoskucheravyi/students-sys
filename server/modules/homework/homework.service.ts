@@ -6,10 +6,10 @@ import type { Request, Response } from 'express';
 import multer from 'multer';
 import { type Query, type Row, q, tx } from '../../db.js';
 import { HttpError, bad, conflict, dateTime, forbidden, id, int, notFound, nowStr, str } from '../../lib.js';
-import { MAX_FILE_MB, UPLOAD_DIR, openFile, persistFile, removeFile } from '../../storage.js';
+import { MAX_FILE_MB, UPLOAD_DIR, persistFile, removeFile } from '../../storage.js';
 import { type Topic, courseTopics, parseTopics, saveTopics, topicsOf } from '../../topics.js';
 import { HW_FOR, HW_STAFF, IN_COURSE, TEACHES, sqlInt } from '../../audience.js';
-import { contentDisposition, imageMime, isZip, readHead } from '../../files.js';
+import { imageMime, isZip, readHead, sendStored } from '../../files.js';
 import type { User } from '../../common/auth.js';
 
 const MAX_FILE = MAX_FILE_MB * 1024 * 1024;
@@ -449,27 +449,11 @@ export class FilesService {
     }
     if (!allowed) throw new HttpError(404, 'Файл не знайдено');
 
-    const missing = () => {
-      if (res.headersSent) return res.destroy();
-      for (const header of ['Content-Length', 'Content-Disposition', 'Content-Type', 'Cache-Control']) res.removeHeader(header);
-      res.status(404).json({ error: 'Файл не знайдено' });
-    };
-    let stream: NodeJS.ReadableStream;
-    try {
-      stream = await openFile(f.stored_name);
-    } catch (e) {
-      console.error(`Файл ${f.id}: ${(e as Error).name}`);
-      missing();
-      return;
-    }
     // Вбудовано показуємо лише перевірені зображення. Решта завжди завантажується.
     const inline = f.kind === 'screenshot' && !download;
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Type', inline ? f.mime : 'application/octet-stream');
-    res.setHeader('Content-Length', f.size);
-    res.setHeader('Cache-Control', 'private, max-age=3600');
-    res.setHeader('Content-Disposition', contentDisposition(f.original_name, inline));
-    stream.on('error', missing);
-    stream.pipe(res);
+    await sendStored(res, {
+      storedName: f.stored_name, mime: inline ? f.mime : 'application/octet-stream', size: f.size,
+      filename: f.original_name, inline, cache: 'private, max-age=3600',
+    });
   }
 }
