@@ -1338,23 +1338,20 @@ button.stop:active { transform: scale(0.94); }
 .pq .qr-dots { gap: 5px; }
 .pq .qr-dot { min-width: 28px; height: 28px; border-radius: 8px; font-size: 12px; }
 
-/* Логотип у нижньому лівому куті: виїжджає при появі, далі BE ледь гойдається, а рядки по черзі «дихають» */
-.pq-logo { position: fixed; left: 22px; bottom: 18px; z-index: 6; pointer-events: none; animation: pq-logo-in 0.8s var(--ease) both 0.15s; }
-.pq-logo .wordmark { font-size: 18px; color: var(--red); }
-.pq-logo .wordmark-be { display: inline-block; transform-origin: 50% 60%; animation: pq-be 5s ease-in-out infinite 1.2s; }
-.pq-logo .wordmark-stack span { display: block; animation: pq-word 5s ease-in-out infinite; }
-.pq-logo .wordmark-stack span:first-child { animation-delay: 1.4s; }
-.pq-logo .wordmark-stack span:last-child { animation-delay: 1.7s; }
-@keyframes pq-logo-in { from { opacity: 0; transform: translate(-18px, 18px) scale(0.85); } }
-@keyframes pq-be { 0%, 70%, 100% { transform: rotate(180deg); } 78% { transform: rotate(170deg) translateY(1px); } 86% { transform: rotate(188deg); } 92% { transform: rotate(178deg); } }
-@keyframes pq-word { 0%, 72%, 100% { transform: none; } 80% { transform: translateX(3px); } 88% { transform: translateX(-1px); } }
+/* Логотип у нижньому лівому куті: збирається, як на сторінці входу, а далі BE і рядки зрідка ледь ворушаться */
+.pq-logo { position: fixed; left: 24px; bottom: 20px; z-index: 6; pointer-events: none; }
+.bs-logo.is-corner { color: var(--red); font-size: clamp(30px, 3.2vw, 44px); }
+.bs-logo.is-corner .bs-be { animation: bs-be-room 0.9s 1.3s var(--ease-turn) both, pq-be 6s ease-in-out 3.2s infinite; transform-origin: 50% 70%; }
+.bs-logo.is-corner .bs-stack { animation: pq-stack 6s ease-in-out 3.5s infinite; }
+@keyframes pq-be { 0%, 80%, 100% { transform: none; } 86% { transform: rotate(-6deg) translateY(-2px); } 92% { transform: rotate(4deg); } 96% { transform: rotate(-1deg); } }
+@keyframes pq-stack { 0%, 82%, 100% { transform: none; } 88% { transform: translateX(4px); } 94% { transform: translateX(-1px); } }
 @media (max-width: 699px) {
   /* На телефоні кнопки внизу на всю ширину: логотип стає в кінці сторінки, а не поверх них */
   .pq { padding-bottom: 24px; }
   .pq-logo { position: static; margin-top: 28px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pq-title, .pq-logo, .pq-logo .wordmark-be, .pq-logo .wordmark-stack span { animation: none; }
+  .pq-title, .bs-logo.is-corner .bs-be, .bs-logo.is-corner .bs-stack { animation: none; }
 }
 .pq-who { margin: 14px 0; }
 .pq .quiz-submit { bottom: 0; }

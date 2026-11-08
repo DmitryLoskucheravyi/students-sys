@@ -5,6 +5,7 @@ import { api, useData } from '../../api.js';
 import { useAuth } from '../../session.jsx';
 import { Button, ErrorNote, Linkify, Loader, useAction } from '../../ui.jsx';
 import Login from '../Login.jsx';
+import BsLogo from '../../BsLogo.jsx';
 import { IconRestore } from '../../icons.jsx';
 import { notify } from './common.js';
 import { QuizRunner, QuizReview, ResultHero, noCopy } from './runner.jsx';
@@ -65,13 +66,8 @@ export function PublicQuiz() {
 /** Логотип у нижньому лівому куті: з'являється анімовано й далі ледь «дихає». */
 function PublicLogo() {
   return (
-    <div className="pq-logo" role="img" aria-label="Be Smart School">
-      <span className="wordmark">
-        <span className="wordmark-full">
-          <span className="wordmark-be">BE</span>
-          <span className="wordmark-stack"><span>Smart</span><span>School</span></span>
-        </span>
-      </span>
+    <div className="pq-logo">
+      <BsLogo className="is-corner" />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { Button, Input, PasswordInput } from '../ui.jsx';
+import BsLogo from '../BsLogo.jsx';
 import { mountLiquid } from '../liquid.js';
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -93,15 +94,7 @@ export default function Login({ onLogin }) {
     <div className="login">
       <div className="login-art">
         <Bits />
-        <p className="bs-logo" role="img" aria-label="Be Smart School">
-          <span className="bs-be" aria-hidden="true">
-            <span className="bs-word bs-be-in"><b>B</b><span className="bs-tail"><span>E</span></span></span>
-          </span>
-          <span className="bs-stack" aria-hidden="true">
-            <span className="bs-word"><b>S</b><span className="bs-tail"><span>mart</span></span></span>
-            <span className="bs-under"><span>School</span></span>
-          </span>
-        </p>
+        <BsLogo />
       </div>
       <Liquid formRef={formRef} />
       {/* Книга летить над усією сторінкою: з лівої панелі через червоний виступ угору */}
