@@ -1279,6 +1279,17 @@ button.stop:active { transform: scale(0.94); }
 .road-hw-item.is-quiz.is-open { border-color: var(--red); background: var(--red-soft); }
 .road-quiz-go { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--red); font-size: 13.5px; }
 
+/* Тест за публічним посиланням */
+.pq { max-width: 860px; margin: 0 auto; padding: 0 16px 24px; }
+.pq-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 0; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+.pq-head .wordmark { color: var(--red); }
+.pq-title { font: 700 clamp(22px, 5vw, 30px)/1.15 var(--display); letter-spacing: -0.03em; margin: 12px 0 4px; overflow-wrap: anywhere; }
+.pq-who { margin: 14px 0; }
+.pq .quiz-submit { bottom: 0; }
+.share-url { display: flex; gap: 8px; }
+.share-url .input { flex: 1; min-width: 0; }
+@media (max-width: 520px) { .share-url { flex-direction: column; } }
+
 /* Редактор тесту */
 .quiz-form { display: grid; gap: 16px; max-width: 860px; }
 .quiz-head { padding: 0; }

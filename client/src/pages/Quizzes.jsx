@@ -4,7 +4,8 @@ import { api, uploadForm, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
 import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, LateTag, Linkify, Loader, Modal, PageHead, Select, Status, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
 import { Who } from '../avatars.jsx';
-import { IconClose, IconCopy, IconDown, IconEdit, IconImage, IconLeft, IconPlus, IconQuiz, IconRestore, IconRight, IconSpark, IconTick, IconTrash, IconUp, IconUser } from '../icons.jsx';
+import Login from './Login.jsx';
+import { IconClose, IconCopy, IconDown, IconEdit, IconExternal, IconImage, IconLeft, IconPlus, IconQuiz, IconRestore, IconRight, IconSpark, IconTick, IconTrash, IconUp, IconUser } from '../icons.jsx';
 import { dateTimeShort, isLate, nowLocal, plural, time } from '../fmt.js';
 import { TopicChips, TopicPicker } from './HomeworkTopics.jsx';
 import { MAX_OPTIONS, MAX_QUESTIONS, MIN_OPTIONS, QUIZ_PROMPT, parseQuizAnswer } from '../quizImport.js';
@@ -353,6 +354,7 @@ export function QuizDetail() {
   const { data: quiz, loading, error, reload } = useData(`/quizzes/${id}`);
   const [assigning, setAssigning] = useState(null);
   const [rejecting, setRejecting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [run] = useAction();
   const { confirm } = useUI();
   if (error) return <ErrorNote text={error} onRetry={reload} />;
@@ -375,6 +377,7 @@ export function QuizDetail() {
     <>
       <Link to="/homework?tab=quizzes" className="back"><IconLeft size={18} /> Тести</Link>
       <PageHead title={quiz.title}>
+        {quiz.status === 'approved' && <Button variant="ghost" icon={<IconExternal size={18} />} onClick={() => setSharing(true)}>{quiz.share_token ? 'Посилання' : 'Поділитися посиланням'}</Button>}
         {isManager && quiz.status === 'approved' && <Button icon={<IconUser size={18} />} onClick={() => setAssigning({})}>Відкрити учневі</Button>}
         {isManager && quiz.status === 'pending' && (
           <>
@@ -437,6 +440,7 @@ export function QuizDetail() {
           ))}
         </ol>
       </section>
+      {sharing && <ShareForm quiz={quiz} onClose={() => setSharing(false)} onChange={reload} />}
       {rejecting && <RejectForm quiz={quiz} onClose={() => setRejecting(false)} onDone={() => { setRejecting(false); notify(); reload(); }} />}
       {assigning && <AssignForm quiz={quiz} assignment={assigning.id ? assigning : null}
         onClose={() => setAssigning(null)} onDone={() => { setAssigning(null); reload(); }} />}
@@ -506,6 +510,183 @@ function AssignForm({ quiz, assignment, onClose, onDone }) {
   );
 }
 
+/**
+ * Питання тесту з варіантами. До здачі учень обирає відповіді; після здачі (review) видно правильні
+ * варіанти й помилкові вибори. Спільне для тесту учня і тесту за публічним посиланням.
+ */
+function QuizQuestions({ questions, done, review, answers, onPick, image }) {
+  return (
+    <ol className="q-take">
+      {questions.map((x, i) => {
+        const chosen = done ? x.chosen : answers[x.id] ?? [];
+        return (
+          <li key={x.id} className={`q-card ${done ? (x.right ? 'is-right' : 'is-wrong') : ''}`}>
+            <header className="q-head">
+              <h3>Питання {i + 1}</h3>
+              {done && <span className={`q-mark ${x.right ? 'is-right' : 'is-wrong'}`}>{x.right ? 'Правильно' : 'Помилка'}</span>}
+            </header>
+            <p className="q-text">{x.text}</p>
+            {x.image && <img className="q-img" src={image(x.image)} alt={`Картинка до питання ${i + 1}`} />}
+            {x.multiple && !done && <p className="muted small">Кілька правильних відповідей</p>}
+            <div className="q-opts" role={x.multiple ? 'group' : 'radiogroup'} aria-label={`Варіанти питання ${i + 1}`}>
+              {x.options.map((o) => {
+                const on = chosen.includes(o.id);
+                const mark = review ? (o.correct ? 'tick' : on ? 'cross' : null) : on ? 'tick' : null;
+                const cls = [on && 'is-on', review && o.correct && 'is-correct', review && on && !o.correct && 'is-miss'].filter(Boolean).join(' ');
+                return (
+                  <button key={o.id} type="button" className={`q-opt ${x.multiple ? 'is-multi' : ''} ${cls}`}
+                    role={x.multiple ? 'checkbox' : 'radio'} aria-checked={on} disabled={review}
+                    onClick={() => onPick(x, o.id)}>
+                    <span className="q-box" aria-hidden="true">{mark === 'tick' ? <IconTick size={14} /> : mark === 'cross' ? <IconClose size={14} /> : null}</span>
+                    <span>{o.text}</span>
+                    {review && on && <span className="sr">, обрано</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+const pickIn = (answers, x, optionId) => {
+  const cur = answers[x.id] ?? [];
+  return { ...answers, [x.id]: x.multiple ? (cur.includes(optionId) ? cur.filter((v) => v !== optionId) : [...cur, optionId]) : [optionId] };
+};
+
+/** Результат: бал і відсоток правильних. */
+function ScoreBox({ score, max, children }) {
+  return (
+    <section className={`quiz-score ${score / max >= 0.5 ? 'is-good' : 'is-low'}`} aria-label="Результат">
+      <strong>{score}<small> з {max}</small></strong>
+      <div>
+        <p>{Math.round((score / max) * 100)}% правильних відповідей</p>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/*
+ * Тест за публічним посиланням /q/:token. Відкривається без входу.
+ * Учень, що увійшов, записує результат у свої тести; гість чи співробітник лише бачить бал і правильні відповіді.
+ */
+export function PublicQuiz() {
+  const { token } = useParams();
+  const { user, setUser } = useAuth();
+  const { data: z, loading, error, reload } = useData(`/public/quizzes/${token}?u=${user?.id ?? 0}`);
+  const [answers, setAnswers] = useState({});
+  const [result, setResult] = useState(null);
+  const [signIn, setSignIn] = useState(false);
+  const [run, busy] = useAction();
+  const { confirm } = useUI();
+  const image = (name) => `/api/public/quizzes/${token}/images/${name}`;
+
+  if (signIn && !user) return <Login onLogin={(u) => { setUser(u); setSignIn(false); }} />;
+  if (error) return <div className="pq"><PublicHead /><ErrorNote text={error} onRetry={reload} /></div>;
+  if (!z) return loading ? <Loader /> : null;
+
+  const isStudent = user?.role === 'student';
+  const answered = z.questions.filter((x) => answers[x.id]?.length).length;
+  const submit = async () => {
+    const left = z.questions.length - answered;
+    if (left > 0) {
+      const yes = await confirm({ title: 'Завершити тест?', text: `Без відповіді ${left} ${plural(left, 'питання', 'питання', 'питань')}. Їх буде зараховано як неправильні.`, action: 'Завершити' });
+      if (!yes) return;
+    }
+    const r = await run(() => api(`/public/quizzes/${token}/check`, { method: 'POST', body: { answers } }));
+    if (r) { setResult(r); if (r.recorded) notify(); window.scrollTo({ top: 0 }); }
+  };
+  const again = () => { setResult(null); setAnswers({}); window.scrollTo({ top: 0 }); };
+
+  return (
+    <div className="pq">
+      <PublicHead />
+      <h1 className="pq-title">{z.title}</h1>
+      <p className="muted small">{questionsWord(z.questions.length)}</p>
+      {z.description && <p className="task"><Linkify text={z.description} /></p>}
+
+      {result ? (
+        <ScoreBox score={result.score} max={result.max_score}>
+          <p className="small">
+            {result.recorded ? <>Результат записано у ваші тести.{result.assignment_id && <> <Link to={`/tests/${result.assignment_id}`}>Відкрити</Link></>}</>
+              : result.already ? 'Ви вже проходили цей тест, тому записано перший результат. Цю спробу не збережено.'
+              : user ? 'Результат ніде не зберігається: записується лише для учнів.'
+              : 'Результат ніде не зберігається. Увійдіть як учень, щоб він записався.'}
+          </p>
+        </ScoreBox>
+      ) : (
+        <p className={`note small pq-who ${isStudent ? 'is-student' : ''}`}>
+          {isStudent
+            ? (z.mine?.submitted_at ? `Ви вже проходили цей тест: ${z.mine.score} з ${z.mine.max_score}. Нова спроба не запишеться.` : `${user.name}, результат запишеться у ваші тести.`)
+            : user ? 'Ви увійшли не як учень: результат побачите, але він не запишеться.'
+            : <>Можна пройти без входу, результат побачите одразу, але він не збережеться. <button type="button" className="link-btn" onClick={() => setSignIn(true)}>Увійти як учень</button></>}
+        </p>
+      )}
+
+      {result
+        ? <QuizQuestions questions={result.questions} done review answers={answers} onPick={() => {}} image={image} />
+        : <QuizQuestions questions={z.questions} done={false} review={false} answers={answers} onPick={(x, o) => setAnswers((a) => pickIn(a, x, o))} image={image} />}
+
+      {result ? (
+        <div className="quiz-submit">
+          {!result.recorded && <Button variant="ghost" icon={<IconRestore size={18} />} onClick={again}>Пройти ще раз</Button>}
+          {user ? <Link className="btn btn-primary" to="/">До застосунку</Link> : <Button onClick={() => setSignIn(true)}>Увійти</Button>}
+        </div>
+      ) : (
+        <div className="quiz-submit">
+          <span className="muted small">Відповіли на {answered} з {z.questions.length}</span>
+          <Button busy={busy} icon={<IconRight size={18} />} onClick={submit}>Завершити тест</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PublicHead() {
+  return <header className="pq-head"><span className="wordmark"><b>BE</b> Smart School</span><span className="muted small">Тест</span></header>;
+}
+
+/** Посилання на тест: вмикається тут, скопіювати й надіслати будь-кому. */
+function ShareForm({ quiz, onClose, onChange }) {
+  const [token, setToken] = useState(quiz.share_token);
+  const [run, busy] = useAction();
+  const { toast } = useUI();
+  const url = token ? `${window.location.origin}/q/${token}` : '';
+  const enable = async () => { const r = await run(() => api(`/quizzes/${quiz.id}/share`, { method: 'POST' })); if (r) { setToken(r.share_token); onChange(); } };
+  const disable = async () => { if (await run(() => api(`/quizzes/${quiz.id}/share`, { method: 'DELETE' }), 'Посилання вимкнено')) { setToken(null); onChange(); } };
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(url); toast('Посилання скопійовано'); } catch { toast('Не вдалося скопіювати. Виділіть посилання вручну', 'error'); }
+  };
+  return (
+    <Modal narrow title="Посилання на тест" onClose={onClose}>
+      <div className="form share-form">
+        <p className="muted small">Пройти тест за посиланням може будь-хто, навіть без акаунта, і одразу побачить результат.
+          Записується лише результат учня, який увійшов.</p>
+        {token ? (
+          <>
+            <div className="share-url">
+              <input className="input" readOnly value={url} aria-label="Посилання на тест" onFocus={(e) => e.target.select()} />
+              <Button icon={<IconCopy size={18} />} onClick={copy}>Скопіювати</Button>
+            </div>
+            <div className="form-actions">
+              <Button variant="ghost" busy={busy} onClick={disable}>Вимкнути посилання</Button>
+              <Button variant="ghost" onClick={onClose}>Готово</Button>
+            </div>
+          </>
+        ) : (
+          <div className="form-actions">
+            <Button variant="ghost" onClick={onClose}>Назад</Button>
+            <Button busy={busy} icon={<IconExternal size={18} />} onClick={enable}>Створити посилання</Button>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 /* Проходження тесту учнем і перегляд результату */
 export function QuizTake() {
   const { id } = useParams();
@@ -522,11 +703,7 @@ export function QuizTake() {
 
   const done = Boolean(a.submitted_at);
   const answered = a.questions.filter((x) => answers[x.id]?.length).length;
-  const pick = (x, optionId) => {
-    const cur = answers[x.id] ?? [];
-    const next = x.multiple ? (cur.includes(optionId) ? cur.filter((v) => v !== optionId) : [...cur, optionId]) : [optionId];
-    setAnswers({ ...answers, [x.id]: next });
-  };
+  const pick = (x, optionId) => setAnswers(pickIn(answers, x, optionId));
   const submit = async () => {
     const left = a.questions.length - answered;
     if (left > 0) {
@@ -558,40 +735,7 @@ export function QuizTake() {
       )}
       {!done && !isStudent && <p className="note small">Учень ще не пройшов тест. Правильні відповіді позначено.</p>}
 
-      <ol className="q-take">
-        {a.questions.map((x, i) => {
-          const chosen = done ? x.chosen : answers[x.id] ?? [];
-          return (
-            <li key={x.id} className={`q-card ${done ? (x.right ? 'is-right' : 'is-wrong') : ''}`}>
-              <header className="q-head">
-                <h3>Питання {i + 1}</h3>
-                {done && <span className={`q-mark ${x.right ? 'is-right' : 'is-wrong'}`}>{x.right ? 'Правильно' : 'Помилка'}</span>}
-              </header>
-              <p className="q-text">{x.text}</p>
-              {x.image && <img className="q-img" src={imageUrl(x.image)} alt={`Картинка до питання ${i + 1}`} />}
-              {x.multiple && !done && <p className="muted small">Кілька правильних відповідей</p>}
-              <div className="q-opts" role={x.multiple ? 'group' : 'radiogroup'} aria-label={`Варіанти питання ${i + 1}`}>
-                {x.options.map((o) => {
-                  const on = chosen.includes(o.id);
-                  // Після здачі (і для менеджера) видно правильні варіанти та помилкові вибори учня.
-                  const review = done || !isStudent;
-                  const mark = review ? (o.correct ? 'tick' : on ? 'cross' : null) : on ? 'tick' : null;
-                  const cls = [on && 'is-on', review && o.correct && 'is-correct', review && on && !o.correct && 'is-miss'].filter(Boolean).join(' ');
-                  return (
-                    <button key={o.id} type="button" className={`q-opt ${x.multiple ? 'is-multi' : ''} ${cls}`}
-                      role={x.multiple ? 'checkbox' : 'radio'} aria-checked={on} disabled={review}
-                      onClick={() => pick(x, o.id)}>
-                      <span className="q-box" aria-hidden="true">{mark === 'tick' ? <IconTick size={14} /> : mark === 'cross' ? <IconClose size={14} /> : null}</span>
-                      <span>{o.text}</span>
-                      {review && on && <span className="sr">, обрано учнем</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+      <QuizQuestions questions={a.questions} done={done} review={done || !isStudent} answers={answers} onPick={pick} image={imageUrl} />
       {!done && isStudent && (
         <div className="quiz-submit">
           <span className="muted small">Відповіли на {answered} з {a.questions.length}</span>

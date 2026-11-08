@@ -343,6 +343,8 @@ CREATE TABLE IF NOT EXISTS quizzes (
   -- Тести вчителя чекають на схвалення менеджера; тести менеджера одразу в загальному списку.
   status ENUM('approved','pending','rejected') NOT NULL DEFAULT 'approved',
   review_note VARCHAR(300) NULL,
+  -- Публічне посилання /q/<token>: пройти може будь-хто, записується лише результат учня.
+  share_token VARCHAR(32) NULL UNIQUE,
   created_by INT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -21,7 +21,7 @@ import Homework from './pages/Homework.jsx';
 import HomeworkDetail from './pages/HomeworkDetail.jsx';
 import Profile from './pages/Profile.jsx';
 import Stats from './pages/Stats.jsx';
-import { QuizDetail, QuizEditor, QuizTake } from './pages/Quizzes.jsx';
+import { PublicQuiz, QuizDetail, QuizEditor, QuizTake } from './pages/Quizzes.jsx';
 
 const NAV = {
   manager: [
@@ -250,7 +250,13 @@ function App() {
   return (
     <AuthCtx.Provider value={{ user, setUser, logout }}>
       <UIProvider>
-        <BrowserRouter>{user ? <Shell /> : <Login onLogin={setUser} />}</BrowserRouter>
+        <BrowserRouter>
+          <Routes>
+            {/* Тест за посиланням відкривається і без входу */}
+            <Route path="/q/:token" element={<PublicQuiz />} />
+            <Route path="*" element={user ? <Shell /> : <Login onLogin={setUser} />} />
+          </Routes>
+        </BrowserRouter>
       </UIProvider>
     </AuthCtx.Provider>
   );

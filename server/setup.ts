@@ -74,6 +74,10 @@ async function migrate(conn: Connection, { hadRoster, hadSchedules }: { hadRoste
   if (!(await columnInfo(conn, 'quizzes', 'status'))) {
     await conn.query("ALTER TABLE quizzes ADD COLUMN status ENUM('approved','pending','rejected') NOT NULL DEFAULT 'approved', ADD COLUMN review_note VARCHAR(300) NULL");
   }
+  // Публічне посилання на тест.
+  if (!(await columnInfo(conn, 'quizzes', 'share_token'))) {
+    await conn.query('ALTER TABLE quizzes ADD COLUMN share_token VARCHAR(32) NULL UNIQUE');
+  }
   // Колір виду абонемента: ним фарбується квиток учня.
   if (!(await columnInfo(conn, 'plans', 'color'))) {
     await conn.query("ALTER TABLE plans ADD COLUMN color VARCHAR(16) NOT NULL DEFAULT 'red'");

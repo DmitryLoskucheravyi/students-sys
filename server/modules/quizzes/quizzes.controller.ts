@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Req, 
 import type { Request, Response } from 'express';
 import { Auth, CurrentUser, Roles } from '../../common/access.js';
 import type { User } from '../../common/auth.js';
-import { NotificationsService, QuizzesService } from './quizzes.service.js';
+import { NotificationsService, PublicQuizzesService, QuizzesService } from './quizzes.service.js';
 
 // Порядок методів важливий: конкретні шляхи (my, images, assignments) стоять раніше за ':id'.
 @Controller('quizzes')
@@ -96,6 +96,19 @@ export class QuizzesController {
     return this.quizzes.remove(user, idValue);
   }
 
+  @Post(':id/share')
+  @HttpCode(200)
+  @Roles('manager', 'teacher')
+  share(@CurrentUser() user: User, @Param('id') idValue: string) {
+    return this.quizzes.share(user, idValue, true);
+  }
+
+  @Delete(':id/share')
+  @Roles('manager', 'teacher')
+  unshare(@CurrentUser() user: User, @Param('id') idValue: string) {
+    return this.quizzes.share(user, idValue, false);
+  }
+
   @Post(':id/approve')
   @HttpCode(200)
   @Roles('manager')
@@ -126,5 +139,27 @@ export class NotificationsController {
   @Get()
   count(@CurrentUser() user: User) {
     return this.notifications.count(user);
+  }
+}
+
+/** Тест за публічним посиланням: без входу. */
+@Controller('public/quizzes')
+export class PublicQuizzesController {
+  constructor(private readonly quizzes: PublicQuizzesService) {}
+
+  @Get(':token')
+  get(@Req() req: Request, @Param('token') token: string) {
+    return this.quizzes.get(req.user ?? null, token);
+  }
+
+  @Post(':token/check')
+  @HttpCode(200)
+  check(@Req() req: Request, @Param('token') token: string, @Body() body: any) {
+    return this.quizzes.check(req.user ?? null, token, body);
+  }
+
+  @Get(':token/images/:name')
+  image(@Param('token') token: string, @Param('name') name: string, @Res() res: Response) {
+    return this.quizzes.sendImage(token, name, res);
   }
 }

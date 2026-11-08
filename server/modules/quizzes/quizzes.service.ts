@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { unlink } from 'node:fs/promises';
 import type { Request, Response } from 'express';
 import multer from 'multer';
@@ -159,6 +159,32 @@ function isRight(question: LoadedQuestion, chosen: Pick[]): boolean {
   return picked.size === correct.length && correct.every((oid) => picked.has(oid));
 }
 
+/** Розбирає відповіді { [questionId]: optionId[] } і рахує бал. Питання мають бути з правильними відповідями. */
+function grade(questions: LoadedQuestion[], raw: any): { picks: Pick[]; score: number } {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw bad('Відповіді передано неправильно');
+  const picks: Pick[] = [];
+  for (const x of questions) {
+    const list = raw[x.id] ?? raw[String(x.id)] ?? [];
+    if (!Array.isArray(list)) throw bad('Відповіді передано неправильно');
+    const ids = [...new Set(list.map((v: unknown) => id(v, 'Варіант')))];
+    if (ids.some((oid) => !x.options.some((o) => o.id === oid))) throw bad('Варіант не з цього питання');
+    if (!x.multiple && ids.length > 1) throw bad('У цьому питанні лише одна правильна відповідь');
+    for (const oid of ids) picks.push({ question_id: x.id, option_id: oid });
+  }
+  return { picks, score: questions.filter((x) => isRight(x, picks)).length };
+}
+
+/** Записує здачу. Повертає false, якщо спробу вже записано раніше. */
+async function record(assignmentId: number, picks: Pick[], score: number, max: number): Promise<boolean> {
+  return tx(async (t) => {
+    const [cur] = await t('SELECT submitted_at FROM quiz_assignments WHERE id=? FOR UPDATE', [assignmentId]);
+    if (cur.submitted_at) return false;
+    if (picks.length) await t('INSERT INTO quiz_answers (assignment_id, question_id, option_id) VALUES ?', [picks.map((p) => [assignmentId, p.question_id, p.option_id])]);
+    await t('UPDATE quiz_assignments SET submitted_at=?, score=?, max_score=? WHERE id=?', [nowStr(), score, max, assignmentId]);
+    return true;
+  });
+}
+
 /* Картинки питань */
 const upload = multer({
   storage: multer.diskStorage({ destination: UPLOAD_DIR, filename: (_req, _file, cb) => cb(null, `${randomUUID()}.bin`) }),
@@ -284,25 +310,9 @@ export class QuizzesService {
   async submit(user: User, aidValue: unknown, body: any) {
     const a = await loadAssignment(id(aidValue));
     if (a.student_id !== user.id) throw forbidden();
-    const raw = body?.answers;
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw bad('Відповіді передано неправильно');
     const questions = await loadQuestions(a.quiz_id, { withCorrect: true });
-    const picks: Pick[] = [];
-    for (const x of questions) {
-      const list = raw[x.id] ?? raw[String(x.id)] ?? [];
-      if (!Array.isArray(list)) throw bad('Відповіді передано неправильно');
-      const ids = [...new Set(list.map((v: unknown) => id(v, 'Варіант')))];
-      if (ids.some((oid) => !x.options.some((o) => o.id === oid))) throw bad('Варіант не з цього питання');
-      if (!x.multiple && ids.length > 1) throw bad('У цьому питанні лише одна правильна відповідь');
-      for (const oid of ids) picks.push({ question_id: x.id, option_id: oid });
-    }
-    const score = questions.filter((x) => isRight(x, picks)).length;
-    await tx(async (t) => {
-      const [cur] = await t('SELECT submitted_at FROM quiz_assignments WHERE id=? FOR UPDATE', [a.id]);
-      if (cur.submitted_at) throw conflict('Тест уже пройдено');
-      if (picks.length) await t('INSERT INTO quiz_answers (assignment_id, question_id, option_id) VALUES ?', [picks.map((p) => [a.id, p.question_id, p.option_id])]);
-      await t('UPDATE quiz_assignments SET submitted_at=?, score=?, max_score=? WHERE id=?', [nowStr(), score, questions.length, a.id]);
-    });
+    const { picks, score } = grade(questions, body?.answers);
+    if (!(await record(a.id, picks, score, questions.length))) throw conflict('Тест уже пройдено');
     return { score, max_score: questions.length };
   }
 
@@ -330,6 +340,20 @@ export class QuizzesService {
         ORDER BY z.updated_at DESC, z.id DESC`,
       [user.id]
     );
+  }
+
+  /** Публічне посилання: вмикає (створює токен) або вимикає. Лише для схвалених тестів. */
+  async share(user: User, idValue: unknown, on: boolean) {
+    const quiz = await loadQuiz(id(idValue));
+    assertAuthor(user, quiz, { edit: false });
+    if (!on) {
+      await q('UPDATE quizzes SET share_token=NULL WHERE id=?', [quiz.id]);
+      return { share_token: null };
+    }
+    if (quiz.status !== 'approved') throw bad('Поділитися можна лише схваленим тестом');
+    const token = quiz.share_token ?? randomBytes(12).toString('base64url');
+    if (!quiz.share_token) await q('UPDATE quizzes SET share_token=? WHERE id=?', [token, quiz.id]);
+    return { share_token: token };
   }
 
   async approve(idValue: unknown) {
@@ -418,6 +442,87 @@ export class QuizzesService {
       return r.insertId as number;
     });
     return { id: assignmentId };
+  }
+}
+
+/**
+ * Тест за публічним посиланням. Пройти може будь-хто, навіть без входу.
+ * Учень, що увійшов, отримує запис у своїх тестах (одна спроба); решта просто бачить результат, нічого не зберігається.
+ */
+async function sharedQuiz(token: string): Promise<Row> {
+  if (!/^[A-Za-z0-9_-]{8,32}$/.test(token)) throw notFound('Посилання недійсне');
+  const [quiz] = await q("SELECT id, title, description FROM quizzes WHERE share_token=? AND status='approved'", [token]);
+  if (!quiz) throw notFound('Посилання недійсне або тест закрито');
+  return quiz;
+}
+
+@Injectable()
+export class PublicQuizzesService {
+  async get(user: User | null, token: string) {
+    const quiz = await sharedQuiz(token);
+    const questions = await loadQuestions(quiz.id, { withCorrect: false });
+    let mine: Row | null = null;
+    if (user?.role === 'student') {
+      [mine] = await q('SELECT id, submitted_at, score, max_score FROM quiz_assignments WHERE quiz_id=? AND student_id=?', [quiz.id, user.id]);
+    }
+    return {
+      title: quiz.title,
+      description: quiz.description,
+      questions,
+      // Хто проходить: від цього залежить, чи запишеться результат.
+      viewer: user ? { name: user.name, role: user.role } : null,
+      mine: mine ?? null,
+    };
+  }
+
+  async check(user: User | null, token: string, body: any) {
+    const quiz = await sharedQuiz(token);
+    const questions = await loadQuestions(quiz.id, { withCorrect: true });
+    const { picks, score } = grade(questions, body?.answers);
+    let recorded = false;
+    let already = false;
+    let assignmentId: number | null = null;
+    if (user?.role === 'student') {
+      const [have] = await q('SELECT id, submitted_at FROM quiz_assignments WHERE quiz_id=? AND student_id=?', [quiz.id, user.id]);
+      assignmentId = have?.id ?? (await q('INSERT INTO quiz_assignments (quiz_id, student_id) VALUES (?,?)', [quiz.id, user.id])).insertId;
+      recorded = await record(assignmentId!, picks, score, questions.length);
+      already = !recorded;
+    }
+    return {
+      score,
+      max_score: questions.length,
+      recorded,
+      already,
+      assignment_id: assignmentId,
+      questions: questions.map((x) => ({
+        ...x,
+        chosen: picks.filter((c) => c.question_id === x.id).map((c) => c.option_id),
+        right: isRight(x, picks),
+      })),
+    };
+  }
+
+  async sendImage(token: string, name: string, res: Response) {
+    const quiz = await sharedQuiz(token);
+    if (!IMAGE_NAME.test(name)) throw notFound('Картинку не знайдено');
+    const [img] = await q(
+      'SELECT i.* FROM quiz_images i JOIN quiz_questions x ON x.image = i.stored_name WHERE i.stored_name=? AND x.quiz_id=? LIMIT 1',
+      [name, quiz.id]
+    );
+    if (!img) throw notFound('Картинку не знайдено');
+    let stream: NodeJS.ReadableStream;
+    try {
+      stream = await openFile(name);
+    } catch {
+      throw notFound('Картинку не знайдено');
+    }
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Type', img.mime);
+    res.setHeader('Content-Length', img.size);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Content-Disposition', contentDisposition('image', true));
+    stream.on('error', () => res.destroy());
+    stream.pipe(res);
   }
 }
 
