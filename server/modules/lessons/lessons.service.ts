@@ -169,7 +169,7 @@ const PLACEMENT_SELECT = `
 async function withRoster(rows: Row[]): Promise<Row[]> {
   if (!rows.length) return [];
   const people: Row[] = await q(
-    `SELECT ss.schedule_id, u.id, u.name, u.is_active FROM schedule_students ss JOIN users u ON u.id = ss.student_id
+    `SELECT ss.schedule_id, u.id, u.name, u.avatar, u.is_active FROM schedule_students ss JOIN users u ON u.id = ss.student_id
       WHERE ss.schedule_id IN (?) ORDER BY u.name`,
     [rows.map((r) => r.id)]
   );
@@ -177,7 +177,7 @@ async function withRoster(rows: Row[]): Promise<Row[]> {
     ...r,
     weekdays: daysOf({ weekday, weekdays }),
     start_date: r.kind === 'once' ? onceDate ?? r.start_date : r.start_date,
-    students: people.filter((p) => p.schedule_id === r.id).map(({ id: sid, name, is_active: active }) => ({ id: sid, name, is_active: active })),
+    students: people.filter((p) => p.schedule_id === r.id).map(({ id: sid, name, avatar, is_active: active }) => ({ id: sid, name, avatar, is_active: active })),
   }));
 }
 

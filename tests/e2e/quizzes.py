@@ -133,7 +133,7 @@ with sync_playwright() as pw:
     up = api(mc, "POST", "/quizzes/images", multipart={"image": {"name": "x.png", "mimeType": "image/png", "buffer": b"not an image"}})
     check("не картинку не приймає", up.status == 400)
     tk, tkp = new(b); login(tkp, "teacher", "teacher123")
-    check("вчитель не бачить тестів", api(tk, "GET", "/quizzes").status == 403 and api(tk, "GET", f"/quizzes/images/{img}").status == 404)
+    check("вчитель бачить лише власні тести, не чужі картинки", api(tk, "GET", "/quizzes").json() == [] and api(tk, "GET", f"/quizzes/images/{img}").status == 404)
 
     # 4. Відкриття учневі з курсом і темою
     bc, bp = new(b); login(bp, "boiko", "student123")

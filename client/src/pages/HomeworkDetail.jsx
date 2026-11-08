@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
 import { Button, DatePicker, ErrorNote, IconButton, Input, LateTag, Linkify, Loader, Modal, PageHead, Status, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
+import { Who } from '../avatars.jsx';
 import { IconDownload, IconEdit, IconFile, IconFolderZip, IconLeft, IconTick, IconTrash } from '../icons.jsx';
 import { dateTimeShort, fileSize, isLate, nowLocal, time } from '../fmt.js';
 
@@ -136,7 +137,7 @@ function Submissions({ hw, onChange }) {
           return (
             <li key={row.student_id} className="row">
               <div className="row-main">
-                <h3>{row.student_name}</h3>
+                <h3><Who name={row.student_name} avatar={row.student_avatar} size={30} /></h3>
                 <p className="muted small">
                   {s ? `Здано ${dateTimeShort(s.submitted_at)}, файлів: ${s.files.length}` : 'Ще не здано'}
                 </p>

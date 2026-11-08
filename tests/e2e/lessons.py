@@ -295,12 +295,12 @@ with sync_playwright() as pw:
     expect(m.locator(".sub-row", has_text="Кіра Минула").locator(".sub-left strong")).to_have_text("6"); check("залишок одразу оновився: 6 із 8", True)
     # Колір залишку: більше половини зелений, до половини помаранчевий, 1–2 заняття червоний
     levels = m.evaluate("""() => Object.fromEntries([...document.querySelectorAll('.sub-row')].map(r => {
-      const l = r.querySelector('.sub-left'); return [r.querySelector('h3').textContent, [l.className.split(' ').pop(), l.textContent, Math.round(l.getBoundingClientRect().height)]]; }))""")
+      const l = r.querySelector('.sub-left'); return [r.querySelector('h3 .who-name').textContent, [l.className.split(' ').pop(), l.textContent, Math.round(l.getBoundingClientRect().height)]]; }))""")
     check("6 із 8: зелена плашка", levels["Кіра Минула"][0] == "is-ok", str(levels.get("Кіра Минула")))
     check("1 із 4: червона плашка", levels["Дарина Бойко"][0] == "is-low", str(levels.get("Дарина Бойко")))
     check("залишок одним рядком", all(v[2] < 40 for v in levels.values()), str(levels))
     states = m.evaluate("""() => Object.fromEntries([...document.querySelectorAll('.sub-row')].map(r => {
-      const s = r.querySelector('.sub-state'); return [r.querySelector('h3').textContent, [s.className.split(' ').pop(), s.getAttribute('aria-label'), r.firstElementChild === s]]; }))""")
+      const s = r.querySelector('.sub-state'); return [r.querySelector('h3 .who-name').textContent, [s.className.split(' ').pop(), s.getAttribute('aria-label'), r.querySelector(':scope > :not(.tk-bar)') === s]]; }))""")
     check("стан абонемента іконкою на початку: діє — зелена", states["Кіра Минула"] == ["is-ok", "Діє", True], str(states.get("Кіра Минула")))
     check("закінчується — помаранчева", states["Дарина Бойко"][:2] == ["is-mid", "Закінчується"], str(states.get("Дарина Бойко")))
     check("текстової плашки стану більше немає", m.locator(".sub-row .status").count() == 0)
@@ -490,8 +490,11 @@ with sync_playwright() as pw:
         c, p = new(b, w, 900, theme); login(p, "manager", "manager123")
         p.goto(f"{BASE}/courses/{web['id']}"); p.wait_for_selector(".road-row"); p.wait_for_timeout(500)
         page_w = p.locator(".page").bounding_box()["width"]; road_w = p.locator(".road").bounding_box()["width"]
-        path_box = p.locator(".road-bed path").first.bounding_box(); text_x = p.locator(".road-text").first.bounding_box()["x"]
-        check(f"{w}px: дорога на всю ширину, текст не налазить", road_w >= page_w - 100 and text_x > path_box["x"] + path_box["width"] and over(p) <= 0)
+        path_box = p.locator(".road-bed path").first.bounding_box()
+        stop = p.locator(".road-row").first.locator(".stop").bounding_box(); text_x = p.locator(".road-text").first.bounding_box()["x"]
+        # На широкому екрані серпантин перетинає сторінку між етапами, на телефоні йде вздовж краю.
+        wide_ok = path_box["width"] >= road_w - 160 if w >= 900 else True
+        check(f"{w}px: дорога на всю ширину, текст не налазить", road_w >= page_w - 100 and wide_ok and text_x > stop["x"] + stop["width"] and over(p) <= 0)
         c.close()
     b.close()
 

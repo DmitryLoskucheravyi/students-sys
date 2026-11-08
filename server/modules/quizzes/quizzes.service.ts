@@ -13,6 +13,7 @@ import type { User } from '../../common/auth.js';
 
 /*
  * Тести. Менеджер створює тест (вручну або вставляє відповідь зовнішнього ШІ, її розбирає клієнт) і відкриває його учневі окремо.
+ * Вчитель теж створює тести, але вони чекають на схвалення менеджера (status = 'pending'); відхилений тест вчитель виправляє й надсилає знову.
  * Учень проходить один раз; бал рахується на сервері й зберігається в призначенні.
  */
 
@@ -119,14 +120,20 @@ async function loadQuestions(quizId: number, { withCorrect }: { withCorrect: boo
 }
 
 async function loadQuiz(quizId: number): Promise<Row> {
-  const [quiz] = await q('SELECT * FROM quizzes WHERE id=?', [quizId]);
+  const [quiz] = await q('SELECT z.*, u.name AS author_name FROM quizzes z LEFT JOIN users u ON u.id = z.created_by WHERE z.id=?', [quizId]);
   if (!quiz) throw notFound('Тест не знайдено');
   return quiz;
+}
+/** Вчитель бачить і змінює лише власні тести; схвалений тест далі веде менеджер. */
+function assertAuthor(user: User, quiz: Row, { edit }: { edit: boolean }) {
+  if (user.role === 'manager') return;
+  if (quiz.created_by !== user.id) throw notFound('Тест не знайдено');
+  if (edit && quiz.status === 'approved') throw forbidden('Тест уже схвалено. Змінити його може менеджер.');
 }
 
 const ASSIGN_SELECT = `
   SELECT a.id, a.quiz_id, a.student_id, a.course_id, a.due_at, a.created_at, a.submitted_at, a.score, a.max_score,
-         z.title AS quiz_title, z.description, u.name AS student_name, c.title AS course_title,
+         z.title AS quiz_title, z.description, u.name AS student_name, u.avatar AS student_avatar, c.title AS course_title,
          (SELECT COUNT(*) FROM quiz_questions x WHERE x.quiz_id = a.quiz_id) AS questions_count
     FROM quiz_assignments a
     JOIN quizzes z ON z.id = a.quiz_id
@@ -205,6 +212,13 @@ export class QuizzesService {
         [name, user.id]
       );
       if (!hit) throw notFound('Картинку не знайдено');
+    } else if (user.role === 'teacher') {
+      const [own] = await q(
+        `SELECT 1 FROM quiz_images i WHERE i.stored_name=? AND (i.created_by=?
+            OR EXISTS (SELECT 1 FROM quiz_questions x JOIN quizzes z ON z.id = x.quiz_id WHERE x.image = i.stored_name AND z.created_by=?)) LIMIT 1`,
+        [name, user.id, user.id]
+      );
+      if (!own) throw notFound('Картинку не знайдено');
     } else if (user.role !== 'manager') {
       throw notFound('Картинку не знайдено');
     }
@@ -292,31 +306,62 @@ export class QuizzesService {
     return { score, max_score: questions.length };
   }
 
-  /* Менеджер: тести */
-  list() {
+  /* Тести: менеджер бачить усі (модерація окремим списком), вчитель — власні */
+  list(user: User) {
+    const own = user.role === 'teacher';
     return q(
-      `SELECT z.*,
+      `SELECT z.*, u.name AS author_name, u.role AS author_role,
           (SELECT COUNT(*) FROM quiz_questions x WHERE x.quiz_id = z.id) AS questions_count,
           (SELECT COUNT(*) FROM quiz_assignments a WHERE a.quiz_id = z.id) AS assigned_count,
           (SELECT COUNT(*) FROM quiz_assignments a WHERE a.quiz_id = z.id AND a.submitted_at IS NOT NULL) AS done_count
-         FROM quizzes z ORDER BY z.updated_at DESC, z.id DESC`
+         FROM quizzes z LEFT JOIN users u ON u.id = z.created_by
+        ${own ? 'WHERE z.created_by = ?' : ''}
+        ORDER BY z.updated_at DESC, z.id DESC`,
+      own ? [user.id] : []
     );
+  }
+
+  /** Тести, які можна поставити на острівець: схвалені й власні вчителя, що ще на модерації. */
+  library(user: User) {
+    return q(
+      `SELECT z.id, z.title, z.status, (SELECT COUNT(*) FROM quiz_questions x WHERE x.quiz_id = z.id) AS questions_count
+         FROM quizzes z
+        WHERE z.status = 'approved' OR (z.status = 'pending' AND z.created_by = ?)
+        ORDER BY z.updated_at DESC, z.id DESC`,
+      [user.id]
+    );
+  }
+
+  async approve(idValue: unknown) {
+    const quiz = await loadQuiz(id(idValue));
+    await q("UPDATE quizzes SET status='approved', review_note=NULL WHERE id=?", [quiz.id]);
+    return { ok: true };
+  }
+
+  async reject(idValue: unknown, body: any) {
+    const quiz = await loadQuiz(id(idValue));
+    if (quiz.status === 'approved') throw conflict('Тест уже схвалено');
+    const note = str(body?.note, 'Причина', { max: 300, required: false });
+    await q("UPDATE quizzes SET status='rejected', review_note=? WHERE id=?", [note, quiz.id]);
+    return { ok: true };
   }
 
   async create(user: User, body: any) {
     const quiz = parseQuiz(body);
+    const status = user.role === 'manager' ? 'approved' : 'pending';
     const quizId = await tx(async (t) => {
-      const r = await t('INSERT INTO quizzes (title, description, created_by) VALUES (?,?,?)', [quiz.title, quiz.description, user.id]);
+      const r = await t('INSERT INTO quizzes (title, description, status, created_by) VALUES (?,?,?,?)', [quiz.title, quiz.description, status, user.id]);
       await saveQuestions(t, r.insertId, quiz.questions.map((x) => ({ ...x, id: null, options: x.options.map((o) => ({ ...o, id: null })) })));
       return r.insertId as number;
     });
     await dropOrphanImages().catch((e) => console.error(e));
-    return { id: quizId };
+    return { id: quizId, status };
   }
 
-  async get(idValue: unknown) {
+  async get(user: User, idValue: unknown) {
     const quiz = await loadQuiz(id(idValue));
-    const assignments: Row[] = await q(`${ASSIGN_SELECT} WHERE a.quiz_id=? ORDER BY u.name`, [quiz.id]);
+    assertAuthor(user, quiz, { edit: false });
+    const assignments: Row[] = user.role === 'manager' ? await q(`${ASSIGN_SELECT} WHERE a.quiz_id=? ORDER BY u.name`, [quiz.id]) : [];
     const topics: Row[] = assignments.length
       ? await q(
           `SELECT t.assignment_id, t.step_id, t.substep_id, s.title AS step_title, x.title AS substep_title
@@ -333,25 +378,30 @@ export class QuizzesService {
     };
   }
 
-  async update(idValue: unknown, body: any) {
+  async update(user: User, idValue: unknown, body: any) {
     const quiz = await loadQuiz(id(idValue));
+    assertAuthor(user, quiz, { edit: true });
     const next = parseQuiz(body);
+    // Виправлений вчителем тест знову йде на модерацію.
+    const status = user.role === 'manager' ? quiz.status : 'pending';
     await tx(async (t) => {
-      await t('UPDATE quizzes SET title=?, description=?, updated_at=? WHERE id=?', [next.title, next.description, nowStr(), quiz.id]);
+      await t('UPDATE quizzes SET title=?, description=?, status=?, updated_at=? WHERE id=?', [next.title, next.description, status, nowStr(), quiz.id]);
       await saveQuestions(t, quiz.id, next.questions);
     });
     await dropOrphanImages().catch((e) => console.error(e));
     return { ok: true };
   }
 
-  async remove(idValue: unknown) {
+  async remove(user: User, idValue: unknown) {
     const quiz = await loadQuiz(id(idValue));
+    assertAuthor(user, quiz, { edit: true });
     await q('DELETE FROM quizzes WHERE id=?', [quiz.id]);
     return { ok: true };
   }
 
   async assign(user: User, idValue: unknown, body: any) {
     const quiz = await loadQuiz(id(idValue));
+    if (quiz.status !== 'approved') throw bad('Тест ще не схвалено');
     const studentId = id(body?.student_id, 'Учень');
     const [student] = await q(`SELECT id FROM users WHERE id=? AND role='student' AND is_active=1`, [studentId]);
     if (!student) throw bad('Учня не знайдено');
@@ -375,6 +425,10 @@ export class QuizzesService {
 @Injectable()
 export class NotificationsService {
   async count(user: User) {
+    if (user.role === 'manager') {
+      const [{ pending }] = await q("SELECT COUNT(*) AS pending FROM quizzes WHERE status='pending'");
+      return { count: Number(pending), quizzes: 0, reviews: 0, moderation: Number(pending) };
+    }
     if (user.role !== 'student') return { count: 0, quizzes: 0, reviews: 0 };
     const [{ quizzes }] = await q('SELECT COUNT(*) AS quizzes FROM quiz_assignments WHERE student_id=? AND submitted_at IS NULL', [user.id]);
     const [{ reviews }] = await q(

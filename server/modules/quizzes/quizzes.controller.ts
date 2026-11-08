@@ -16,9 +16,15 @@ export class QuizzesController {
     return this.quizzes.my(user);
   }
 
+  @Get('library')
+  @Roles('manager', 'teacher')
+  library(@CurrentUser() user: User) {
+    return this.quizzes.library(user);
+  }
+
   @Post('images')
   @HttpCode(201)
-  @Roles('manager')
+  @Roles('manager', 'teacher')
   uploadImage(@CurrentUser() user: User, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     return this.quizzes.uploadImage(user, req, res);
   }
@@ -60,34 +66,48 @@ export class QuizzesController {
   }
 
   @Get()
-  @Roles('manager')
-  list() {
-    return this.quizzes.list();
+  @Roles('manager', 'teacher')
+  list(@CurrentUser() user: User) {
+    return this.quizzes.list(user);
   }
 
   @Post()
   @HttpCode(201)
-  @Roles('manager')
+  @Roles('manager', 'teacher')
   create(@CurrentUser() user: User, @Body() body: any) {
     return this.quizzes.create(user, body);
   }
 
   @Get(':id')
-  @Roles('manager')
-  get(@Param('id') idValue: string) {
-    return this.quizzes.get(idValue);
+  @Roles('manager', 'teacher')
+  get(@CurrentUser() user: User, @Param('id') idValue: string) {
+    return this.quizzes.get(user, idValue);
   }
 
   @Put(':id')
-  @Roles('manager')
-  update(@Param('id') idValue: string, @Body() body: any) {
-    return this.quizzes.update(idValue, body);
+  @Roles('manager', 'teacher')
+  update(@CurrentUser() user: User, @Param('id') idValue: string, @Body() body: any) {
+    return this.quizzes.update(user, idValue, body);
   }
 
   @Delete(':id')
+  @Roles('manager', 'teacher')
+  remove(@CurrentUser() user: User, @Param('id') idValue: string) {
+    return this.quizzes.remove(user, idValue);
+  }
+
+  @Post(':id/approve')
+  @HttpCode(200)
   @Roles('manager')
-  remove(@Param('id') idValue: string) {
-    return this.quizzes.remove(idValue);
+  approve(@Param('id') idValue: string) {
+    return this.quizzes.approve(idValue);
+  }
+
+  @Post(':id/reject')
+  @HttpCode(200)
+  @Roles('manager')
+  reject(@Param('id') idValue: string, @Body() body: any) {
+    return this.quizzes.reject(idValue, body);
   }
 
   @Post(':id/assignments')

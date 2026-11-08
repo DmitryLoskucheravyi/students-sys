@@ -3,6 +3,7 @@ import { type Query, type Row, q, tx } from '../../db.js';
 import { draftRoadmap, normalizeSteps } from '../../ai.js';
 import { bad, conflict, forbidden, id, idList, notFound, str } from '../../lib.js';
 import { HW_FOR, HW_STAFF, sqlInt } from '../../audience.js';
+import { saveTopics } from '../../topics.js';
 import type { User } from '../../common/auth.js';
 
 /*
@@ -17,6 +18,9 @@ const STUDIED = (c: string) => `(EXISTS (SELECT 1 FROM lessons l JOIN lesson_sch
                           JOIN schedule_students ss ON ss.schedule_id = sc.id
                          WHERE l.course_id = ${c} AND ss.student_id = ?)
                      OR EXISTS (SELECT 1 FROM course_students cs WHERE cs.course_id = ${c} AND cs.student_id = ?))`;
+
+/** Дизайни острівця. Має збігатися з ISLAND_DESIGNS у client/src/island3d.js. */
+export const ISLAND_DESIGNS = ['terminal', 'server', 'rocket', 'code', 'git'];
 
 /** Вчитель редагує роадмап лише курсів, які сам веде. */
 async function canEdit(user: User, courseId: number): Promise<boolean> {
@@ -36,7 +40,7 @@ async function canView(user: User, courseId: number): Promise<boolean> {
 }
 
 interface CourseStudent {
-  id: number; name: string; from_schedule: boolean; direct: boolean;
+  id: number; name: string; avatar?: string | null; from_schedule: boolean; direct: boolean;
   teacher_id: number | null; teacher_name: string | null; added_at?: string;
 }
 
@@ -44,7 +48,7 @@ interface CourseStudent {
 async function courseStudents(user: User, courseId: number): Promise<CourseStudent[]> {
   const teacher = user.role === 'teacher';
   const fromSchedule: Row[] = await q(
-    `SELECT DISTINCT u.id, u.name FROM users u
+    `SELECT DISTINCT u.id, u.name, u.avatar FROM users u
        JOIN schedule_students ss ON ss.student_id = u.id
        JOIN lesson_schedules sc ON sc.id = ss.schedule_id
        JOIN lessons l ON l.id = sc.lesson_id
@@ -52,16 +56,16 @@ async function courseStudents(user: User, courseId: number): Promise<CourseStude
     teacher ? [courseId, user.id] : [courseId]
   );
   const direct: Row[] = await q(
-    `SELECT u.id, u.name, cs.teacher_id, t.name AS teacher_name, cs.created_at AS added_at
+    `SELECT u.id, u.name, u.avatar, cs.teacher_id, t.name AS teacher_name, cs.created_at AS added_at
        FROM course_students cs JOIN users u ON u.id = cs.student_id
        LEFT JOIN users t ON t.id = cs.teacher_id
       WHERE cs.course_id = ? ${teacher ? 'AND cs.teacher_id = ?' : ''}`,
     teacher ? [courseId, user.id] : [courseId]
   );
   const byId = new Map<number, CourseStudent>();
-  for (const s of fromSchedule) byId.set(s.id, { id: s.id, name: s.name, from_schedule: true, direct: false, teacher_id: null, teacher_name: null });
+  for (const s of fromSchedule) byId.set(s.id, { id: s.id, name: s.name, avatar: s.avatar, from_schedule: true, direct: false, teacher_id: null, teacher_name: null });
   for (const s of direct) {
-    const row = byId.get(s.id) ?? { id: s.id, name: s.name, from_schedule: false };
+    const row = byId.get(s.id) ?? { id: s.id, name: s.name, avatar: s.avatar, from_schedule: false };
     byId.set(s.id, { ...row, direct: true, teacher_id: s.teacher_id, teacher_name: s.teacher_name, added_at: s.added_at });
   }
   return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'uk'));
@@ -71,7 +75,7 @@ async function courseStudents(user: User, courseId: number): Promise<CourseStude
 async function courseQuizzes(courseId: number, studentIds: number[]) {
   if (!studentIds.length) return [];
   const rows: Row[] = await q(
-    `SELECT a.id, a.student_id, a.due_at, a.submitted_at, a.score, a.max_score, z.title, t.step_id, t.substep_id
+    `SELECT a.id, a.quiz_id, a.student_id, a.due_at, a.submitted_at, a.score, a.max_score, z.title, t.step_id, t.substep_id
        FROM quiz_assignment_topics t
        JOIN quiz_assignments a ON a.id = t.assignment_id
        JOIN quizzes z ON z.id = a.quiz_id
@@ -83,7 +87,7 @@ async function courseQuizzes(courseId: number, studentIds: number[]) {
   const list = new Map<number, Row>();
   for (const r of rows) {
     const item = list.get(r.id) ?? {
-      id: r.id, student_id: r.student_id, title: r.title, due_at: r.due_at,
+      id: r.id, quiz_id: r.quiz_id, student_id: r.student_id, title: r.title, due_at: r.due_at,
       submitted_at: r.submitted_at, score: r.score, max_score: r.max_score, topics: [],
     };
     item.topics.push({ step_id: r.step_id, substep_id: r.substep_id });
@@ -138,8 +142,9 @@ async function courseHomework(user: User, courseId: number, studentIds: number[]
 }
 
 // Набори мають збігатися з client/src/courseLook.jsx.
-const COURSE_ICONS = ['roadmap', 'code', 'ts', 'js', 'py', 'web', 'blocks', 'terminal', 'db', 'mobile', 'game', 'ai', 'design'];
-const COURSE_THEMES = ['school', 'typed', 'script', 'snake', 'web'];
+const COURSE_ICONS = ['roadmap', 'code', 'ts', 'js', 'py', 'web', 'blocks', 'terminal', 'db', 'mobile', 'game', 'ai',
+  'git', 'php', 'sql', 'next', 'react', 'node', 'java', 'cs', 'cpp', 'css', 'docker', 'cloud', 'api', 'security', 'data', 'design'];
+const COURSE_THEMES = ['school', 'typed', 'script', 'snake', 'web', 'git', 'php', 'sql', 'next'];
 function pick(v: unknown, list: string[], label: string): string | null {
   if (v == null || v === '') return null;
   if (!list.includes(v as string)) throw bad(`${label}: оберіть зі списку`);
@@ -274,8 +279,17 @@ export class CoursesService {
           [ids, substeps.map((s) => s.id)]
         )
       : [];
+    // Учень бачить лише острівці зі схваленими тестами.
+    const islands: Row[] = await q(
+      `SELECT i.step_id, i.design, i.quiz_id, z.title AS quiz_title, z.status AS quiz_status,
+              (SELECT COUNT(*) FROM quiz_questions x WHERE x.quiz_id = z.id) AS questions_count
+         FROM course_islands i JOIN roadmap_steps s ON s.id = i.step_id JOIN quizzes z ON z.id = i.quiz_id
+        WHERE s.course_id = ? ${isStudent ? "AND z.status = 'approved'" : ''}`,
+      [courseId]
+    );
     return {
       ...course,
+      islands,
       steps: steps.map((s) => ({ ...s, substeps: substeps.filter((x) => x.step_id === s.id) })),
       students,
       progress,
@@ -284,6 +298,68 @@ export class CoursesService {
       quizzes,
       can_edit: await canEdit(user, courseId),
     };
+  }
+
+  /* Острівці: тестування на місці номера етапу */
+  private async stepOf(courseId: number, stepValue: unknown): Promise<Row> {
+    const [step] = await q('SELECT * FROM roadmap_steps WHERE id=? AND course_id=?', [id(stepValue, 'Етап'), courseId]);
+    if (!step) throw notFound('Етап не знайдено');
+    return step;
+  }
+
+  async setIsland(user: User, idValue: unknown, stepValue: unknown, body: any) {
+    const courseId = id(idValue);
+    await assertEdit(user, courseId);
+    const step = await this.stepOf(courseId, stepValue);
+    const design = String(body?.design ?? 'terminal');
+    if (!ISLAND_DESIGNS.includes(design)) throw bad('Невідомий дизайн острівця');
+    const quizId = id(body?.quiz_id, 'Тест');
+    const [quiz] = await q('SELECT id, status, created_by FROM quizzes WHERE id=?', [quizId]);
+    // Вчитель ставить схвалений тест або власний, що ще на модерації.
+    if (!quiz || (user.role !== 'manager' && quiz.status !== 'approved' && quiz.created_by !== user.id)) throw bad('Тест не знайдено');
+    if (quiz.status === 'rejected') throw bad('Тест відхилено на модерації. Виправте його й надішліть знову.');
+    await q(
+      `INSERT INTO course_islands (step_id, quiz_id, design, created_by) VALUES (?,?,?,?)
+       ON DUPLICATE KEY UPDATE quiz_id=VALUES(quiz_id), design=VALUES(design)`,
+      [step.id, quizId, design, user.id]
+    );
+    return { ok: true };
+  }
+
+  async removeIsland(user: User, idValue: unknown, stepValue: unknown) {
+    const courseId = id(idValue);
+    await assertEdit(user, courseId);
+    const step = await this.stepOf(courseId, stepValue);
+    const r = await q('DELETE FROM course_islands WHERE step_id=?', [step.id]);
+    if (!r.affectedRows) throw notFound('Острівця немає');
+    return { ok: true };
+  }
+
+  /**
+   * Учень натискає острівець: тест відкривається йому з цього курсу, якщо ще не відкритий.
+   * Тема тесту — попередній етап: острівець перевіряє пройдене перед ним.
+   */
+  async startIsland(user: User, idValue: unknown, stepValue: unknown) {
+    const courseId = id(idValue);
+    if (!(await canView(user, courseId))) throw forbidden();
+    const step = await this.stepOf(courseId, stepValue);
+    const [island] = await q(
+      `SELECT i.quiz_id FROM course_islands i JOIN quizzes z ON z.id = i.quiz_id WHERE i.step_id=? AND z.status='approved'`,
+      [step.id]
+    );
+    if (!island) throw notFound('Тестування ще не готове');
+    const [have] = await q('SELECT id FROM quiz_assignments WHERE quiz_id=? AND student_id=?', [island.quiz_id, user.id]);
+    if (have) return { id: have.id };
+    const [prev] = await q(
+      'SELECT id FROM roadmap_steps WHERE course_id=? AND (position < ? OR (position = ? AND id < ?)) ORDER BY position DESC, id DESC LIMIT 1',
+      [courseId, step.position, step.position, step.id]
+    );
+    const aid = await tx(async (t) => {
+      const r = await t('INSERT INTO quiz_assignments (quiz_id, student_id, course_id, assigned_by) VALUES (?,?,?,NULL)', [island.quiz_id, user.id, courseId]);
+      await saveTopics(t, 'quiz_assignment_topics', 'assignment_id', r.insertId, [{ step_id: prev?.id ?? step.id, substep_id: null }]);
+      return r.insertId as number;
+    });
+    return { id: aid };
   }
 
   /* Учні курсу напряму: додає й прибирає менеджер */

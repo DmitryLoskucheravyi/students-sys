@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, uploadForm, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
 import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, LateTag, Linkify, Loader, Modal, PageHead, Select, Status, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
+import { Who } from '../avatars.jsx';
 import { IconClose, IconCopy, IconDown, IconEdit, IconImage, IconLeft, IconPlus, IconQuiz, IconRestore, IconRight, IconSpark, IconTick, IconTrash, IconUp, IconUser } from '../icons.jsx';
 import { dateTimeShort, isLate, nowLocal, plural, time } from '../fmt.js';
 import { TopicChips, TopicPicker } from './HomeworkTopics.jsx';
@@ -33,31 +34,61 @@ export function QuizState({ a }) {
   );
 }
 
-/* Менеджер: список тестів (вкладка на сторінці завдань) */
-export function QuizList() {
+/** Стан модерації тесту вчителя. */
+export const QUIZ_STATUS = { approved: ['completed', 'Схвалено'], pending: ['warn', 'На модерації'], rejected: ['cancelled', 'Відхилено'] };
+
+/* Тести (вкладка на сторінці завдань). Менеджер: модерація тестів вчителів і загальний список. Вчитель: власні тести. */
+export function QuizList({ isManager }) {
   const { data, loading, error, reload } = useData('/quizzes');
   const navigate = useNavigate();
+  const [run] = useAction();
   if (error) return <ErrorNote text={error} onRetry={reload} />;
   if (!data) return loading ? <Loader /> : null;
   if (!data.length) {
-    return <Empty icon={<IconQuiz size={36} />} title="Тестів ще немає"
+    return <Empty icon={<IconQuiz size={36} />} title={isManager ? 'Тестів ще немає' : 'Ви ще не створили тестів'}
       action={<Button icon={<IconPlus size={18} />} onClick={() => navigate('/quizzes/new')}>Створити тест</Button>} />;
   }
+  const approve = async (z) => { if (await run(() => api(`/quizzes/${z.id}/approve`, { method: 'POST' }), 'Тест схвалено')) { reload(); notify(); } };
+  const row = (z, extra) => (
+    <li key={z.id} className="quiz-li">
+      <Link className="row row-link quiz-row" to={`/quizzes/${z.id}`}>
+        <span className="quiz-ico"><IconQuiz size={20} /></span>
+        <div className="row-main">
+          <h3>{z.title}</h3>
+          <p className="muted small">{[questionsWord(z.questions_count), isManager && z.author_role === 'teacher' && `автор: ${z.author_name}`].filter(Boolean).join(' · ')}</p>
+          {z.status === 'rejected' && z.review_note && <p className="small text-red">Причина: {z.review_note}</p>}
+        </div>
+        {isManager && z.status === 'approved'
+          ? <span className="small muted">{z.assigned_count ? `Пройшли ${z.done_count} з ${z.assigned_count}` : 'Ще нікому не відкрито'}</span>
+          : <Status kind={QUIZ_STATUS[z.status][0]}>{QUIZ_STATUS[z.status][1]}</Status>}
+      </Link>
+      {extra}
+    </li>
+  );
+  if (!isManager) return <ul className="rows">{data.map((z) => row(z))}</ul>;
+  const pending = data.filter((z) => z.status === 'pending');
+  const general = data.filter((z) => z.status === 'approved');
   return (
-    <ul className="rows">
-      {data.map((z) => (
-        <li key={z.id}>
-          <Link className="row row-link quiz-row" to={`/quizzes/${z.id}`}>
-            <span className="quiz-ico"><IconQuiz size={20} /></span>
-            <div className="row-main">
-              <h3>{z.title}</h3>
-              <p className="muted small">{questionsWord(z.questions_count)}</p>
-            </div>
-            <span className="small muted">{z.assigned_count ? `Пройшли ${z.done_count} з ${z.assigned_count}` : 'Ще нікому не відкрито'}</span>
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <>
+      {pending.length > 0 && (
+        <section className="hw-group moderation" aria-label="Тести на модерації">
+          <h2>На модерації <span className="count">{pending.length}</span></h2>
+          <p className="muted small">Тести вчителів. Учні побачать їх лише після схвалення.</p>
+          <ul className="rows">
+            {pending.map((z) => row(z, (
+              <div className="row-actions moderation-actions">
+                <Button small icon={<IconTick size={16} />} onClick={() => approve(z)}>Схвалити</Button>
+                <Button small variant="ghost" onClick={() => navigate(`/quizzes/${z.id}`)}>Переглянути</Button>
+              </div>
+            )))}
+          </ul>
+        </section>
+      )}
+      <section className="hw-group" aria-label="Усі тести">
+        {pending.length > 0 && <h2>Усі тести</h2>}
+        {general.length ? <ul className="rows">{general.map((z) => row(z))}</ul> : <p className="muted small">Схвалених тестів ще немає.</p>}
+      </section>
+    </>
   );
 }
 
@@ -101,6 +132,7 @@ export function QuizEditor() {
 
 function QuizForm({ quiz }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [title, setTitle] = useState(quiz?.title ?? '');
   const [description, setDescription] = useState(quiz?.description ?? '');
   const [questions, setQuestions] = useState(() => (quiz ? fromServer(quiz.questions) : [blankQuestion()]));
@@ -126,7 +158,9 @@ function QuizForm({ quiz }) {
       title, description,
       questions: questions.map((x) => ({ id: x.id, text: x.text, image: x.image, options: x.options.map((o) => ({ id: o.id, text: o.text, correct: o.correct })) })),
     };
-    const r = await run(() => (quiz ? api(`/quizzes/${quiz.id}`, { method: 'PUT', body }) : api('/quizzes', { method: 'POST', body })), quiz ? 'Тест збережено' : 'Тест створено');
+    const teacher = user.role === 'teacher';
+    const r = await run(() => (quiz ? api(`/quizzes/${quiz.id}`, { method: 'PUT', body }) : api('/quizzes', { method: 'POST', body })),
+      teacher ? 'Тест надіслано на модерацію' : quiz ? 'Тест збережено' : 'Тест створено');
     if (r) navigate(`/quizzes/${quiz?.id ?? r.id}`);
   };
 
@@ -136,6 +170,7 @@ function QuizForm({ quiz }) {
       <PageHead title={quiz ? 'Редагувати тест' : 'Новий тест'}>
         <Button variant="ghost" icon={<IconSpark size={18} />} onClick={() => setAiOpen(true)}>Вставити з ШІ</Button>
       </PageHead>
+      {user.role === 'teacher' && <p className="note small">Ваш тест перевірить менеджер. Після схвалення він з’явиться в загальному списку тестів.</p>}
       {done > 0 && <p className="note small">Тест уже пройшли: {done}. Їхні бали не зміняться, нові учні проходитимуть оновлений варіант.</p>}
       <form className="quiz-form" onSubmit={save}>
         <div className="form quiz-head">
@@ -313,8 +348,11 @@ function QuizImport({ onClose, onDone }) {
 export function QuizDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isManager = user.role === 'manager';
   const { data: quiz, loading, error, reload } = useData(`/quizzes/${id}`);
   const [assigning, setAssigning] = useState(null);
+  const [rejecting, setRejecting] = useState(false);
   const [run] = useAction();
   const { confirm } = useUI();
   if (error) return <ErrorNote text={error} onRetry={reload} />;
@@ -337,13 +375,27 @@ export function QuizDetail() {
     <>
       <Link to="/homework?tab=quizzes" className="back"><IconLeft size={18} /> Тести</Link>
       <PageHead title={quiz.title}>
-        <Button icon={<IconUser size={18} />} onClick={() => setAssigning({})}>Відкрити учневі</Button>
-        <IconButton label="Редагувати тест" onClick={() => navigate(`/quizzes/${quiz.id}/edit`)}><IconEdit size={20} /></IconButton>
-        <IconButton label="Видалити тест" onClick={removeQuiz}><IconTrash size={20} /></IconButton>
+        {isManager && quiz.status === 'approved' && <Button icon={<IconUser size={18} />} onClick={() => setAssigning({})}>Відкрити учневі</Button>}
+        {isManager && quiz.status === 'pending' && (
+          <>
+            <Button icon={<IconTick size={18} />} onClick={async () => { if (await run(() => api(`/quizzes/${quiz.id}/approve`, { method: 'POST' }), 'Тест схвалено')) { notify(); reload(); } }}>Схвалити</Button>
+            <Button variant="ghost" onClick={() => setRejecting(true)}>Відхилити</Button>
+          </>
+        )}
+        {(isManager || quiz.status !== 'approved') && <IconButton label="Редагувати тест" onClick={() => navigate(`/quizzes/${quiz.id}/edit`)}><IconEdit size={20} /></IconButton>}
+        {(isManager || quiz.status !== 'approved') && <IconButton label="Видалити тест" onClick={removeQuiz}><IconTrash size={20} /></IconButton>}
       </PageHead>
+      {quiz.status !== 'approved' && (
+        <p className={`note small quiz-moder is-${quiz.status}`}>
+          <Status kind={QUIZ_STATUS[quiz.status][0]}>{QUIZ_STATUS[quiz.status][1]}</Status>{' '}
+          {quiz.status === 'pending'
+            ? (isManager ? `Тест створив вчитель ${quiz.author_name ?? ''}. Перевірте питання й схваліть, щоб учні його побачили.` : 'Менеджер ще не перевірив тест.')
+            : <>Тест відхилено{quiz.review_note ? `: ${quiz.review_note}` : ''}. {isManager ? '' : 'Виправте його, і він знову піде на модерацію.'}</>}
+        </p>
+      )}
       {quiz.description && <p className="muted lead"><Linkify text={quiz.description} /></p>}
 
-      <section className="work">
+      {isManager && <section className="work">
         <header className="work-head">
           <h2>Учні</h2>
           <span className="small muted">Пройшли {quiz.assignments.filter((a) => a.submitted_at).length} з {quiz.assignments.length}</span>
@@ -353,7 +405,7 @@ export function QuizDetail() {
             {quiz.assignments.map((a) => (
               <li key={a.id} className="row quiz-assign">
                 <div className="row-main">
-                  <h3><Link to={`/tests/${a.id}`}>{a.student_name}</Link></h3>
+                  <h3><Link to={`/tests/${a.id}`}><Who name={a.student_name} avatar={a.student_avatar} size={30} /></Link></h3>
                   <p className="muted small">
                     {[a.course_title, a.due_at && `до ${dateTimeShort(a.due_at)}`, a.submitted_at && `пройдено ${dateTimeShort(a.submitted_at)}`].filter(Boolean).join(' · ') || 'Без курсу'}
                   </p>
@@ -369,7 +421,7 @@ export function QuizDetail() {
             ))}
           </ul>
         ) : <p className="muted small">Тест ще нікому не відкрито.</p>}
-      </section>
+      </section>}
 
       <section className="work">
         <header className="work-head"><h2>Питання</h2><span className="small muted">{questionsWord(quiz.questions.length)}</span></header>
@@ -385,9 +437,30 @@ export function QuizDetail() {
           ))}
         </ol>
       </section>
+      {rejecting && <RejectForm quiz={quiz} onClose={() => setRejecting(false)} onDone={() => { setRejecting(false); notify(); reload(); }} />}
       {assigning && <AssignForm quiz={quiz} assignment={assigning.id ? assigning : null}
         onClose={() => setAssigning(null)} onDone={() => { setAssigning(null); reload(); }} />}
     </>
+  );
+}
+
+function RejectForm({ quiz, onClose, onDone }) {
+  const [note, setNote] = useState('');
+  const [run, busy] = useAction();
+  const submit = async (e) => {
+    e.preventDefault();
+    if (await run(() => api(`/quizzes/${quiz.id}/reject`, { method: 'POST', body: { note } }), 'Тест відхилено')) onDone();
+  };
+  return (
+    <Modal narrow title="Відхилити тест" onClose={onClose}>
+      <form className="form" onSubmit={submit}>
+        <Textarea label="Що виправити" hint="Вчитель побачить це поруч із тестом" rows={3} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} />
+        <div className="form-actions">
+          <Button variant="ghost" onClick={onClose}>Назад</Button>
+          <Button type="submit" variant="danger" busy={busy}>Відхилити</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

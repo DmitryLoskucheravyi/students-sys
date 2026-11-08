@@ -26,7 +26,7 @@ export default function Homework() {
   const isStudent = user.role === 'student';
   const isManager = user.role === 'manager';
   const [params, setParams] = useSearchParams();
-  const tab = isManager && params.get('tab') === 'quizzes' ? 'quizzes' : 'homework';
+  const tab = !isStudent && params.get('tab') === 'quizzes' ? 'quizzes' : 'homework';
   const navigate = useNavigate();
 
   return (
@@ -40,14 +40,14 @@ export default function Homework() {
           </>
         )}
       </PageHead>
-      {isManager && (
+      {!isStudent && (
         <div className="tabs-row">
           <Segmented value={tab} onChange={(v) => setParams(v === 'quizzes' ? { tab: 'quizzes' } : {}, { replace: true })}
             options={[{ value: 'homework', label: 'Домашні' }, { value: 'quizzes', label: 'Тести' }]} />
         </div>
       )}
       {isStudent && <MyQuizzes />}
-      {tab === 'quizzes' ? <QuizList /> : <HomeworkList isStudent={isStudent} />}
+      {tab === 'quizzes' ? <QuizList isManager={isManager} /> : <HomeworkList isStudent={isStudent} />}
     </>
   );
 }

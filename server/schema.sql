@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS plans (
   lessons_count INT NOT NULL,
   price_per_lesson DECIMAL(10,2) NOT NULL,
   valid_days INT NOT NULL DEFAULT 30,
+  color VARCHAR(16) NOT NULL DEFAULT 'red',  -- колір квитка; видані абонементи беруть його з виду
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -339,6 +340,9 @@ CREATE TABLE IF NOT EXISTS quizzes (
   id INT AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(160) NOT NULL,
   description VARCHAR(1000) NULL,
+  -- Тести вчителя чекають на схвалення менеджера; тести менеджера одразу в загальному списку.
+  status ENUM('approved','pending','rejected') NOT NULL DEFAULT 'approved',
+  review_note VARCHAR(300) NULL,
   created_by INT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -416,4 +420,15 @@ CREATE TABLE IF NOT EXISTS quiz_answers (
   FOREIGN KEY (assignment_id) REFERENCES quiz_assignments(id) ON DELETE CASCADE,
   FOREIGN KEY (question_id) REFERENCES quiz_questions(id) ON DELETE CASCADE,
   FOREIGN KEY (option_id) REFERENCES quiz_options(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Острівець на роадмапі: тестування на місці номера етапу. Учень відкриває тест сам, натиснувши острівець.
+CREATE TABLE IF NOT EXISTS course_islands (
+  step_id INT PRIMARY KEY,
+  quiz_id INT NOT NULL,
+  design VARCHAR(20) NOT NULL DEFAULT 'terminal',
+  created_by INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (step_id) REFERENCES roadmap_steps(id) ON DELETE CASCADE,
+  FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

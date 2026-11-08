@@ -34,7 +34,7 @@ async function attachPeople(rows: Row[], user: User): Promise<Row[]> {
   const sessionIds = rows.map((r) => r.id);
   const scheduleIds = [...new Set(rows.map((r) => r.schedule_id))];
   const attendance: Row[] = await q(
-    `SELECT a.session_id, a.student_id, a.attended, a.price_charged, u.name
+    `SELECT a.session_id, a.student_id, a.attended, a.price_charged, u.name, u.avatar
        FROM attendance a JOIN users u ON u.id = a.student_id WHERE a.session_id IN (?)`,
     [sessionIds]
   );
@@ -45,7 +45,7 @@ async function attachPeople(rows: Row[], user: User): Promise<Row[]> {
     });
   }
   const roster: Row[] = await q(
-    `SELECT ss.schedule_id, u.id, u.name FROM schedule_students ss JOIN users u ON u.id = ss.student_id
+    `SELECT ss.schedule_id, u.id, u.name, u.avatar FROM schedule_students ss JOIN users u ON u.id = ss.student_id
       WHERE ss.schedule_id IN (?) ORDER BY u.name`,
     [scheduleIds]
   );
@@ -55,8 +55,8 @@ async function attachPeople(rows: Row[], user: User): Promise<Row[]> {
       r.status === 'completed'
         ? attendance
             .filter((a) => a.session_id === r.id)
-            .map((a) => ({ id: a.student_id, name: a.name, attended: a.attended, price_charged: a.price_charged }))
-        : roster.filter((s) => s.schedule_id === r.schedule_id).map((s) => ({ id: s.id, name: s.name })),
+            .map((a) => ({ id: a.student_id, name: a.name, avatar: a.avatar, attended: a.attended, price_charged: a.price_charged }))
+        : roster.filter((s) => s.schedule_id === r.schedule_id).map((s) => ({ id: s.id, name: s.name, avatar: s.avatar })),
   }));
 }
 
@@ -201,7 +201,7 @@ export class SessionsService {
             [sessionId, user.id]
           )
         : await q(
-            `SELECT r.id, r.kind, r.status, r.reason, r.proposed_starts_at, u.name AS student_name
+            `SELECT r.id, r.kind, r.status, r.reason, r.proposed_starts_at, u.name AS student_name, u.avatar AS student_avatar
                FROM session_requests r JOIN users u ON u.id = r.student_id
               WHERE r.session_id=? AND r.status='pending' ORDER BY r.id`,
             [sessionId]
@@ -377,7 +377,7 @@ export class RequestsService {
   list(user: User) {
     const isTeacher = user.role === 'teacher';
     return q(
-      `SELECT r.id, r.kind, r.reason, r.proposed_starts_at, r.session_id, u.name AS student_name,
+      `SELECT r.id, r.kind, r.reason, r.proposed_starts_at, r.session_id, u.name AS student_name, u.avatar AS student_avatar,
               se.starts_at, l.title
          FROM session_requests r
          JOIN users u ON u.id = r.student_id

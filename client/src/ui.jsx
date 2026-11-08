@@ -330,6 +330,7 @@ export function Select({ label, hint, value, onChange, options, placeholder = 'Ð
               <li key={o.value} role="option" aria-selected={isOn(o.value)}
                 className={`option ${i === active ? 'is-active' : ''} ${isOn(o.value) ? 'is-selected' : ''}`}
                 onMouseEnter={() => setActive(i)} onClick={() => pick(o.value)}>
+                {o.icon && <span className="option-ico" aria-hidden="true">{o.icon}</span>}
                 <span>
                   {o.label}
                   {o.hint && <small>{o.hint}</small>}

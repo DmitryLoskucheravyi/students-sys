@@ -130,19 +130,19 @@ function RailResizer({ rail }) {
 }
 
 /**
- * Лічильник сповіщень учня: непройдені тести та нові оцінки чи відгуки до домашніх.
+ * Лічильник сповіщень. Учень: непройдені тести та нові оцінки чи відгуки до домашніх. Менеджер: тести вчителів на модерації.
  * Оновлюється під час переходів, щохвилини та після дій (подія bs:notify).
  */
 function useNotifications(user) {
   const [count, setCount] = useState(0);
   const location = useLocation();
   const refresh = useCallback(() => {
-    if (user.role !== 'student') return;
+    if (user.role === 'teacher') return;
     api('/notifications').then((r) => setCount(r.count)).catch(() => {});
   }, [user.role]);
   useEffect(() => { refresh(); }, [refresh, location.pathname]);
   useEffect(() => {
-    if (user.role !== 'student') return undefined;
+    if (user.role === 'teacher') return undefined;
     const timer = setInterval(refresh, 60_000);
     window.addEventListener('bs:notify', refresh);
     window.addEventListener('focus', refresh);
@@ -213,9 +213,9 @@ function Shell() {
           <Route path="/homework" element={<Homework />} />
           <Route path="/homework/:id" element={<HomeworkDetail />} />
           {(user.role === 'student' || user.role === 'manager') && <Route path="/tests/:id" element={<QuizTake />} />}
-          {user.role === 'manager' && <Route path="/quizzes/new" element={<QuizEditor />} />}
-          {user.role === 'manager' && <Route path="/quizzes/:id" element={<QuizDetail />} />}
-          {user.role === 'manager' && <Route path="/quizzes/:id/edit" element={<QuizEditor />} />}
+          {user.role !== 'student' && <Route path="/quizzes/new" element={<QuizEditor />} />}
+          {user.role !== 'student' && <Route path="/quizzes/:id" element={<QuizDetail />} />}
+          {user.role !== 'student' && <Route path="/quizzes/:id/edit" element={<QuizEditor />} />}
           <Route path="/courses" element={<Courses />} />
           <Route path="/courses/:id" element={<CourseDetail />} />
           <Route path="/profile" element={<Profile />} />

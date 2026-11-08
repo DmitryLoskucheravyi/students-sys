@@ -116,6 +116,23 @@ export class CoursesController {
     return this.courses.orderSubsteps(user, idValue, stepId, body);
   }
 
+  @Put(':id/islands/:stepId')
+  setIsland(@CurrentUser() user: User, @Param('id') idValue: string, @Param('stepId') stepId: string, @Body() body: any) {
+    return this.courses.setIsland(user, idValue, stepId, body);
+  }
+
+  @Delete(':id/islands/:stepId')
+  removeIsland(@CurrentUser() user: User, @Param('id') idValue: string, @Param('stepId') stepId: string) {
+    return this.courses.removeIsland(user, idValue, stepId);
+  }
+
+  @Post(':id/islands/:stepId/start')
+  @HttpCode(200)
+  @Roles('student')
+  startIsland(@CurrentUser() user: User, @Param('id') idValue: string, @Param('stepId') stepId: string) {
+    return this.courses.startIsland(user, idValue, stepId);
+  }
+
   @Put(':id/substep-progress')
   setSubstepProgress(@CurrentUser() user: User, @Param('id') idValue: string, @Body() body: any) {
     return this.courses.setSubstepProgress(user, idValue, body);

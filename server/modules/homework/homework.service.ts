@@ -113,14 +113,14 @@ const limitedView = (user: User, hw: Row) => user.role === 'teacher' && hw.on_ro
 async function rosterOf(hw: Row, user: User): Promise<Row[]> {
   if (!hw.on_roadmap) {
     return q(
-      `SELECT u.id, u.name FROM schedule_students ss JOIN users u ON u.id = ss.student_id
+      `SELECT u.id, u.name, u.avatar FROM schedule_students ss JOIN users u ON u.id = ss.student_id
         WHERE ss.schedule_id=? ORDER BY u.name`,
       [hw.schedule_id]
     );
   }
   const teacher = hw.owner_teacher_id ?? (user.role === 'teacher' ? user.id : null);
   return q(
-    `SELECT u.id, u.name FROM users u
+    `SELECT u.id, u.name, u.avatar FROM users u
       WHERE u.role = 'student' AND ${IN_COURSE(sqlInt(hw.course_id), teacher == null ? 'NULL' : sqlInt(teacher), 'u.id')}
       ORDER BY u.name`
   );
@@ -290,16 +290,16 @@ export class HomeworkService {
     const students = await rosterOf(hw, user);
     const limited = limitedView(user, hw);
     const subs = ((await q(
-      `SELECT s.*, u.name AS student_name FROM submissions s JOIN users u ON u.id = s.student_id WHERE s.homework_id=?`,
+      `SELECT s.*, u.name AS student_name, u.avatar AS student_avatar FROM submissions s JOIN users u ON u.id = s.student_id WHERE s.homework_id=?`,
       [hw.id]
     )) as Row[]).filter((s) => !limited || students.some((st) => st.id === s.student_id));
     const files = await filesOf(subs.map((s) => s.id));
     // Учень міг вибути з групи, але його робота лишається видимою.
     const merged = [
-      ...students.map((st) => ({ student_id: st.id, student_name: st.name, submission: subs.find((s) => s.student_id === st.id) ?? null })),
+      ...students.map((st) => ({ student_id: st.id, student_name: st.name, student_avatar: st.avatar, submission: subs.find((s) => s.student_id === st.id) ?? null })),
       ...subs
         .filter((s) => !students.some((st) => st.id === s.student_id))
-        .map((s) => ({ student_id: s.student_id, student_name: s.student_name, submission: s })),
+        .map((s) => ({ student_id: s.student_id, student_name: s.student_name, student_avatar: s.student_avatar, submission: s })),
     ].map((row) => ({
       ...row,
       submission: row.submission ? { ...row.submission, files: files.filter((f) => f.submission_id === row.submission!.id) } : null,

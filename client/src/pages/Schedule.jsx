@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth, useIsMobile } from '../session.jsx';
 import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Linkify, Loader, firstUrl, Modal, PageHead, Segmented, Select, Status, TimePicker, Textarea, WeekdayPicker, useAction, useUI } from '../ui.jsx';
+import { Avatar, Faces, Who } from '../avatars.jsx';
 import { IconBan, IconClock, IconClose, IconEdit, IconExternal, IconHomework, IconLeft, IconList, IconLesson, IconMove, IconOnce, IconPeople, IconPin, IconPlus, IconRepeat, IconRestore, IconRight, IconTick, IconTicket, IconUser } from '../icons.jsx';
 import { TopicPicker } from './HomeworkTopics.jsx';
 import { WEEKDAYS, addDays, dateTimeShort, mondayOf, money, nowLocal, parseDate, shortDate, time, todayISO, weekTitle, weekdayDayMonth, weekdayOf } from '../fmt.js';
@@ -115,7 +116,7 @@ export default function Schedule() {
             <Select compact placeholder="Усі вчителі" clearable="Усі вчителі" value={teacherId} onChange={setTeacherId}
               options={teachers.map((t) => ({ value: t.id, label: t.name }))} />
             <Select compact placeholder="Усі учні" clearable="Усі учні" value={studentId} onChange={setStudentId}
-              options={students.map((s) => ({ value: s.id, label: s.name }))} />
+              options={students.map((s) => ({ value: s.id, label: s.name, icon: <Avatar user={s} size={22} /> }))} />
           </div>
         )}
       </div>
@@ -181,7 +182,7 @@ function Requests({ items, onChange, onOpen }) {
       {items.map((r) => (
         <div key={r.id} className="request">
           <button type="button" className="request-info" onClick={() => onOpen(r.session_id)}>
-            <strong>{r.student_name}</strong>
+            <strong><Who name={r.student_name} avatar={r.student_avatar} size={24} /></strong>
             <span>
               {r.title}, {dateTimeShort(r.starts_at)}: {r.kind === 'cancel' ? 'скасувати' : `перенести на ${dateTimeShort(r.proposed_starts_at)}`}
             </span>
@@ -304,7 +305,7 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot, focusId }) {
                     <small>{time(s.starts_at)}–{time(s.ends_at)}{isMoved(s) ? ', перенесено' : ''}</small>
                     <small className="block-meta" title="Вчитель"><IconUser size={13} /><span>{s.teacher_name ?? 'Без вчителя'}</span></small>
                     {names !== undefined && (
-                      <small className="block-meta" title="Учні"><IconPeople size={13} /><span>{names || 'Без учнів'}</span></small>
+                      <small className="block-meta block-people" title="Учні">{s.students.length ? <Faces people={s.students} size={16} /> : <IconPeople size={13} />}<span>{names || 'Без учнів'}</span></small>
                     )}
                   </button>
                   {link && (
@@ -428,7 +429,7 @@ function SessionSheet({ id, onClose, onChange }) {
               <ul className="roster">
                 {s.students.map((st) => (
                   <li key={st.id}>
-                    <span>{st.name}</span>
+                    <Who name={st.name} avatar={st.avatar} size={30} />
                     {s.status === 'completed' && (
                       st.attended
                         ? <Status kind="completed">{st.price_charged != null ? money(st.price_charged) : 'Без абонемента'}</Status>
@@ -543,7 +544,7 @@ function CompleteForm({ session, onCancel, onDone }) {
           return (
             <div key={s.id} className="attend-row">
               <Checkbox checked={present.includes(s.id)}
-                onChange={(on) => setPresent(on ? [...present, s.id] : present.filter((x) => x !== s.id))}>{s.name}</Checkbox>
+                onChange={(on) => setPresent(on ? [...present, s.id] : present.filter((x) => x !== s.id))}><Who name={s.name} avatar={s.avatar} size={24} /></Checkbox>
               {present.includes(s.id) && (
                 <>
                   <Select compact label="Абонемент" value={charges[s.id]} onChange={(v) => setCharges({ ...charges, [s.id]: v })}
@@ -702,7 +703,7 @@ function usePeopleOptions(current = { teacherId: null, studentIds: [] }) {
   const roomsOf = (teacherId) => list.find((u) => u.id === teacherId)?.rooms ?? [];
   return {
     teachers: list.filter((u) => u.role === 'teacher' && (u.is_active || u.id === current.teacherId)).map((u) => ({ value: u.id, label: label(u) })),
-    pupils: list.filter((u) => u.role === 'student' && (u.is_active || current.studentIds.includes(u.id))).map((u) => ({ value: u.id, label: label(u) })),
+    pupils: list.filter((u) => u.role === 'student' && (u.is_active || current.studentIds.includes(u.id))).map((u) => ({ value: u.id, label: label(u), icon: <Avatar user={u} size={22} /> })),
     roomsOf,
     // Основний кабінет вчителя: його підставляємо, доки не обрали інший.
     mainRoom: (teacherId) => { const rooms = roomsOf(teacherId); return (rooms.find((r) => r.is_default) ?? rooms[0])?.id ?? null; },

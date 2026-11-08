@@ -70,6 +70,14 @@ async function migrate(conn: Connection, { hadRoster, hadSchedules }: { hadRoste
     await conn.query('ALTER TABLE homework ADD CONSTRAINT fk_homework_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE');
     await conn.query('ALTER TABLE homework ADD CONSTRAINT fk_homework_teacher FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL');
   }
+  // Модерація тестів: старі тести вважаються схваленими.
+  if (!(await columnInfo(conn, 'quizzes', 'status'))) {
+    await conn.query("ALTER TABLE quizzes ADD COLUMN status ENUM('approved','pending','rejected') NOT NULL DEFAULT 'approved', ADD COLUMN review_note VARCHAR(300) NULL");
+  }
+  // Колір виду абонемента: ним фарбується квиток учня.
+  if (!(await columnInfo(conn, 'plans', 'color'))) {
+    await conn.query("ALTER TABLE plans ADD COLUMN color VARCHAR(16) NOT NULL DEFAULT 'red'");
+  }
   // «Продано» — сума в момент видачі абонемента. Для старих записів беремо поточну.
   if (!(await columnInfo(conn, 'subscriptions', 'sold_amount'))) {
     await conn.query('ALTER TABLE subscriptions ADD COLUMN sold_amount DECIMAL(10,2) NULL');

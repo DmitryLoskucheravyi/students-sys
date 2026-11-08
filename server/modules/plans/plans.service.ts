@@ -3,8 +3,13 @@ import { type Row, q, tx } from '../../db.js';
 import { addDays, bad, forbidden, id, int, isoDate, money, notFound, str, today } from '../../lib.js';
 import type { User } from '../../common/auth.js';
 
+/** Кольори квитка. Має збігатися з PLAN_COLORS у client/src/pages/Subscriptions.jsx. */
+export const PLAN_COLORS = ['red', 'orange', 'amber', 'green', 'teal', 'blue', 'violet', 'pink', 'ink'];
+
 function parsePlan(b: any) {
+  if (b.color != null && !PLAN_COLORS.includes(b.color)) throw bad('Невідомий колір');
   return {
+    color: (b.color as string | undefined) ?? 'red',
     name: str(b.name, 'Назва', { max: 120 }),
     lessons_count: int(b.lessons_count, 'Кількість уроків', { min: 1, max: 500 }),
     price_per_lesson: money(b.price_per_lesson, 'Вартість заняття'),
@@ -13,11 +18,12 @@ function parsePlan(b: any) {
 }
 
 const SUB_SELECT = `
-  SELECT s.*, u.name AS student_name,
+  SELECT s.*, u.name AS student_name, u.avatar AS student_avatar, COALESCE(pl.color, 'red') AS color,
          (s.lessons_total - s.lessons_used) AS lessons_left,
          (s.lessons_total * s.price_per_lesson) AS total_price,
          (s.expires_on < CURDATE()) AS is_expired
-    FROM subscriptions s JOIN users u ON u.id = s.student_id`;
+    FROM subscriptions s JOIN users u ON u.id = s.student_id
+    LEFT JOIN plans pl ON pl.id = s.plan_id`;
 
 const subById = async (subId: number): Promise<Row> => (await q(`${SUB_SELECT} WHERE s.id=?`, [subId]))[0];
 

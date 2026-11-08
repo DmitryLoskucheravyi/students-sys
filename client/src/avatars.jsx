@@ -244,7 +244,29 @@ export function Avatar({ user, size = 36, className = '' }) {
   if (user?.avatar && byId[user.avatar]) {
     return <span className={`avatar has-art ${className}`} style={{ width: size, height: size }}><AvatarArt id={user.avatar} size={size} /></span>;
   }
-  return <span className={`avatar ${className}`} style={{ width: size, height: size }}>{initials(user?.name)}</span>;
+  return <span className={`avatar ${className}`} style={{ width: size, height: size, fontSize: Math.max(8, Math.round(size * 0.36)) }}>{initials(user?.name)}</span>;
+}
+
+/** Людина в тексті: аватарка поруч з ім'ям. */
+export function Who({ name, avatar, size = 26, children }) {
+  return (
+    <span className="who">
+      <span className="who-face" aria-hidden="true"><Avatar user={{ name, avatar }} size={size} /></span>
+      <span className="who-name">{children ?? name}</span>
+    </span>
+  );
+}
+
+/** Кілька людей стосом: перші max аватарок і лічильник решти. */
+export function Faces({ people, size = 18, max = 3 }) {
+  if (!people.length) return null;
+  const rest = people.length - max;
+  return (
+    <span className="faces" aria-hidden="true">
+      {people.slice(0, max).map((p) => <Avatar key={p.id} user={p} size={size} />)}
+      {rest > 0 && <span className="faces-more" style={{ height: size, minWidth: size }}>+{rest}</span>}
+    </span>
+  );
 }
 
 /** Вибір аватарки з набору. value null: без аватарки, ініціали. */
