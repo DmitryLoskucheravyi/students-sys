@@ -59,7 +59,9 @@ with sync_playwright() as pw:
     gc, g = new(b, 390, 844)
     g.goto(url); g.wait_for_load_state("networkidle")
     check("гість бачить тест без входу", "Публічний тест" in g.locator(".pq-title").inner_text() and g.locator(".rail").count() == 0)
-    check("гостя попереджено, що не збережеться", "не збережеться" in g.locator(".pq-who").inner_text())
+    check("без плашки про запис і без слова «Тест» у шапці", g.locator(".pq-who").count() == 0 and "Тест" not in g.locator(".pq-head").inner_text())
+    check("логотип як у системі: BE вертикально", g.locator(".pq-head .wordmark-be").evaluate("e => getComputedStyle(e).writingMode") == "vertical-rl")
+    check("без смуги прогресу, кнопки звуку й лічильника", g.locator(".qr-bar, .qr-sound").count() == 0 and "Відповіли" not in g.locator(".quiz-submit").inner_text())
     pub = api(gc, "GET", f"/public/quizzes/{token}").json()
     check("правильні відповіді не видно до здачі", all("correct" not in o for x in pub["questions"] for o in x["options"]))
     answer(g, right=True)
@@ -80,14 +82,12 @@ with sync_playwright() as pw:
     # 3. Співробітник: бачить результат, але не записується
     tc, t = new(b); login(t, "teacher", "teacher123")
     t.goto(url); t.wait_for_load_state("networkidle")
-    check("вчителя попереджено, що не запишеться", "не запишеться" in t.locator(".pq-who").inner_text())
     rt = api(tc, "POST", f"/public/quizzes/{token}/check", data={"answers": {}}).json()
     check("вчитель: не записано", rt["recorded"] is False and api(mc, "GET", f"/quizzes/{qid}").json()["assignments"] == [])
 
     # 4. Учень, що увійшов: результат записується в його тести, друга спроба — ні
     sc, s = new(b); login(s, "student", "student123")
     s.goto(url); s.wait_for_load_state("networkidle")
-    check("учневі сказано, що запишеться", "запишеться у ваші тести" in s.locator(".pq-who").inner_text())
     answer(s, right=False)
     s.get_by_role("button", name="Завершити тест").click(); s.wait_for_load_state("networkidle")
     expect(s.locator(".quiz-score")).to_contain_text("записано")
@@ -96,7 +96,6 @@ with sync_playwright() as pw:
     check("тест з’явився в тестах учня", any(x["quiz_id"] == qid and x["submitted_at"] for x in api(sc, "GET", "/quizzes/my").json()))
     shot(s, "sh3-student-result")
     s.goto(url); s.wait_for_load_state("networkidle")
-    check("повторний вхід: «Ви вже проходили»", "вже проходили" in s.locator(".pq-who").inner_text())
     answer(s, right=True)
     s.get_by_role("button", name="Завершити тест").click(); s.wait_for_load_state("networkidle")
     expect(s.locator(".quiz-score")).to_contain_text("перший результат")
@@ -106,10 +105,11 @@ with sync_playwright() as pw:
     # 5. Гість входить зі сторінки тесту й лишається на ній
     lc, l = new(b)
     l.goto(url); l.wait_for_load_state("networkidle")
-    l.locator(".pq-who").get_by_role("button", name="Увійти як учень").click()
+    answer(l); l.get_by_role("button", name="Завершити тест").click(); l.wait_for_load_state("networkidle")
+    l.locator(".quiz-score").get_by_role("button", name="Увійти").click()
     l.get_by_label("Логін").fill("boiko"); l.locator("input[type=password]").fill("student123")
-    l.get_by_role("button", name="Увійти").click(); l.wait_for_selector(".pq-who"); l.wait_for_load_state("networkidle")
-    check("після входу знову тест, тепер із записом", "запишеться у ваші тести" in l.locator(".pq-who").inner_text() and "/q/" in l.url)
+    l.get_by_role("button", name="Увійти").click(); l.wait_for_selector(".qr-card"); l.wait_for_load_state("networkidle")
+    check("після входу знову тест", "/q/" in l.url and l.locator(".qr-card").count() == 1)
 
     # 6. Вимкнене посилання, несхвалений тест, сміття в токені
     check("відповідь без правильного варіанта відхилено", api(gc, "POST", f"/public/quizzes/{token}/check", data={"answers": {"999999": [1]}}).status in (200, 400))
@@ -121,6 +121,23 @@ with sync_playwright() as pw:
     tq = api(tc, "POST", "/quizzes", data={**QUIZ, "title": "Вчительський"}).json()["id"]
     check("несхваленим тестом не поділитись", api(tc, "POST", f"/quizzes/{tq}/share").status == 400)
     check("гість не вмикає посилання", api(gc, "POST", f"/quizzes/{qid}/share").status == 401)
+    # 7. Код у питанні: блок на темному тлі; у варіантах лише кольори
+    code_q = {"title": "Код", "description": "", "questions": [{
+        "text": "Що виведе цей код?\n^^\nconst items = [1, 2, 3];\nconsole.log(items.length);\n^^",
+        "options": [{"text": "^^3^^", "correct": True}, {"text": "^^undefined^^", "correct": False}, {"text": "Помилка", "correct": False}]}]}
+    cq = api(mc, "POST", "/quizzes", data=code_q).json()["id"]
+    ctoken = api(mc, "POST", f"/quizzes/{cq}/share").json()["share_token"]
+    kc, k = new(b)
+    k.goto(f"{BASE}/q/{ctoken}"); k.wait_for_selector(".qr-card .code-block")
+    blk = k.locator(".qr-card .code-block")
+    check("код у питанні — блок на темному тлі", blk.evaluate("e => getComputedStyle(e).backgroundColor") == "rgb(30, 30, 30)")
+    check("переноси коду збережено", blk.inner_text().split("\n") ==["const items = [1, 2, 3];", "console.log(items.length);"], blk.inner_text())
+    check("ключове слово підсвічено як у VS Code", blk.locator(".hl-keyword", has_text="const").evaluate("e => getComputedStyle(e).color") == "rgb(86, 156, 214)")
+    check("виклик функції підсвічено", blk.locator(".hl-function", has_text="log").count() == 1)
+    opt = k.locator(".qr-opt .code-text").first
+    check("у варіанті код без тла", opt.evaluate("e => getComputedStyle(e).backgroundColor") in ("rgba(0, 0, 0, 0)", "transparent"))
+    check("у варіанті число підсвічено", opt.locator(".hl-number").count() == 1)
+    shot(k, "sh4-code")
     b.close()
 
 fails = [n for n, ok in results if not ok]

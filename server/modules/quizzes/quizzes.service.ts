@@ -6,7 +6,6 @@ import multer from 'multer';
 import { type Query, type Row, q, tx } from '../../db.js';
 import { bad, conflict, dateTime, forbidden, id, notFound, nowStr, str } from '../../lib.js';
 import { UPLOAD_DIR, openFile, persistFile, removeFile } from '../../storage.js';
-import { parseTopics, saveTopics, topicsOf } from '../../topics.js';
 import { contentDisposition, imageMime, readHead } from '../../files.js';
 import { HW_FOR } from '../../audience.js';
 import type { User } from '../../common/auth.js';
@@ -35,7 +34,7 @@ function parseQuiz(b: any) {
   if (raw.length > MAX_QUESTIONS) throw bad(`Максимум ${MAX_QUESTIONS} питань`);
   const questions = raw.map((x: any, i: number): Question => {
     const n = `Питання ${i + 1}`;
-    const text = str(x?.text, `${n}: текст`, { max: 500 });
+    const text = str(x?.text, `${n}: текст`, { max: 2000 });
     const image = x?.image ? String(x.image) : null;
     if (image && !IMAGE_NAME.test(image)) throw bad(`${n}: картинку не знайдено`);
     const opts = Array.isArray(x?.options) ? x.options : [];
@@ -140,8 +139,6 @@ const ASSIGN_SELECT = `
     JOIN users u ON u.id = a.student_id
     LEFT JOIN courses c ON c.id = a.course_id`;
 
-const assignTopics = (assignmentId: number) => topicsOf('quiz_assignment_topics', 'assignment_id', assignmentId);
-
 async function loadAssignment(assignmentId: number): Promise<Row> {
   const [a] = await q(`${ASSIGN_SELECT} WHERE a.id=?`, [assignmentId]);
   if (!a) throw notFound('Тест не знайдено');
@@ -199,8 +196,7 @@ async function parseAssignment(b: any) {
     if (!c) throw bad('Курс не знайдено');
   }
   const dueAt = b?.due_at ? dateTime(b.due_at, 'Пройти до') : null;
-  const topics = await parseTopics(b?.topics ?? [], courseId);
-  return { courseId, dueAt, topics };
+  return { courseId, dueAt };
 }
 
 @Injectable()
@@ -265,11 +261,8 @@ export class QuizzesService {
 
   async updateAssignment(aidValue: unknown, body: any) {
     const a = await loadAssignment(id(aidValue));
-    const { courseId, dueAt, topics } = await parseAssignment(body);
-    await tx(async (t) => {
-      await t('UPDATE quiz_assignments SET course_id=?, due_at=? WHERE id=?', [courseId, dueAt, a.id]);
-      await saveTopics(t, 'quiz_assignment_topics', 'assignment_id', a.id, topics);
-    });
+    const { courseId, dueAt } = await parseAssignment(body);
+    await q('UPDATE quiz_assignments SET course_id=?, due_at=? WHERE id=?', [courseId, dueAt, a.id]);
     return { ok: true };
   }
 
@@ -298,7 +291,6 @@ export class QuizzesService {
     const chosen: Pick[] = done ? await q('SELECT question_id, option_id FROM quiz_answers WHERE assignment_id=?', [a.id]) : [];
     return {
       ...a,
-      topics: await assignTopics(a.id),
       questions: questions.map((x) => ({
         ...x,
         chosen: chosen.filter((c) => c.question_id === x.id).map((c) => c.option_id),
@@ -328,17 +320,6 @@ export class QuizzesService {
         ${own ? 'WHERE z.created_by = ?' : ''}
         ORDER BY z.updated_at DESC, z.id DESC`,
       own ? [user.id] : []
-    );
-  }
-
-  /** Тести, які можна поставити на острівець: схвалені й власні вчителя, що ще на модерації. */
-  library(user: User) {
-    return q(
-      `SELECT z.id, z.title, z.status, (SELECT COUNT(*) FROM quiz_questions x WHERE x.quiz_id = z.id) AS questions_count
-         FROM quizzes z
-        WHERE z.status = 'approved' OR (z.status = 'pending' AND z.created_by = ?)
-        ORDER BY z.updated_at DESC, z.id DESC`,
-      [user.id]
     );
   }
 
@@ -386,19 +367,10 @@ export class QuizzesService {
     const quiz = await loadQuiz(id(idValue));
     assertAuthor(user, quiz, { edit: false });
     const assignments: Row[] = user.role === 'manager' ? await q(`${ASSIGN_SELECT} WHERE a.quiz_id=? ORDER BY u.name`, [quiz.id]) : [];
-    const topics: Row[] = assignments.length
-      ? await q(
-          `SELECT t.assignment_id, t.step_id, t.substep_id, s.title AS step_title, x.title AS substep_title
-             FROM quiz_assignment_topics t JOIN roadmap_steps s ON s.id = t.step_id
-             LEFT JOIN roadmap_substeps x ON x.id = t.substep_id
-            WHERE t.assignment_id IN (?) ORDER BY s.position, x.position`,
-          [assignments.map((a) => a.id)]
-        )
-      : [];
     return {
       ...quiz,
       questions: await loadQuestions(quiz.id, { withCorrect: true }),
-      assignments: assignments.map((a) => ({ ...a, topics: topics.filter((t) => t.assignment_id === a.id) })),
+      assignments,
     };
   }
 
@@ -431,17 +403,13 @@ export class QuizzesService {
     if (!student) throw bad('Учня не знайдено');
     const [{ n }] = await q('SELECT COUNT(*) n FROM quiz_questions WHERE quiz_id=?', [quiz.id]);
     if (!n) throw bad('У тесті немає питань');
-    const { courseId, dueAt, topics } = await parseAssignment(body);
+    const { courseId, dueAt } = await parseAssignment(body);
     const [exists] = await q('SELECT 1 FROM quiz_assignments WHERE quiz_id=? AND student_id=?', [quiz.id, studentId]);
     if (exists) throw conflict('Цей тест уже відкрито учневі');
-    const assignmentId = await tx(async (t) => {
-      const r = await t('INSERT INTO quiz_assignments (quiz_id, student_id, course_id, due_at, assigned_by) VALUES (?,?,?,?,?)', [
-        quiz.id, studentId, courseId, dueAt, user.id,
-      ]);
-      await saveTopics(t, 'quiz_assignment_topics', 'assignment_id', r.insertId, topics);
-      return r.insertId as number;
-    });
-    return { id: assignmentId };
+    const r = await q('INSERT INTO quiz_assignments (quiz_id, student_id, course_id, due_at, assigned_by) VALUES (?,?,?,?,?)', [
+      quiz.id, studentId, courseId, dueAt, user.id,
+    ]);
+    return { id: r.insertId };
   }
 }
 

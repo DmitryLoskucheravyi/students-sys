@@ -2,16 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth, useIsMobile } from '../session.jsx';
-import { Button, Checkbox, Collapse, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Segmented, Select, Status, Textarea, useAction, useUI } from '../ui.jsx';
-import { IconCopy, IconDown, IconEdit, IconHomework, IconLeft, IconPeople, IconPlus, IconQuiz, IconRight, IconRoadmap, IconSpark, IconTick, IconTrash, IconUp } from '../icons.jsx';
+import { Button, Checkbox, Collapse, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Select, Status, useAction, useUI } from '../ui.jsx';
+import { IconDown, IconEdit, IconHomework, IconLeft, IconPeople, IconPlus, IconRoadmap, IconSpark, IconTick, IconTrash, IconUp } from '../icons.jsx';
 import { dateTimeShort, nowLocal, plural } from '../fmt.js';
 import { CourseForm } from './Courses.jsx';
 import { HW_STATUS } from './Homework.jsx';
 import RoadmapAi from './RoadmapAi.jsx';
 import { CourseIcon, themeClass } from '../courseLook.jsx';
 import { Avatar, Who } from '../avatars.jsx';
-import { ISLAND_DESIGNS } from '../islandDesigns.js';
-import { QUIZ_PROMPT, parseQuizAnswer } from '../quizImport.js';
 
 /** Частка пройденого етапу: підпункти рахуються по одному, етап без підпунктів — цілим. */
 const stepShare = (s, doneIds, doneSubs) => {
@@ -55,40 +53,6 @@ function ProgressCard({ steps, doneIds, doneSubs, homework, viewerId, isStudent 
         </ul>
       )}
     </section>
-  );
-}
-
-/** Тести під етапом: непройдений кличе «Пройти тест», пройдений показує бал. */
-function StepQuizzes({ items, step, links }) {
-  if (!items.length) return null;
-  return (
-    <ul className="road-hw" aria-label={`Тести етапу «${step.title}»`}>
-      {items.map((z) => {
-        const subTitles = z.topics
-          .filter((t) => t.step_id === step.id && t.substep_id)
-          .map((t) => step.substeps.find((x) => x.id === t.substep_id)?.title)
-          .filter(Boolean);
-        const body = (
-          <>
-            <IconQuiz size={16} />
-            <span className="road-hw-title">
-              {z.title}
-              {subTitles.length > 0 && <small className="muted"> · {subTitles.join(', ')}</small>}
-            </span>
-            {z.submitted_at
-              ? <Status kind={z.score / z.max_score >= 0.5 ? 'completed' : 'cancelled'}>{z.score} з {z.max_score}</Status>
-              : <span className="road-quiz-go">{links ? 'Пройти тест' : 'Не пройдено'}{links && <IconRight size={16} />}</span>}
-          </>
-        );
-        return (
-          <li key={z.id}>
-            {links
-              ? <Link to={`/tests/${z.id}`} className={`road-hw-item is-quiz ${z.submitted_at ? '' : 'is-open'}`}>{body}</Link>
-              : <div className={`road-hw-item is-quiz ${z.submitted_at ? '' : 'is-open'}`}>{body}</div>}
-          </li>
-        );
-      })}
-    </ul>
   );
 }
 
@@ -177,134 +141,8 @@ const wave = (x0, y0, x1, y1) => {
   return `M${x0} ${y0} C${x0} ${y0 + mid}, ${x1} ${y1 - mid}, ${x1} ${y1}`;
 };
 
-/** Живий 3D-острівець. three.js вантажиться лише тоді, коли на сторінці є острівець. */
-function Island3D({ design, number, className = '' }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    let off = null;
-    let gone = false;
-    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    import('../island3d.js')
-      .then(({ mountIsland }) => { if (!gone && ref.current) off = mountIsland(ref.current, { design, number, still }); })
-      .catch(() => ref.current?.classList.add('is-flat'));
-    return () => { gone = true; off?.(); };
-  }, [design, number]);
-  return <div ref={ref} className={`island3d ${className}`} data-design={design} aria-hidden="true"><span className="island-fallback">{number}</span></div>;
-}
-
-/** Острівець на місці номера етапу: учень відкриває тест, співробітник бачить стан модерації. */
-function IslandSpot({ island, number, result, onOpen, staff }) {
-  const pending = island.quiz_status !== 'approved';
-  const state = pending ? (island.quiz_status === 'rejected' ? 'Відхилено' : 'На модерації')
-    : result?.submitted_at ? `${result.score} з ${result.max_score}` : staff ? `${island.questions_count} питань` : 'Пройти тест';
-  const tone = pending ? 'is-wait' : result?.submitted_at ? (result.score / result.max_score >= 0.5 ? 'is-good' : 'is-low') : 'is-open';
-  return (
-    <div className="road-island" data-step={island.step_id}>
-      <button type="button" className="island-hit" onClick={onOpen} aria-label={`Острівець ${number}: тест «${island.quiz_title}», ${state}`}>
-        <Island3D design={island.design} number={number} />
-        <span className="island-label">
-          <IconQuiz size={15} />
-          <span className="island-title">{island.quiz_title}</span>
-          <span className={`island-state ${tone}`}>{state}</span>
-        </span>
-      </button>
-    </div>
-  );
-}
-
-/** Тема етапу текстом: назва, опис і підтеми. Її копіюють у чат зі ШІ разом із промптом. */
-const topicText = (step, n) => [
-  `Етап ${n}. ${step.title}`,
-  step.description,
-  step.substeps.length ? `Підтеми:\n${step.substeps.map((x) => `- ${x.title}`).join('\n')}` : null,
-].filter(Boolean).join('\n');
-
-/** Налаштування острівця: тест (новий із відповіді ШІ або з бібліотеки) і дизайн. */
-function IslandForm({ course, step, island, isManager, sourceText, onClose, onDone }) {
-  const library = useData('/quizzes/library');
-  const [mode, setMode] = useState(island ? 'library' : 'new');
-  const [quizId, setQuizId] = useState(island?.quiz_id ?? null);
-  const [text, setText] = useState('');
-  const [design, setDesign] = useState(island?.design ?? 'terminal');
-  const [run, busy] = useAction();
-  const { confirm } = useUI();
-  const parsed = text.trim() ? parseQuizAnswer(text) : null;
-  const found = parsed?.questions.length ?? 0;
-  const unmarked = parsed?.questions.some((x) => !x.options.some((o) => o.correct));
-  const ready = mode === 'new' ? found > 0 && !unmarked : Boolean(quizId);
-
-  const save = async (e) => {
-    e.preventDefault();
-    const ok = await run(async () => {
-      let qid = quizId;
-      if (mode === 'new') {
-        const r = await api('/quizzes', { method: 'POST', body: { title: parsed.title || `Тест: ${step.title}`, description: '', questions: parsed.questions } });
-        qid = r.id;
-      }
-      return api(`/courses/${course.id}/islands/${step.id}`, { method: 'PUT', body: { quiz_id: qid, design } });
-    }, isManager || mode === 'library' ? 'Острівець збережено' : 'Тест надіслано на модерацію');
-    if (ok) onDone();
-  };
-  const remove = async () => {
-    const yes = await confirm({ title: 'Прибрати острівець?', text: 'Тест лишиться в списку тестів, а на роадмапі знову буде номер етапу.', action: 'Прибрати', danger: true });
-    if (yes && (await run(() => api(`/courses/${course.id}/islands/${step.id}`, { method: 'DELETE' }), 'Острівець прибрано'))) onDone();
-  };
-
-  return (
-    <Modal title={island ? 'Острівець тестування' : 'Тестування на острівець'} onClose={onClose}>
-      <form className="form isle-form" onSubmit={save}>
-        <p className="muted small">Етап «{step.title}». Острівець стане на місце номера етапу.</p>
-        <Segmented value={mode} onChange={setMode} options={[{ value: 'new', label: 'Новий тест' }, { value: 'library', label: 'З тестів' }]} />
-        {mode === 'new' ? (
-          <>
-            <p className="small muted">
-              Скопіюйте промпт із темою попереднього етапу, надішліть у будь-який ШІ й вставте відповідь сюди.
-            </p>
-            <div className="isle-copy">
-              <button type="button" className="link-btn" onClick={() => sourceText('prompt')}><IconCopy size={14} /> Скопіювати промпт</button>
-              <button type="button" className="link-btn" onClick={() => sourceText('topic')}><IconCopy size={14} /> Скопіювати тему</button>
-            </div>
-            <Textarea label="Відповідь ШІ" rows={7} maxLength={60000} value={text} onChange={(e) => setText(e.target.value)}
-              placeholder={'Назва: …\n\n? Питання\n+ правильний варіант\n- неправильний варіант'} />
-            {parsed && (
-              <p className={`small ${found && !unmarked ? '' : 'text-red'}`} role="status">
-                {!found ? 'Не знайдено жодного питання. Перевірте формат відповіді.'
-                  : unmarked ? 'У деяких питаннях немає позначок «+» і «−». Скопіюйте відповідь кнопкою над блоком коду.'
-                  : <>Знайдено {found} {plural(found, 'питання', 'питання', 'питань')}{parsed.title && <> · «{parsed.title}»</>}</>}
-              </p>
-            )}
-            {!isManager && <p className="note small">Тест вчителя спершу перевіряє менеджер. Учні побачать острівець після схвалення.</p>}
-            {isManager && <p className="muted small">Тест також з’явиться в загальному списку тестів.</p>}
-          </>
-        ) : (
-          <Select label="Тест" value={quizId} onChange={setQuizId} placeholder={library.data?.length ? 'Оберіть тест' : 'Тестів ще немає'}
-            options={(library.data ?? []).map((z) => ({ value: z.id, label: z.title, hint: `${z.questions_count} питань${z.status === 'pending' ? ' · на модерації' : ''}` }))} />
-        )}
-        <fieldset className="isle-designs">
-          <legend>Дизайн острівця</legend>
-          <div role="radiogroup" aria-label="Дизайн острівця">
-            {ISLAND_DESIGNS.map((d) => (
-              <button key={d.id} type="button" role="radio" aria-checked={design === d.id} className={`isle-design ${design === d.id ? 'is-on' : ''}`}
-                onClick={() => setDesign(d.id)}>
-                <Island3D design={d.id} number="01" className="is-mini" />
-                <strong>{d.label}</strong>
-                <small>{d.hint}</small>
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <div className="form-actions">
-          {island && <Button variant="ghost" icon={<IconTrash size={18} />} onClick={remove}>Прибрати</Button>}
-          <Button variant="ghost" onClick={onClose}>Назад</Button>
-          <Button type="submit" busy={busy} disabled={!ready}>{island ? 'Зберегти' : 'Поставити острівець'}</Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
 /** Звивиста дорога. Висота рядків залежить від підпунктів, тому точки вимірюємо з DOM. */
-function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, onToggleSub, homework = [], quizzes = [], quizLinks = false, viewerId = null, islands = [], isle = null }) {
+function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, onToggleSub, homework = [], viewerId = null }) {
   const mobile = useIsMobile();
   const geo = mobile ? ROAD.mobile : ROAD.wide;
   const rootRef = useRef(null);
@@ -409,12 +247,7 @@ function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, onToggle
               ) : (
                 <span className={cls} style={{ left }} role="img" aria-label={label}>{inner}</span>
               )}
-              {(() => {
-                const island = islands.find((x) => x.step_id === s.id);
-                if (!island || !isle) return <span className="road-num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>;
-                return <IslandSpot island={island} number={String(i + 1).padStart(2, '0')} result={quizzes.find((z) => z.quiz_id === island.quiz_id && z.student_id === viewerId)}
-                  onOpen={() => isle.open(s, island)} staff={isle.staff} />;
-              })()}
+              <span className="road-num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
               <div className="road-text">
                 <div className="road-eyebrow">
                   <span className="road-state">{state}</span>
@@ -422,20 +255,8 @@ function RoadmapPath({ steps, doneIds, doneSubs, canMark, onToggleStep, onToggle
                 </div>
                 <h3>{s.title}</h3>
                 {s.description && <p className="road-desc">{s.description}</p>}
-                {isle?.canEdit && (
-                  <div className="isle-tools">
-                    <Button small variant={islands.some((x) => x.step_id === s.id) ? 'ghost' : 'primary'} icon={<IconQuiz size={16} />} onClick={() => isle.edit(s, i)}>
-                      {islands.some((x) => x.step_id === s.id) ? 'Змінити острівець' : 'Додати тестування на острівець'}
-                    </Button>
-                    <div className="isle-copy">
-                      <button type="button" className="link-btn" onClick={() => isle.copy('topic', i)}><IconCopy size={14} /> Скопіювати тему</button>
-                      <button type="button" className="link-btn" onClick={() => isle.copy('prompt', i)}><IconCopy size={14} /> Скопіювати промпт</button>
-                    </div>
-                  </div>
-                )}
                 {total > 0 && <span className="road-meter" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>}
                 <StepHomework step={s} viewerId={viewerId} items={homework.filter((h) => h.topics.some((t) => t.step_id === s.id))} />
-                <StepQuizzes step={s} links={quizLinks} items={quizzes.filter((z) => z.topics.some((t) => t.step_id === s.id))} />
                 {total > 0 && (
                   <>
                     <SubToggle open={open} done={subsDone} total={total} label={`${subsDone} із ${total}`}
@@ -486,9 +307,8 @@ export default function CourseDetail() {
   const [editCourse, setEditCourse] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
-  const [isleEdit, setIsleEdit] = useState(null);
   const [run] = useAction();
-  const { confirm, toast } = useUI();
+  const { confirm } = useUI();
 
   const isStudent = user.role === 'student';
   const isManager = user.role === 'manager';
@@ -516,35 +336,6 @@ export default function CourseDetail() {
   const toggleSub = async (sub, done) => {
     if (await run(() => api(`/courses/${id}/substep-progress`, { method: 'PUT', body: { student_id: studentId, substep_id: sub.id, done } }))) reload();
   };
-  // Острівець тестує попередній етап: його тему й копіюємо. Для першого етапу — його самого.
-  const copyFor = async (kind, i) => {
-    const k = i > 0 ? i - 1 : 0;
-    const topic = topicText(course.steps[k], k + 1);
-    const text = kind === 'prompt' ? `${QUIZ_PROMPT}${topic}\n` : topic;
-    try {
-      await navigator.clipboard.writeText(text);
-      toast(kind === 'prompt' ? 'Промпт із темою скопійовано' : `Тему етапу ${k + 1} скопійовано`);
-    } catch {
-      toast('Не вдалося скопіювати. Дозвольте доступ до буфера обміну', 'error');
-    }
-  };
-  const isle = {
-    canEdit: course.can_edit,
-    staff: !isStudent,
-    copy: copyFor,
-    edit: (step, i) => setIsleEdit({ step, i, island: course.islands.find((x) => x.step_id === step.id) ?? null }),
-    open: async (step, island) => {
-      if (isStudent) {
-        const r = await run(() => api(`/courses/${id}/islands/${step.id}/start`, { method: 'POST' }));
-        if (r) navigate(`/tests/${r.id}`);
-      } else if (course.can_edit) {
-        setIsleEdit({ step, i: course.steps.indexOf(step), island });
-      } else if (isManager) {
-        navigate(`/quizzes/${island.quiz_id}`);
-      }
-    },
-  };
-
   const removeCourse = async () => {
     const yes = await confirm({ title: `Видалити курс «${course.title}»?`, text: 'Роадмап і прогрес учнів зникнуть.', action: 'Видалити', danger: true });
     if (yes && (await run(() => api(`/courses/${id}`, { method: 'DELETE' }), 'Курс видалено'))) navigate('/courses');
@@ -591,16 +382,12 @@ export default function CourseDetail() {
           ) : (
             <RoadmapPath key={viewerId ?? 'none'} steps={course.steps} doneIds={doneIds} doneSubs={doneSubs} canMark={course.can_edit && Boolean(studentId)}
               onToggleStep={toggleStep} onToggleSub={toggleSub} viewerId={viewerId}
-              homework={viewerId ? course.homework.filter((h) => h.student_ids.includes(viewerId)) : course.homework}
-              quizzes={course.quizzes.filter((z) => z.student_id === viewerId)} quizLinks={isStudent || isManager}
-              islands={course.islands} isle={isle} />
+              homework={viewerId ? course.homework.filter((h) => h.student_ids.includes(viewerId)) : course.homework} />
           )}
         </>
       )}
       {editCourse && <CourseForm course={course} onClose={() => setEditCourse(false)} onDone={() => { setEditCourse(false); reload(); }} />}
       {aiOpen && <RoadmapAi course={course} onClose={() => setAiOpen(false)} onDone={() => { setAiOpen(false); setMode('view'); reload(); }} />}
-      {isleEdit && <IslandForm course={course} step={isleEdit.step} island={isleEdit.island} isManager={isManager}
-        sourceText={(kind) => copyFor(kind, isleEdit.i)} onClose={() => setIsleEdit(null)} onDone={() => { setIsleEdit(null); reload(); }} />}
       {peopleOpen && <CourseStudents course={course} onClose={() => setPeopleOpen(false)} onChange={reload} />}
     </div>
   );

@@ -3,7 +3,6 @@ import { type Query, type Row, q, tx } from '../../db.js';
 import { draftRoadmap, normalizeSteps } from '../../ai.js';
 import { bad, conflict, forbidden, id, idList, notFound, str } from '../../lib.js';
 import { HW_FOR, HW_STAFF, sqlInt } from '../../audience.js';
-import { saveTopics } from '../../topics.js';
 import type { User } from '../../common/auth.js';
 
 /*
@@ -18,9 +17,6 @@ const STUDIED = (c: string) => `(EXISTS (SELECT 1 FROM lessons l JOIN lesson_sch
                           JOIN schedule_students ss ON ss.schedule_id = sc.id
                          WHERE l.course_id = ${c} AND ss.student_id = ?)
                      OR EXISTS (SELECT 1 FROM course_students cs WHERE cs.course_id = ${c} AND cs.student_id = ?))`;
-
-/** Дизайни острівця. Має збігатися з ISLAND_DESIGNS у client/src/island3d.js. */
-export const ISLAND_DESIGNS = ['terminal', 'server', 'rocket', 'code', 'git'];
 
 /** Вчитель редагує роадмап лише курсів, які сам веде. */
 async function canEdit(user: User, courseId: number): Promise<boolean> {
@@ -69,31 +65,6 @@ async function courseStudents(user: User, courseId: number): Promise<CourseStude
     byId.set(s.id, { ...row, direct: true, teacher_id: s.teacher_id, teacher_name: s.teacher_name, added_at: s.added_at });
   }
   return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'uk'));
-}
-
-/** Тести, відкриті учням курсу й прив'язані до його тем. Кожен запис належить одному учневі. */
-async function courseQuizzes(courseId: number, studentIds: number[]) {
-  if (!studentIds.length) return [];
-  const rows: Row[] = await q(
-    `SELECT a.id, a.quiz_id, a.student_id, a.due_at, a.submitted_at, a.score, a.max_score, z.title, t.step_id, t.substep_id
-       FROM quiz_assignment_topics t
-       JOIN quiz_assignments a ON a.id = t.assignment_id
-       JOIN quizzes z ON z.id = a.quiz_id
-       JOIN roadmap_steps s ON s.id = t.step_id
-      WHERE s.course_id = ? AND a.student_id IN (?)
-      ORDER BY a.created_at, a.id, t.id`,
-    [courseId, studentIds]
-  );
-  const list = new Map<number, Row>();
-  for (const r of rows) {
-    const item = list.get(r.id) ?? {
-      id: r.id, quiz_id: r.quiz_id, student_id: r.student_id, title: r.title, due_at: r.due_at,
-      submitted_at: r.submitted_at, score: r.score, max_score: r.max_score, topics: [],
-    };
-    item.topics.push({ step_id: r.step_id, substep_id: r.substep_id });
-    list.set(r.id, item);
-  }
-  return [...list.values()];
 }
 
 /**
@@ -262,7 +233,6 @@ export class CoursesService {
     const students = isStudent ? [] : await courseStudents(user, courseId);
     const ids = isStudent ? [user.id] : students.map((s) => s.id);
     const homework = await courseHomework(user, courseId, ids);
-    const quizzes = await courseQuizzes(courseId, ids);
     const progress = ids.length && steps.length
       ? await q(
           `SELECT p.student_id, p.step_id, p.done_at FROM roadmap_progress p
@@ -279,87 +249,15 @@ export class CoursesService {
           [ids, substeps.map((s) => s.id)]
         )
       : [];
-    // Учень бачить лише острівці зі схваленими тестами.
-    const islands: Row[] = await q(
-      `SELECT i.step_id, i.design, i.quiz_id, z.title AS quiz_title, z.status AS quiz_status,
-              (SELECT COUNT(*) FROM quiz_questions x WHERE x.quiz_id = z.id) AS questions_count
-         FROM course_islands i JOIN roadmap_steps s ON s.id = i.step_id JOIN quizzes z ON z.id = i.quiz_id
-        WHERE s.course_id = ? ${isStudent ? "AND z.status = 'approved'" : ''}`,
-      [courseId]
-    );
     return {
       ...course,
-      islands,
       steps: steps.map((s) => ({ ...s, substeps: substeps.filter((x) => x.step_id === s.id) })),
       students,
       progress,
       sub_progress: subProgress,
       homework,
-      quizzes,
       can_edit: await canEdit(user, courseId),
     };
-  }
-
-  /* Острівці: тестування на місці номера етапу */
-  private async stepOf(courseId: number, stepValue: unknown): Promise<Row> {
-    const [step] = await q('SELECT * FROM roadmap_steps WHERE id=? AND course_id=?', [id(stepValue, 'Етап'), courseId]);
-    if (!step) throw notFound('Етап не знайдено');
-    return step;
-  }
-
-  async setIsland(user: User, idValue: unknown, stepValue: unknown, body: any) {
-    const courseId = id(idValue);
-    await assertEdit(user, courseId);
-    const step = await this.stepOf(courseId, stepValue);
-    const design = String(body?.design ?? 'terminal');
-    if (!ISLAND_DESIGNS.includes(design)) throw bad('Невідомий дизайн острівця');
-    const quizId = id(body?.quiz_id, 'Тест');
-    const [quiz] = await q('SELECT id, status, created_by FROM quizzes WHERE id=?', [quizId]);
-    // Вчитель ставить схвалений тест або власний, що ще на модерації.
-    if (!quiz || (user.role !== 'manager' && quiz.status !== 'approved' && quiz.created_by !== user.id)) throw bad('Тест не знайдено');
-    if (quiz.status === 'rejected') throw bad('Тест відхилено на модерації. Виправте його й надішліть знову.');
-    await q(
-      `INSERT INTO course_islands (step_id, quiz_id, design, created_by) VALUES (?,?,?,?)
-       ON DUPLICATE KEY UPDATE quiz_id=VALUES(quiz_id), design=VALUES(design)`,
-      [step.id, quizId, design, user.id]
-    );
-    return { ok: true };
-  }
-
-  async removeIsland(user: User, idValue: unknown, stepValue: unknown) {
-    const courseId = id(idValue);
-    await assertEdit(user, courseId);
-    const step = await this.stepOf(courseId, stepValue);
-    const r = await q('DELETE FROM course_islands WHERE step_id=?', [step.id]);
-    if (!r.affectedRows) throw notFound('Острівця немає');
-    return { ok: true };
-  }
-
-  /**
-   * Учень натискає острівець: тест відкривається йому з цього курсу, якщо ще не відкритий.
-   * Тема тесту — попередній етап: острівець перевіряє пройдене перед ним.
-   */
-  async startIsland(user: User, idValue: unknown, stepValue: unknown) {
-    const courseId = id(idValue);
-    if (!(await canView(user, courseId))) throw forbidden();
-    const step = await this.stepOf(courseId, stepValue);
-    const [island] = await q(
-      `SELECT i.quiz_id FROM course_islands i JOIN quizzes z ON z.id = i.quiz_id WHERE i.step_id=? AND z.status='approved'`,
-      [step.id]
-    );
-    if (!island) throw notFound('Тестування ще не готове');
-    const [have] = await q('SELECT id FROM quiz_assignments WHERE quiz_id=? AND student_id=?', [island.quiz_id, user.id]);
-    if (have) return { id: have.id };
-    const [prev] = await q(
-      'SELECT id FROM roadmap_steps WHERE course_id=? AND (position < ? OR (position = ? AND id < ?)) ORDER BY position DESC, id DESC LIMIT 1',
-      [courseId, step.position, step.position, step.id]
-    );
-    const aid = await tx(async (t) => {
-      const r = await t('INSERT INTO quiz_assignments (quiz_id, student_id, course_id, assigned_by) VALUES (?,?,?,NULL)', [island.quiz_id, user.id, courseId]);
-      await saveTopics(t, 'quiz_assignment_topics', 'assignment_id', r.insertId, [{ step_id: prev?.id ?? step.id, substep_id: null }]);
-      return r.insertId as number;
-    });
-    return { id: aid };
   }
 
   /* Учні курсу напряму: додає й прибирає менеджер */

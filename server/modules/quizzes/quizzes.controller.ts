@@ -16,12 +16,6 @@ export class QuizzesController {
     return this.quizzes.my(user);
   }
 
-  @Get('library')
-  @Roles('manager', 'teacher')
-  library(@CurrentUser() user: User) {
-    return this.quizzes.library(user);
-  }
-
   @Post('images')
   @HttpCode(201)
   @Roles('manager', 'teacher')

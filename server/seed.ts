@@ -143,10 +143,9 @@ const question = async (position: number, text: string, options: [string, boolea
 await question(1, 'Що повертає компонент React?', [['Розмітку JSX', true], ['CSS-файл', false], ['SQL-запит', false]]);
 await question(2, 'Які хуки керують станом?', [['useState', true], ['useReducer', true], ['useEffect', false], ['useRef', false]]);
 await question(3, 'Як передати дані в дочірній компонент?', [['Через пропси', true], ['Через localStorage', false], ['Через CSS', false]]);
-const assignment = (await q('INSERT INTO quiz_assignments (quiz_id, student_id, course_id, due_at) VALUES (?,?,?,?)', [
+await q('INSERT INTO quiz_assignments (quiz_id, student_id, course_id, due_at) VALUES (?,?,?,?)', [
   quiz, student, web, `${addDays(d, 5)} 20:00:00`,
-])).insertId;
-await q('INSERT INTO quiz_assignment_topics (assignment_id, step_id) VALUES (?,?)', [assignment, webSteps[4].id]);
+]);
 
 console.log(`Готово. Входи:
   менеджер  manager / manager123

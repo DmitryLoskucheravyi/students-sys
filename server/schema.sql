@@ -365,7 +365,7 @@ CREATE TABLE IF NOT EXISTS quiz_questions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   quiz_id INT NOT NULL,
   position INT NOT NULL DEFAULT 0,
-  text VARCHAR(500) NOT NULL,
+  text VARCHAR(2000) NOT NULL,  -- з кодом у ^^…^^
   image VARCHAR(80) NULL,
   FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
   FOREIGN KEY (image) REFERENCES quiz_images(stored_name) ON DELETE SET NULL,
@@ -402,17 +402,6 @@ CREATE TABLE IF NOT EXISTS quiz_assignments (
   INDEX idx_quiz_assign_student (student_id, submitted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS quiz_assignment_topics (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  assignment_id INT NOT NULL,
-  step_id INT NOT NULL,
-  substep_id INT NULL,
-  FOREIGN KEY (assignment_id) REFERENCES quiz_assignments(id) ON DELETE CASCADE,
-  FOREIGN KEY (step_id) REFERENCES roadmap_steps(id) ON DELETE CASCADE,
-  FOREIGN KEY (substep_id) REFERENCES roadmap_substeps(id) ON DELETE CASCADE,
-  INDEX idx_quiz_topics_step (step_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- Обрані учнем варіанти. Бал рахується при здачі й зберігається в призначенні.
 CREATE TABLE IF NOT EXISTS quiz_answers (
   assignment_id INT NOT NULL,
@@ -422,15 +411,4 @@ CREATE TABLE IF NOT EXISTS quiz_answers (
   FOREIGN KEY (assignment_id) REFERENCES quiz_assignments(id) ON DELETE CASCADE,
   FOREIGN KEY (question_id) REFERENCES quiz_questions(id) ON DELETE CASCADE,
   FOREIGN KEY (option_id) REFERENCES quiz_options(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
--- Острівець на роадмапі: тестування на місці номера етапу. Учень відкриває тест сам, натиснувши острівець.
-CREATE TABLE IF NOT EXISTS course_islands (
-  step_id INT PRIMARY KEY,
-  quiz_id INT NOT NULL,
-  design VARCHAR(20) NOT NULL DEFAULT 'terminal',
-  created_by INT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (step_id) REFERENCES roadmap_steps(id) ON DELETE CASCADE,
-  FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

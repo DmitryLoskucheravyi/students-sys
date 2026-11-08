@@ -1,19 +1,10 @@
 /*
  * Легкі звуки тесту, синтезовані WebAudio: без файлів і без мережі.
- * Вимикаються кнопкою; вибір пам'ятає браузер. Контекст створюється після першого дотику (вимога браузерів).
+ * Контекст створюється після першого дотику (вимога браузерів).
  */
-const KEY = 'bs-sound';
 let ctx = null;
 
-export function soundOn() {
-  try { return localStorage.getItem(KEY) !== 'off'; } catch { return true; }
-}
-export function setSound(on) {
-  try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch { /* без сховища звук просто не запам'ятається */ }
-}
-
 function audio() {
-  if (!soundOn()) return null;
   try {
     ctx ??= new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === 'suspended') ctx.resume();

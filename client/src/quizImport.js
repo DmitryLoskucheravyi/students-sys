@@ -24,12 +24,23 @@ export const QUIZ_PROMPT = `Склади тест для перевірки зн
 + ще один правильний варіант
 - неправильний варіант
 
+? Що виведе цей код?
+^^
+const items = [1, 2, 3];
+console.log(items.length);
+^^
++ ^^3^^
+- ^^undefined^^
+- ^^2^^
+
 Правила формату:
 - Перший рядок «Назва: ...».
 - Кожне питання з нового рядка, починається з «? ».
 - Кожен варіант з нового рядка: «+ » для правильного, «- » для неправильного.
 - У кожному питанні від 3 до 6 варіантів. Правильних один або кілька.
-- Питання до 500 символів, варіант до 200 символів.
+- Код (і в питанні, і у варіанті) обгортай у ^^ з обох боків: ^^console.log(1)^^.
+- Багаторядковий код у питанні: окремий рядок ^^, далі код зі збереженими відступами, потім окремий рядок ^^.
+- Питання до 2000 символів разом із кодом, варіант до 200 символів.
 - Не більше ${MAX_QUESTIONS} питань. Між питаннями порожній рядок.
 - Не нумеруй питання й варіанти, не додавай емодзі.
 - Неправильні варіанти мають бути правдоподібними.
@@ -38,6 +49,12 @@ export const QUIZ_PROMPT = `Склади тест для перевірки зн
 `;
 
 const clean = (v, max) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max).trim() : '');
+/** Як clean, але код у ^^…^^ лишається з переносами й відступами. */
+const cleanRich = (v, max) => (typeof v === 'string'
+  ? v.split(/(\^\^[\s\S]*?\^\^)/).map((part) => (part.startsWith('^^') ? part : part.replace(/\s+/g, ' '))).join('').trim().slice(0, max).trim()
+  : '');
+/** Чи відкритий у тексті блок коду ^^ без закривальної пари. */
+const openCode = (t) => (t.match(/\^\^/g)?.length ?? 0) % 2 === 1;
 /** Зняти markdown-обгортки: **жирний**, `код` по краях, нумерацію «1.» чи «а)». */
 const unwrap = (s) => s.replace(/^\*\*(.*)\*\*$/, '$1').replace(/^__(.*)__$/, '$1').trim();
 
@@ -70,6 +87,11 @@ function fromLines(text) {
   const raw = [];
   let cur = null;
   for (const line of text.split(/\r?\n/)) {
+    // Усередині блоку коду рядки йдуть у питання як є: з відступами, без розбору на варіанти.
+    if (cur && !cur.options.length && openCode(cur.text)) {
+      cur.text += `\n${line.replace(/\s+$/, '')}`;
+      continue;
+    }
     const s = unwrap(line.trim());
     if (/^```/.test(s) || /^(?:-{3,}|\*{3,})$/.test(s)) continue;
     if (!s) { if (cur) cur.closed = true; continue; }
@@ -85,6 +107,11 @@ function fromLines(text) {
       continue;
     }
     if (!cur) continue;
+    // Початок блоку коду до першого варіанта — це частина питання, навіть після знака питання.
+    if (!cur.options.length && s.startsWith('^^')) {
+      cur.text += `\n${line.trim()}`;
+      continue;
+    }
     // Рядок без позначки. Чат показує «+ » і «- » як маркований список, і під час копіювання позначки зникають.
     // Тоді варіант — це рядок після порожнього рядка, після знака питання в кінці питання або після іншого варіанта.
     if (cur.options.length || cur.closed || /[?:]\s*$/.test(cur.text)) {
@@ -92,7 +119,7 @@ function fromLines(text) {
       continue;
     }
     // Інакше це продовження тексту питання.
-    cur.text += ` ${s}`;
+    cur.text += openCode(`${cur.text} ${s}`) || s.startsWith('^^') ? `\n${s}` : ` ${s}`;
   }
   return { title: clean(title, 160), raw };
 }
@@ -110,10 +137,10 @@ export function parseQuizAnswer(text) {
   let unmarked = 0;
   parsed.raw.forEach((q, i) => {
     const n = i + 1;
-    const qtext = clean(q.text, 500);
+    const qtext = cleanRich(q.text, 2000);
     const seen = new Set();
     const options = q.options.flatMap((o) => {
-      const t = clean(o.text, 200);
+      const t = cleanRich(o.text, 200);
       if (!t || seen.has(t.toLowerCase())) return [];
       seen.add(t.toLowerCase());
       return [{ text: t, correct: Boolean(o.correct) }];

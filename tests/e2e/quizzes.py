@@ -135,23 +135,21 @@ with sync_playwright() as pw:
     tk, tkp = new(b); login(tkp, "teacher", "teacher123")
     check("вчитель бачить лише власні тести, не чужі картинки", api(tk, "GET", "/quizzes").json() == [] and api(tk, "GET", f"/quizzes/images/{img}").status == 404)
 
-    # 4. Відкриття учневі з курсом і темою
+    # 4. Відкриття учневі з курсом
     bc, bp = new(b); login(bp, "boiko", "student123")
     check("до відкриття учень не бачить картинку", api(bc, "GET", f"/quizzes/images/{img}").status == 404)
     m.get_by_role("button", name="Відкрити учневі").click(); sheet = m.locator(".modal")
     sheet.get_by_label("Учень").click(); m.get_by_role("option", name="Дарина Бойко").click()
     sheet.get_by_label("Курс").click(); m.get_by_role("option", name="Веброзробка").click()
-    expect(sheet.locator(".topics")).to_be_visible()
-    sheet.locator(".topic", has_text="JavaScript").locator(".topic-head .check").click()
+    check("тему роадмапу обрати не можна", sheet.locator(".topics").count() == 0)
     shot(m, "q2-assign")
     sheet.get_by_role("button", name="Відкрити тест").click(); toast(m, "Тест відкрито учневі")
     row = m.locator(".quiz-assign", has_text="Дарина Бойко")
-    expect(row).to_contain_text("Треба пройти"); expect(row.locator(".topic-chips")).to_contain_text("JavaScript")
-    check("учень у списку тесту з темою", True)
+    expect(row).to_contain_text("Треба пройти"); check("учень у списку тесту", True)
     check("двічі тому самому учневі не відкрити", api(mc, "POST", f"/quizzes/{quiz_id}/assignments", data={"student_id": users["boiko"]}).status == 409)
     aid = next(a["id"] for a in api(mc, "GET", f"/quizzes/{quiz_id}").json()["assignments"] if a["student_id"] == users["boiko"])
 
-    # 5. Учень: сповіщення, роадмап, проходження
+    # 5. Учень: сповіщення, проходження
     bp.reload(); bp.wait_for_load_state("networkidle")
     expect(bp.locator(".rail-nav a", has_text="Завдання").locator(".nav-badge")).to_have_text("1"); check("кружечок сповіщення на «Завдання»", True)
     shot(bp, "q3-badge")
@@ -160,10 +158,8 @@ with sync_playwright() as pw:
     other, otherp = new(b); login(otherp, "tkachenko", "student123")
     check("чужий учень не відкриє тест", api(other, "GET", f"/quizzes/assignments/{aid}").status == 403)
     bp.goto(f"{BASE}/courses/{web['id']}"); bp.wait_for_selector(".road-row")
-    go = bp.locator(".road-row").nth(2).locator(".road-hw-item.is-quiz", has_text="JS: типи даних")
-    expect(go).to_contain_text("Пройти тест"); check("на роадмапі в темі світиться «Пройти тест»", True)
-    shot(bp, "q4-road-quiz")
-    go.click(); bp.wait_for_url(f"**/tests/{aid}"); bp.wait_for_selector(".q-img"); bp.wait_for_function("document.querySelector('.q-img').complete")
+    check("тестів на роадмапі немає", bp.locator(".road-hw-item.is-quiz, .road-island").count() == 0)
+    bp.goto(f"{BASE}/homework"); bp.locator(".quiz-row", has_text="JS: типи даних").click(); bp.wait_for_url(f"**/tests/{aid}"); bp.wait_for_selector(".q-img"); bp.wait_for_function("document.querySelector('.q-img').complete")
     check("картинка показується учневі", bp.evaluate("document.querySelector('.q-img').naturalWidth") > 0)
     # Одне питання на екрані: одиночний вибір сам іде далі, «Назад» повертає, «Пропустити» для порожнього
     cur = lambda: bp.locator(".qr-count b").inner_text()
@@ -182,7 +178,7 @@ with sync_playwright() as pw:
     check("кілька відповідей: без автопереходу", cur() == "2")
     bp.get_by_role("button", name="Далі").click()
     bp.get_by_role("radio", name="object").click(); expect(bp.locator(".qr-count b")).to_have_text("4")
-    expect(bp.locator(".quiz-submit")).to_contain_text("Відповіли на 3 з 4")
+    check("відповіді позначено на крапках: 3 з 4", bp.locator(".qr-dot.is-done").count() == 3)
     check("на останньому питанні «Завершити тест»", bp.get_by_role("button", name="Завершити тест").is_visible())
     bp.locator(".qr-dot").nth(0).click(); expect(bp.locator(".qr-count b")).to_have_text("1"); check("крапки переводять до питання", True)
     check("текст тесту не виділяється", bp.evaluate("getComputedStyle(document.querySelector('.qr-card')).userSelect") == "none")

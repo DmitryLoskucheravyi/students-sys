@@ -13,13 +13,13 @@ async function tableExists(conn: Connection, table: string): Promise<boolean> {
   );
   return n > 0;
 }
-async function columnInfo(conn: Connection, table: string, column: string): Promise<{ nullable: string } | null> {
+async function columnInfo(conn: Connection, table: string, column: string): Promise<{ nullable: string; length: number | null } | null> {
   const [[row]] = await conn.query<RowDataPacket[]>(
-    `SELECT IS_NULLABLE AS nullable FROM information_schema.columns
+    `SELECT IS_NULLABLE AS nullable, CHARACTER_MAXIMUM_LENGTH AS length FROM information_schema.columns
       WHERE table_schema = ? AND table_name = ? AND column_name = ?`,
     [dbName, table, column]
   );
-  return (row as { nullable: string } | undefined) ?? null;
+  return (row as { nullable: string; length: number | null } | undefined) ?? null;
 }
 
 /**
@@ -69,6 +69,14 @@ async function migrate(conn: Connection, { hadRoster, hadSchedules }: { hadRoste
     await conn.query('ALTER TABLE homework ADD COLUMN course_id INT NULL, ADD COLUMN teacher_id INT NULL');
     await conn.query('ALTER TABLE homework ADD CONSTRAINT fk_homework_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE');
     await conn.query('ALTER TABLE homework ADD CONSTRAINT fk_homework_teacher FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL');
+  }
+  // Острівців на роадмапі більше немає.
+  await conn.query('DROP TABLE IF EXISTS course_islands');
+  // Тести більше не прив'язуються до тем роадмапу.
+  await conn.query('DROP TABLE IF EXISTS quiz_assignment_topics');
+  // Питання з кодом довші: 2000 символів замість 500.
+  if (Number((await columnInfo(conn, 'quiz_questions', 'text'))?.length) < 2000) {
+    await conn.query('ALTER TABLE quiz_questions MODIFY text VARCHAR(2000) NOT NULL');
   }
   // Модерація тестів: старі тести вважаються схваленими.
   if (!(await columnInfo(conn, 'quizzes', 'status'))) {

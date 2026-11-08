@@ -5,10 +5,10 @@ import { useAuth } from '../session.jsx';
 import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, LateTag, Linkify, Loader, Modal, PageHead, Select, Status, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
 import { Who } from '../avatars.jsx';
 import Login from './Login.jsx';
-import { setSound, sfx, soundOn } from '../sound.js';
+import { sfx } from '../sound.js';
+import { CodeText } from '../codeText.jsx';
 import { IconClose, IconCopy, IconDown, IconEdit, IconExternal, IconImage, IconLeft, IconPlus, IconQuiz, IconRestore, IconRight, IconSpark, IconTick, IconTrash, IconUp, IconUser } from '../icons.jsx';
 import { dateTimeShort, isLate, nowLocal, plural, time } from '../fmt.js';
-import { TopicChips, TopicPicker } from './HomeworkTopics.jsx';
 import { MAX_OPTIONS, MAX_QUESTIONS, MIN_OPTIONS, QUIZ_PROMPT, parseQuizAnswer } from '../quizImport.js';
 
 /** Перерахувати лічильник сповіщень у навігації. */
@@ -223,7 +223,7 @@ function QuestionEditor({ q, n, total, onChange, onMove, onRemove }) {
           <IconButton label={`Видалити питання ${n}`} disabled={total === 1} onClick={onRemove}><IconTrash size={18} /></IconButton>
         </div>
       </header>
-      <Textarea label="Питання" required rows={2} maxLength={500} value={q.text} onChange={(e) => onChange({ text: e.target.value })} />
+      <Textarea label="Питання" hint="Код обгорніть у ^^…^^: він підсвітиться, як у редакторі" required rows={2} maxLength={2000} value={q.text} onChange={(e) => onChange({ text: e.target.value })} />
       <div className="q-image">
         {q.image ? (
           <figure>
@@ -413,7 +413,6 @@ export function QuizDetail() {
                   <p className="muted small">
                     {[a.course_title, a.due_at && `до ${dateTimeShort(a.due_at)}`, a.submitted_at && `пройдено ${dateTimeShort(a.submitted_at)}`].filter(Boolean).join(' · ') || 'Без курсу'}
                   </p>
-                  <TopicChips topics={a.topics} />
                 </div>
                 <QuizState a={a} />
                 <div className="row-actions">
@@ -432,10 +431,10 @@ export function QuizDetail() {
         <ol className="q-preview">
           {quiz.questions.map((x) => (
             <li key={x.id}>
-              <p className="q-text">{x.text}</p>
+              <div className="q-text"><CodeText text={x.text} kind="question" /></div>
               {x.image && <img className="q-img" src={imageUrl(x.image)} alt="" loading="lazy" />}
               <ul className="q-answers">
-                {x.options.map((o) => <li key={o.id} className={o.correct ? 'is-correct' : ''}>{o.correct ? <IconTick size={16} /> : <i />}{o.text}</li>)}
+                {x.options.map((o) => <li key={o.id} className={o.correct ? 'is-correct' : ''}>{o.correct ? <IconTick size={16} /> : <i />}<span><CodeText text={o.text} /></span></li>)}
               </ul>
             </li>
           ))}
@@ -474,7 +473,6 @@ function AssignForm({ quiz, assignment, onClose, onDone }) {
   const courses = useData('/courses');
   const [studentId, setStudentId] = useState(assignment?.student_id ?? null);
   const [courseId, setCourseId] = useState(assignment?.course_id ?? null);
-  const [topics, setTopics] = useState(() => (assignment?.topics ?? []).map(({ step_id, substep_id }) => ({ step_id, substep_id })));
   const [date, setDate] = useState(assignment?.due_at?.slice(0, 10) ?? null);
   const [t, setT] = useState(assignment?.due_at ? time(assignment.due_at) : '23:55');
   const [run, busy] = useAction();
@@ -484,7 +482,7 @@ function AssignForm({ quiz, assignment, onClose, onDone }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    const body = { student_id: studentId, course_id: courseId, topics: courseId ? topics : [], due_at: date ? `${date} ${t}:00` : null };
+    const body = { student_id: studentId, course_id: courseId, due_at: date ? `${date} ${t}:00` : null };
     const ok = await run(
       () => (assignment ? api(`/quizzes/assignments/${assignment.id}`, { method: 'PATCH', body }) : api(`/quizzes/${quiz.id}/assignments`, { method: 'POST', body })),
       assignment ? 'Зміни збережено' : 'Тест відкрито учневі'
@@ -495,9 +493,8 @@ function AssignForm({ quiz, assignment, onClose, onDone }) {
     <Modal side title={assignment ? assignment.student_name : 'Відкрити тест учневі'} onClose={onClose}>
       <form className="form sheet" onSubmit={submit}>
         {!assignment && <Select label="Учень" value={studentId} onChange={setStudentId} placeholder="Оберіть учня" options={pupils} />}
-        <Select label="Курс" hint="Необов’язково. Потрібен, щоб показати тест на роадмапі" value={courseId} clearable placeholder="Без курсу"
-          onChange={(v) => { setCourseId(v); setTopics([]); }} options={(courses.data ?? []).map((c) => ({ value: c.id, label: c.title }))} />
-        {courseId && <TopicPicker source={`/courses/${courseId}`} value={topics} onChange={setTopics} hint="У цих темах на роадмапі учня з’явиться «Пройти тест»." />}
+        <Select label="Курс" hint="Необов’язково: підпис у списку тестів учня" value={courseId} clearable placeholder="Без курсу"
+          onChange={setCourseId} options={(courses.data ?? []).map((c) => ({ value: c.id, label: c.title }))} />
         <div className="form-row">
           <DatePicker label="Пройти до" value={date} onChange={setDate} clearable placeholder="Без терміну" />
           {date && <TimePicker label="Час" value={t} onChange={setT} />}
@@ -526,7 +523,7 @@ function QuizQuestions({ questions, done, review, answers, onPick, image }) {
               <h3>Питання {i + 1}</h3>
               {done && <span className={`q-mark ${x.right ? 'is-right' : 'is-wrong'}`}>{x.right ? 'Правильно' : 'Помилка'}</span>}
             </header>
-            <p className="q-text">{x.text}</p>
+            <div className="q-text"><CodeText text={x.text} kind="question" /></div>
             {x.image && <img className="q-img" src={image(x.image)} alt={`Картинка до питання ${i + 1}`} />}
             {x.multiple && !done && <p className="muted small">Кілька правильних відповідей</p>}
             <div className="q-opts" role={x.multiple ? 'group' : 'radiogroup'} aria-label={`Варіанти питання ${i + 1}`}>
@@ -539,7 +536,7 @@ function QuizQuestions({ questions, done, review, answers, onPick, image }) {
                     role={x.multiple ? 'checkbox' : 'radio'} aria-checked={on} disabled={review}
                     onClick={() => onPick(x, o.id)}>
                     <span className="q-box" aria-hidden="true">{mark === 'tick' ? <IconTick size={14} /> : mark === 'cross' ? <IconClose size={14} /> : null}</span>
-                    <span>{o.text}</span>
+                    <span><CodeText text={o.text} /></span>
                     {review && on && done && <span className="q-yours">ваш вибір</span>}
                     {review && on && !done && <span className="sr">, обрано</span>}
                   </button>
@@ -567,19 +564,6 @@ const noCopy = {
 };
 
 const LETTERS = 'ABCDEF';
-
-function SoundToggle() {
-  const [on, setOn] = useState(soundOn);
-  return (
-    <button type="button" className="qr-sound" aria-pressed={on} aria-label={on ? 'Вимкнути звук' : 'Увімкнути звук'} title={on ? 'Звук увімкнено' : 'Звук вимкнено'}
-      onClick={() => { setSound(!on); setOn(!on); if (!on) sfx.pick(); }}>
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M4 9.500h3.500L12 5.500v13l-4.500-4H4z" />
-        {on ? <path className="ia" d="M15.500 9a4 4 0 0 1 0 6M18 6.500a7.500 7.500 0 0 1 0 11" /> : <path className="ia" d="M16 9.500l5 5M21 9.500l-5 5" />}
-      </svg>
-    </button>
-  );
-}
 
 /**
  * Проходження тесту по одному питанню. Одиночний вибір сам переходить далі; кілька відповідей — кнопкою «Далі».
@@ -648,9 +632,7 @@ function QuizRunner({ questions, image, busy, onFinish }) {
     <div className="qr" {...noCopy}>
       <div className="qr-top">
         <span className="qr-count">Питання <b>{i + 1}</b> з {questions.length}</span>
-        <SoundToggle />
       </div>
-      <span className="qr-bar" aria-hidden="true"><i style={{ width: `${(answered / questions.length) * 100}%` }} /></span>
       <ol className="qr-dots" aria-label="Питання тесту">
         {questions.map((q, k) => (
           <li key={q.id}>
@@ -667,7 +649,7 @@ function QuizRunner({ questions, image, busy, onFinish }) {
             <h3>Питання {i + 1}</h3>
             {x.multiple && <span className="qr-multi">Кілька правильних</span>}
           </header>
-          <p className="q-text">{x.text}</p>
+          <div className="q-text"><CodeText text={x.text} kind="question" /></div>
           {x.image && <img className="q-img" src={image(x.image)} alt={`Картинка до питання ${i + 1}`} draggable="false" />}
           <div className="q-opts" role={x.multiple ? 'group' : 'radiogroup'} aria-label={`Варіанти питання ${i + 1}`}>
             {x.options.map((o, k) => {
@@ -676,7 +658,7 @@ function QuizRunner({ questions, image, busy, onFinish }) {
                 <button key={o.id} type="button" style={{ '--k': k }} className={`q-opt qr-opt ${x.multiple ? 'is-multi' : ''} ${on ? 'is-on' : ''}`}
                   role={x.multiple ? 'checkbox' : 'radio'} aria-checked={on} onClick={() => pick(o)}>
                   <span className="qr-key" aria-hidden="true">{on ? <IconTick size={14} /> : LETTERS[k]}</span>
-                  <span>{o.text}</span>
+                  <span><CodeText text={o.text} /></span>
                 </button>
               );
             })}
@@ -686,7 +668,6 @@ function QuizRunner({ questions, image, busy, onFinish }) {
 
       <div className="quiz-submit qr-nav">
         <Button variant="ghost" icon={<IconLeft size={18} />} disabled={i === 0} onClick={() => go(i - 1)}>Назад</Button>
-        <span className="muted small qr-left">Відповіли на {answered} з {questions.length}</span>
         {last
           ? <Button busy={busy} icon={<IconTick size={18} />} onClick={finish}>Завершити тест</Button>
           : has(x)
@@ -753,11 +734,10 @@ export function PublicQuiz() {
   const [run, busy] = useAction();
   const image = (name) => `/api/public/quizzes/${token}/images/${name}`;
 
-  if (signIn && !user) return <Login onLogin={(u) => { setUser(u); setSignIn(false); }} />;
+  if (signIn && !user) return <Login onLogin={(u) => { setUser(u); setSignIn(false); setResult(null); setRound((n) => n + 1); }} />;
   if (error) return <div className="pq"><PublicHead /><ErrorNote text={error} onRetry={reload} /></div>;
   if (!z) return loading ? <Loader /> : null;
 
-  const isStudent = user?.role === 'student';
   const finish = async (answers) => {
     const r = await run(() => api(`/public/quizzes/${token}/check`, { method: 'POST', body: { answers } }));
     if (r) { setResult(r); if (r.recorded) notify(); window.scrollTo({ top: 0 }); }
@@ -789,12 +769,6 @@ export function PublicQuiz() {
         </>
       ) : (
         <>
-          <p className={`note small pq-who ${isStudent ? 'is-student' : ''}`}>
-            {isStudent
-              ? (z.mine?.submitted_at ? `Ви вже проходили цей тест: ${z.mine.score} з ${z.mine.max_score}. Нова спроба не запишеться.` : `${user.name}, результат запишеться у ваші тести.`)
-              : user ? 'Ви увійшли не як учень: результат побачите, але він не запишеться.'
-              : <>Можна пройти без входу, результат побачите одразу, але він не збережеться. <button type="button" className="link-btn" onClick={() => setSignIn(true)}>Увійти як учень</button></>}
-          </p>
           <QuizRunner key={round} questions={z.questions} image={image} busy={busy} onFinish={finish} />
         </>
       )}
@@ -803,7 +777,16 @@ export function PublicQuiz() {
 }
 
 function PublicHead() {
-  return <header className="pq-head"><span className="wordmark"><b>BE</b> Smart School</span><span className="muted small">Тест</span></header>;
+  return (
+    <header className="pq-head">
+      <span className="wordmark" role="img" aria-label="Be Smart School">
+        <span className="wordmark-full">
+          <span className="wordmark-be">BE</span>
+          <span className="wordmark-stack"><span>Smart</span><span>School</span></span>
+        </span>
+      </span>
+    </header>
+  );
 }
 
 /** Посилання на тест: вмикається тут, скопіювати й надіслати будь-кому. */
@@ -871,7 +854,6 @@ export function QuizTake() {
         {[!isStudent && a.student_name, a.course_title, questionsWord(a.questions.length), a.due_at && !done && `пройти до ${dateTimeShort(a.due_at)}`].filter(Boolean).join(' · ')}
       </p>
       {a.description && !done && <p className="task"><Linkify text={a.description} /></p>}
-      <TopicChips topics={a.topics} />
 
       {done && (
         <>

@@ -135,8 +135,11 @@ img { display: block; max-width: 100%; }
 .rail-top-tools { display: flex; align-items: center; gap: 6px; }
 .rail-resizer, .wordmark-short { display: none; }
 .wordmark-full { display: contents; }
-.wordmark { display: flex; gap: 0.3em; font: 800 clamp(14px, 4.4vw, 18px)/1.05 var(--display); letter-spacing: -0.035em; white-space: nowrap; }
-.wordmark-stack { display: flex; gap: 0.3em; }
+/* Логотип завжди однаковий: BE повернуте вертикально на висоту двох рядків, School під Smart. На телефоні лише менший. */
+.wordmark { display: flex; gap: 0.3em; font: 800 15px/1.05 var(--display); letter-spacing: -0.035em; white-space: nowrap; }
+.wordmark-stack { display: flex; flex-direction: column; gap: 0; }
+/* BE вертикально на висоту двох рядків: 2.1em / ширина BE ≈ 1.32 */
+.wordmark-be { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 1.32em; line-height: 0.76; letter-spacing: -0.03em; align-self: stretch; text-align: center; }
 .rail-nav {
   position: fixed; z-index: 40; left: 0; right: 0; bottom: 0;
   display: flex; background: var(--rail);
@@ -307,15 +310,16 @@ img { display: block; max-width: 100%; }
 }
 .modal {
   --ia: var(--red);
-  width: 100%; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
+  /* Рамка вікна стоїть на місці: шапка зверху, прокручується лише вміст */
+  display: flex; flex-direction: column; width: 100%; max-height: 92dvh; overflow: hidden;
   background: var(--paper); border-radius: 16px 16px 0 0; box-shadow: var(--shadow);
   border-top: 6px solid var(--red-fill);
   animation: sheet-up 0.26s var(--ease);
 }
 .modal:focus { outline: 0; }
-.modal-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 12px 8px 4px 16px; background: var(--paper); }
+.modal-head { flex: none; position: relative; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 12px 8px 4px 16px; background: var(--paper); }
 .modal-head h2 { font: 700 18px/1.25 var(--display); letter-spacing: -0.02em; padding-top: 9px; overflow-wrap: anywhere; }
-.modal-body { padding: 10px 16px calc(20px + env(safe-area-inset-bottom)); }
+.modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 16px calc(20px + env(safe-area-inset-bottom)); }
 @keyframes fade { from { opacity: 0; } }
 @keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: translateY(8px); } }
@@ -327,7 +331,7 @@ img { display: block; max-width: 100%; }
 .form-actions .btn { flex: 1 1 auto; }
 .form-actions.start .btn { flex: 0 1 auto; }
 /* У шторці кнопки завжди на видноті, навіть коли форма прокручується */
-.modal-body > .form > .form-actions { position: sticky; bottom: 0; z-index: 1; margin-top: 0; padding: 10px 0; background: var(--paper); }
+.modal-body > .form > .form-actions { position: sticky; bottom: 0; z-index: 1; margin-top: 0; padding: 10px 0; background: var(--paper); box-shadow: 0 -1px 0 var(--line); }
 .form-error { color: var(--red); font-weight: 500; }
 .total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--grid-strong); }
 .total strong { font: 700 20px/1 var(--display); }
@@ -942,14 +946,14 @@ button.stop:active { transform: scale(0.94); }
   .week-nav strong { flex: none; min-width: 150px; }
   .week-filters { display: flex; }
   .select-btn.is-compact { min-width: 170px; }
-  .modal-backdrop { align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
-  .modal { width: min(100%, 560px); max-height: none; overflow: visible; border-radius: 14px; animation: pop 0.18s var(--ease); }
+  .modal-backdrop { align-items: center; justify-content: center; padding: 16px; }
+  .modal { width: min(100%, 560px); max-height: calc(100dvh - 32px); border-radius: 14px; animation: pop 0.18s var(--ease); }
   .modal.is-narrow { width: min(100%, 430px); }
-  .modal-head { position: static; padding: 16px 16px 4px 22px; border-radius: 14px 14px 0 0; }
+  .modal-head { padding: 16px 16px 8px 22px; border-radius: 14px 14px 0 0; }
   .modal-head h2 { font-size: 19px; padding-top: 7px; }
   .modal-body { padding: 10px 22px 22px; }
   .is-side { align-items: stretch; justify-content: flex-end; padding: 0; }
-  .is-side .modal { width: min(100%, 460px); min-height: 100dvh; border-radius: 0; border-top: 0; border-left: 6px solid var(--red-fill); animation: slide 0.2s var(--ease); }
+  .is-side .modal { width: min(100%, 460px); height: 100dvh; max-height: 100dvh; border-radius: 0; border-top: 0; border-left: 6px solid var(--red-fill); animation: slide 0.2s var(--ease); }
   .is-side .modal-head { border-radius: 0; }
   .row { flex-wrap: nowrap; gap: 16px; padding: 14px 4px; }
   .row-main { flex: 1 1 0; }
@@ -961,7 +965,7 @@ button.stop:active { transform: scale(0.94); }
   .slot-list { max-width: 340px; }
   .road-editor .row-actions, .sub-edit-row .row-actions { margin-left: 0; }
   .road-editor .row-main { flex-basis: 0; }
-  .modal-body > .form > .form-actions { position: static; padding: 0; margin-top: 6px; }
+  .modal-body > .form > .form-actions { padding: 12px 0; }
   .toasts { left: auto; right: 20px; bottom: calc(var(--nav-h) + 20px); max-width: 380px; }
   .course { flex-wrap: nowrap; padding: 18px 4px; }
   .course-meta { display: grid; justify-items: end; gap: 4px; flex: none; width: auto; min-width: 110px; padding-left: 0; }
@@ -1002,9 +1006,6 @@ button.stop:active { transform: scale(0.94); }
   .rail { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; padding: 22px 0 16px 16px; }
   .rail-top { display: block; }
   .wordmark { font-size: 25px; padding: 4px 10px 26px; }
-  .wordmark-stack { flex-direction: column; gap: 0; }
-  /* BE вертикально на висоту двох рядків: 2.1em / ширина BE ≈ 1.32 */
-  .wordmark-be { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 1.32em; line-height: 0.76; letter-spacing: -0.03em; align-self: stretch; text-align: center; }
   .rail-nav { position: static; z-index: auto; flex: 1; flex-direction: column; gap: 2px; padding: 0; background: none; overflow: visible; }
   .rail-nav a {
     flex: none; min-height: 0; flex-direction: row; justify-content: flex-start; gap: 12px;
@@ -1177,60 +1178,6 @@ button.stop:active { transform: scale(0.94); }
   .road-row.is-current .road-num { color: color-mix(in srgb, var(--red-fill) 30%, transparent); }
 }
 
-/* Острівець тестування: стоїть на місці номера етапу. На вузькому екрані — над карткою етапу. */
-.road-island { position: relative; z-index: 2; width: 200px; margin: 0 0 10px var(--road-text, 86px); }
-.island-hit {
-  display: grid; justify-items: center; gap: 4px; width: 100%; padding: 0; border: 0; background: none; color: inherit;
-  font: inherit; cursor: pointer; border-radius: 18px;
-}
-.island-hit:focus-visible { outline: 2px solid var(--red); outline-offset: 4px; }
-.island3d { position: relative; width: 100%; aspect-ratio: 1 / 1.05; }
-.island-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.island-fallback { display: none; }
-.island3d.is-flat .island-fallback { display: grid; place-items: center; height: 100%; font: 800 64px/1 var(--display); color: var(--red-soft); }
-.island-label {
-  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 6px 10px; border-radius: 999px;
-  background: var(--paper); border: 1px solid var(--line); font-size: 12.5px; box-shadow: 0 8px 20px -14px rgb(0 0 0 / 0.5);
-}
-.island-label svg { flex: none; color: var(--red); }
-.island-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.island-state { flex: none; padding: 2px 8px; border-radius: 999px; font-weight: 700; font-size: 11.5px; }
-.island-state.is-open { background: var(--red-fill); color: #fff; }
-.island-state.is-good { background: var(--left-ok-bg); color: var(--left-ok-ink); }
-.island-state.is-low { background: var(--left-low-bg); color: var(--left-low-ink); }
-.island-state.is-wait { background: var(--wash); color: var(--muted); }
-@media (hover: hover) {
-  .island-hit:hover .island3d { transform: translateY(-4px) scale(1.03); }
-  .island3d { transition: transform 0.35s var(--ease); }
-}
-@media (min-width: 900px) {
-  .road-island { width: 230px; margin: 0 0 12px 126px; }
-  .road-row.is-right .road-island { margin-left: auto; margin-right: 126px; }
-}
-/* Є місце поруч із карткою: острівець стає на місце великого номера */
-@container (min-width: 1000px) {
-  .road-island { position: absolute; top: -56px; width: clamp(240px, 24cqw, 320px); margin: 0; }
-  .road-row.is-left .road-island { right: 40px; }
-  .road-row.is-right .road-island { left: 40px; margin: 0; }
-}
-
-/* Інструменти острівця в картці етапу */
-.isle-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 12px 0 2px; }
-.isle-copy { display: flex; flex-wrap: wrap; gap: 4px 14px; }
-.isle-copy .link-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; text-decoration: none; }
-.isle-copy .link-btn:hover { text-decoration: underline; }
-.isle-designs { margin: 0; padding: 0; border: 0; min-width: 0; }
-.isle-designs legend { padding: 0 0 8px; font-size: 13.5px; color: var(--muted); }
-.isle-designs > div { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
-.isle-design {
-  display: grid; justify-items: center; gap: 2px; padding: 6px 6px 10px; border-radius: 14px; text-align: center;
-  border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; cursor: pointer;
-}
-.isle-design strong { font-size: 13px; }
-.isle-design small { font-size: 11px; color: var(--muted); line-height: 1.25; }
-.isle-design.is-on { border-color: var(--red-fill); background: var(--red-soft); box-shadow: inset 0 0 0 1px var(--red-fill); }
-.isle-design .island3d { width: 100%; max-width: 120px; }
-
 /* Прогрес учня на курсі */
 .course-progress {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px;
@@ -1276,8 +1223,6 @@ button.stop:active { transform: scale(0.94); }
 /* Тести: список і рядки */
 .quiz-ico { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--wash); color: var(--ink); --ia: var(--red); }
 .quiz-row.is-open .quiz-ico { background: var(--red-soft); }
-.road-hw-item.is-quiz.is-open { border-color: var(--red); background: var(--red-soft); }
-.road-quiz-go { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--red); font-size: 13.5px; }
 
 /* Проходження тесту: одне питання на екрані */
 .qr, .qr-review, .pq, .qr-result { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -1285,10 +1230,6 @@ button.stop:active { transform: scale(0.94); }
 .qr-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .qr-count { font-size: 14px; color: var(--muted); }
 .qr-count b { font: 700 22px/1 var(--display); color: var(--ink); letter-spacing: -0.03em; margin-right: 2px; }
-.qr-sound { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; --ia: var(--red); }
-.qr-sound[aria-pressed='false'] { color: var(--muted); --ia: var(--muted); }
-.qr-bar { display: block; height: 6px; border-radius: 3px; background: var(--grid-strong); overflow: hidden; }
-.qr-bar i { display: block; height: 100%; border-radius: inherit; background: var(--red-fill); transition: width 0.45s var(--ease); }
 .qr-dots { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .qr-dot {
   display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 6px; border-radius: 9px; cursor: pointer;
@@ -1316,9 +1257,8 @@ button.stop:active { transform: scale(0.94); }
 .qr-opt.is-multi .qr-key { border-radius: 50%; }
 .qr-opt.is-on .qr-key { background: var(--red-fill); color: #fff; animation: qr-pop 0.32s var(--ease); }
 @keyframes qr-pop { 40% { transform: scale(1.22); } }
-.qr-nav { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; }
-.qr-left { text-align: center; }
-@media (max-width: 520px) { .qr-left { display: none; } .qr-nav { grid-template-columns: 1fr 1fr; } .qr-nav .btn { width: 100%; justify-content: center; } .qr-card { padding: 18px 16px; } }
+.qr-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+@media (max-width: 520px) { .qr-nav .btn { flex: 1; justify-content: center; } .qr-card { padding: 18px 16px; } }
 @media (hover: hover) {
   .qr-dot:hover { border-color: var(--red); }
   .qr-opt:hover:not(.is-on) { transform: translateX(3px); }
@@ -1363,9 +1303,38 @@ button.stop:active { transform: scale(0.94); }
   .qr-confetti { display: none; }
 }
 
+/* Код у тестах: палітри VS Code. Блок і плашка в питанні — завжди Dark+ на темному тлі; код у варіантах — лише кольори теми */
+.code-block, .code-inline, .code-text {
+  --hl-plain: #d4d4d4; --hl-keyword: #569cd6; --hl-control: #c586c0; --hl-string: #ce9178; --hl-number: #b5cea8; --hl-comment: #6a9955;
+  --hl-function: #dcdcaa; --hl-type: #4ec9b0; --hl-variable: #9cdcfe; --hl-tag: #569cd6; --hl-attr: #9cdcfe; --hl-attr-value: #ce9178; --hl-punct: #808080;
+  font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', ui-monospace, monospace; font-variant-ligatures: none;
+}
+.code-text {
+  --hl-plain: var(--ink); --hl-keyword: #0000ff; --hl-control: #af00db; --hl-string: #a31515; --hl-number: #098658; --hl-comment: #008000;
+  --hl-function: #795e26; --hl-type: #267f99; --hl-variable: #001080; --hl-tag: #800000; --hl-attr: #e50000; --hl-attr-value: #0000ff; --hl-punct: #800000;
+  font-size: 0.95em; font-weight: 500;
+}
+:root[data-theme='dark'] .code-text {
+  --hl-plain: #d4d4d4; --hl-keyword: #569cd6; --hl-control: #c586c0; --hl-string: #ce9178; --hl-number: #b5cea8; --hl-comment: #6a9955;
+  --hl-function: #dcdcaa; --hl-type: #4ec9b0; --hl-variable: #9cdcfe; --hl-tag: #569cd6; --hl-attr: #9cdcfe; --hl-attr-value: #ce9178; --hl-punct: #808080;
+}
+.code-block {
+  margin: 10px 0 2px; padding: 14px 16px; border-radius: 12px; background: #1e1e1e; color: var(--hl-plain);
+  font-size: 14px; line-height: 1.6; letter-spacing: 0; white-space: pre; overflow-x: auto; tab-size: 2;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+.code-block code { font: inherit; }
+.code-inline { padding: 1px 7px; border-radius: 6px; background: #1e1e1e; color: var(--hl-plain); font-size: 0.86em; letter-spacing: 0; white-space: pre-wrap; }
+.q-text .code-block, .q-text .code-inline { font-weight: 400; }
+.hl-plain { color: var(--hl-plain); } .hl-keyword { color: var(--hl-keyword); } .hl-control { color: var(--hl-control); }
+.hl-string { color: var(--hl-string); } .hl-number { color: var(--hl-number); } .hl-comment { color: var(--hl-comment); font-style: italic; }
+.hl-function { color: var(--hl-function); } .hl-type { color: var(--hl-type); } .hl-variable { color: var(--hl-variable); }
+.hl-tag { color: var(--hl-tag); } .hl-attr { color: var(--hl-attr); } .hl-attr-value { color: var(--hl-attr-value); } .hl-punct { color: var(--hl-punct); }
+
 /* Тест за публічним посиланням */
 .pq { max-width: 860px; margin: 0 auto; padding: 0 16px 24px; }
-.pq-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 0; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+.pq-head { display: flex; align-items: center; padding: 18px 0; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+.pq-head .wordmark { font-size: 20px; }
 .pq-head .wordmark { color: var(--red); }
 .pq-title { font: 700 clamp(22px, 5vw, 30px)/1.15 var(--display); letter-spacing: -0.03em; margin: 12px 0 4px; overflow-wrap: anywhere; }
 .pq-who { margin: 14px 0; }
@@ -1495,9 +1464,9 @@ button.stop:active { transform: scale(0.94); }
 :root[data-theme='dark'] .ct-web { --red: #ff9466; --red-fill: #e2602f; --red-hover: #ec7140; --red-soft: #3a1d12; }
 /* На жовтій заливці світлий текст не читається */
 .ct-script .btn-primary, .ct-script .stop.is-done, .ct-script button.stop.is-done:hover, .ct-script .status-scheduled,
-.ct-script .course-ico, .ct-script .look-swatch i:first-child, .ct-script .island-state.is-open,
+.ct-script .course-ico, .ct-script .look-swatch i:first-child,
 :root[data-theme='dark'] .ct-next .btn-primary, :root[data-theme='dark'] .ct-next .stop.is-done, :root[data-theme='dark'] .ct-next button.stop.is-done:hover,
-:root[data-theme='dark'] .ct-next .status-scheduled, :root[data-theme='dark'] .ct-next .course-ico, :root[data-theme='dark'] .ct-next .island-state.is-open,
+:root[data-theme='dark'] .ct-next .status-scheduled, :root[data-theme='dark'] .ct-next .course-ico,
 :root[data-theme='dark'] .ct-next .road-finish.is-done .road-flag { color: var(--ct-on); --ia: var(--ct-on); }
 .ct-script .stop.is-done svg, :root[data-theme='dark'] .ct-next .stop.is-done svg { color: var(--ct-on); }
 /* Зміїна тема: поточний етап підсвічено жовтим, як другий колір теми */
