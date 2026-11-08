@@ -4,6 +4,7 @@ import { q, tx } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { draftRoadmap, normalizeSteps } from '../ai.js';
 import { bad, conflict, forbidden, id, idList, notFound, str } from '../lib.js';
+import { HW_FOR, HW_STAFF, sqlInt } from '../audience.js';
 
 export const coursesRouter = Router();
 coursesRouter.use(requireAuth);
@@ -176,45 +177,46 @@ async function courseQuizzes(courseId, studentIds) {
 }
 
 /**
- * Домашні, прив'язані до тем курсу. Учень бачить лише задані його групі, вчитель лише свої.
+ * Домашні, прив'язані до тем курсу: до уроку чи прямо до теми. Учень бачить лише задані йому, вчитель лише свої.
  * Для кожного: теми, кому задано і стан здачі кожного з переглядуваних учнів.
  */
 async function courseHomework(user, courseId, studentIds) {
   const { role, id: me } = user;
-  const filter = role === 'teacher'
-    ? 'AND sc.teacher_id = ?'
-    : role === 'student' ? 'AND EXISTS (SELECT 1 FROM schedule_students ss WHERE ss.schedule_id = h.schedule_id AND ss.student_id = ?)' : '';
+  const filter = role === 'teacher' ? `AND ${HW_STAFF('h', 'sc', sqlInt(me))}` : role === 'student' ? `AND ${HW_FOR('h', sqlInt(me))}` : '';
   const rows = await q(
-    `SELECT h.id, h.title, h.due_at, h.schedule_id, t.step_id, t.substep_id
+    `SELECT h.id, h.title, h.due_at, t.step_id, t.substep_id
        FROM homework_topics t
        JOIN homework h ON h.id = t.homework_id
        JOIN roadmap_steps s ON s.id = t.step_id
        LEFT JOIN lesson_schedules sc ON sc.id = h.schedule_id
       WHERE s.course_id = ? ${filter}
       ORDER BY h.due_at, h.id, t.id`,
-    role === 'manager' ? [courseId] : [courseId, me]
+    [courseId]
   );
   if (!rows.length) return [];
   const list = new Map();
   for (const r of rows) {
-    const hw = list.get(r.id) ?? { id: r.id, title: r.title, due_at: r.due_at, schedule_id: r.schedule_id, topics: [], student_ids: [], results: [] };
+    const hw = list.get(r.id) ?? { id: r.id, title: r.title, due_at: r.due_at, topics: [], student_ids: [], results: [] };
     hw.topics.push({ step_id: r.step_id, substep_id: r.substep_id });
     list.set(r.id, hw);
   }
   const all = [...list.values()];
-  const scheduleIds = [...new Set(all.map((h) => h.schedule_id).filter(Boolean))];
-  const roster = scheduleIds.length
-    ? await q('SELECT schedule_id, student_id FROM schedule_students WHERE schedule_id IN (?)', [scheduleIds])
+  // Кому з переглядуваних учнів задано кожне домашнє: за тим самим правилом, що й у списку завдань.
+  const roster = studentIds.length
+    ? await q(
+        `SELECT h.id AS homework_id, u.id AS student_id FROM homework h JOIN users u ON u.id IN (?)
+          WHERE h.id IN (?) AND ${HW_FOR('h', 'u.id')}`,
+        [studentIds, all.map((h) => h.id)]
+      )
     : [];
   const subs = studentIds.length
     ? await q('SELECT homework_id, student_id, status, grade FROM submissions WHERE homework_id IN (?) AND student_id IN (?)', [all.map((h) => h.id), studentIds])
     : [];
   for (const h of all) {
-    h.student_ids = roster.filter((r) => r.schedule_id === h.schedule_id && (role !== 'student' || r.student_id === me)).map((r) => r.student_id);
+    h.student_ids = roster.filter((r) => r.homework_id === h.id).map((r) => r.student_id);
     // Хто вибув із групи, але встиг здати, теж має бачити свою роботу.
     for (const s of subs) if (s.homework_id === h.id && !h.student_ids.includes(s.student_id)) h.student_ids.push(s.student_id);
     h.results = subs.filter((s) => s.homework_id === h.id).map(({ student_id, status, grade }) => ({ student_id, status, grade }));
-    delete h.schedule_id;
   }
   return all;
 }

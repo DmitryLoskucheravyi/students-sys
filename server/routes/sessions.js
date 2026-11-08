@@ -3,6 +3,7 @@ import { q, tx } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { addDays, addMinutes, bad, conflict, dateTime, forbidden, id, idList, isoDate, notFound, nowStr, str, today } from '../lib.js';
 import { assertNoConflicts, ensureSessions, rosterOf } from '../schedule.js';
+import { HW_FOR, sqlInt } from '../audience.js';
 
 export const sessionsRouter = Router();
 export const requestsRouter = Router();
@@ -103,10 +104,9 @@ sessionsRouter.get('/summary', requireRole('student'), async (req, res) => {
   );
   const [{ todo }] = await q(
     `SELECT COUNT(*) AS todo FROM homework h
-       JOIN schedule_students ss ON ss.schedule_id = h.schedule_id AND ss.student_id = ?
        LEFT JOIN submissions s ON s.homework_id = h.id AND s.student_id = ?
-      WHERE s.id IS NULL OR s.status = 'returned'`,
-    [me, me]
+      WHERE ${HW_FOR('h', sqlInt(me))} AND (s.id IS NULL OR s.status = 'returned')`,
+    [me]
   );
   res.json({ next: next ?? null, lessons_left: left, homework_todo: todo });
 });

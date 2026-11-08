@@ -422,6 +422,12 @@ img { display: block; max-width: 100%; }
 .status-completed { background: var(--ok-soft); color: var(--ink); }
 .status-cancelled { background: transparent; box-shadow: inset 0 0 0 1px var(--grid-strong); color: var(--muted); }
 .status-warn { background: var(--red-soft); color: var(--red); }
+.late-tag {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--red);
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.late-tag::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
 .empty { display: grid; justify-items: center; gap: 12px; padding: 48px 16px; color: var(--muted); text-align: center; }
 .empty p { font-weight: 500; }

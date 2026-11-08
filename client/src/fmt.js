@@ -18,6 +18,9 @@ export const nowLocal = () => {
   return `${toISO(n)} ${pad(n.getHours())}:${pad(n.getMinutes())}:00`;
 };
 
+/** Здано пізніше за дедлайн. Обидва значення — рядки «YYYY-MM-DD HH:MM:SS». */
+export const isLate = (doneAt, dueAt) => Boolean(doneAt && dueAt && doneAt > dueAt);
+
 export const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
 export const MONTHS = ['січень', 'лютий', 'березень', 'квітень', 'травень', 'червень', 'липень', 'серпень', 'вересень', 'жовтень', 'листопад', 'грудень'];
 const MONTHS_GEN = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];

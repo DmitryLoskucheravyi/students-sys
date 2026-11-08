@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
@@ -13,8 +14,15 @@ if (!SECRET || SECRET === 'change-me') {
 }
 const MAX_AGE = 7 * 24 * 3600 * 1000;
 
-function setCookie(res, user) {
-  const token = jwt.sign({ sub: user.id, v: user.token_version }, SECRET, { expiresIn: '7d' });
+const sqlTime = (ms) => new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+
+/** Нова сесія входу: рядок у БД і cookie з її id. «Вийти» видаляє рядок. */
+async function startSession(res, user) {
+  const sid = randomUUID();
+  // Прострочені сесії прибираємо під час входу: окремий планувальник не потрібен.
+  await q('DELETE FROM auth_sessions WHERE expires_at < UTC_TIMESTAMP()');
+  await q('INSERT INTO auth_sessions (id, user_id, expires_at) VALUES (?,?,?)', [sid, user.id, sqlTime(Date.now() + MAX_AGE)]);
+  const token = jwt.sign({ sub: user.id, v: user.token_version, sid }, SECRET, { expiresIn: '7d' });
   res.cookie(COOKIE, token, {
     httpOnly: true,
     sameSite: 'strict',
@@ -32,8 +40,18 @@ export async function authenticate(req, _res, next) {
   if (token) {
     try {
       const payload = jwt.verify(token, SECRET);
-      const [u] = await q('SELECT * FROM users WHERE id=? AND is_active=1', [payload.sub]);
-      if (u && u.token_version === payload.v) req.user = u;
+      // Токен без сесії (виданий до її появи) або із завершеною сесією не діє.
+      const [u] = payload.sid
+        ? await q(
+            `SELECT u.* FROM auth_sessions s JOIN users u ON u.id = s.user_id
+              WHERE s.id=? AND s.user_id=? AND s.expires_at > UTC_TIMESTAMP() AND u.is_active=1`,
+            [payload.sid, payload.sub]
+          )
+        : [];
+      if (u && u.token_version === payload.v) {
+        req.user = u;
+        req.sessionId = payload.sid;
+      }
     } catch {
       /* недійсний токен — як анонім */
     }
@@ -91,11 +109,13 @@ authRouter.post('/login', loginLimit, accountLimit, async (req, res) => {
   const [u] = await q('SELECT * FROM users WHERE login=? AND is_active=1', [login]);
   const ok = await bcrypt.compare(password, u?.password_hash ?? dummyHash);
   if (!u || !ok) throw new HttpError(401, 'Неправильний логін або пароль');
-  setCookie(res, u);
+  await startSession(res, u);
   res.json(publicUser(u));
 });
 
-authRouter.post('/logout', (_req, res) => {
+// Завершує сесію на сервері: навіть скопійований токен цього входу більше не діє.
+authRouter.post('/logout', async (req, res) => {
+  if (req.sessionId) await q('DELETE FROM auth_sessions WHERE id=?', [req.sessionId]);
   res.clearCookie(COOKIE, { path: '/' });
   res.json({ ok: true });
 });
@@ -117,6 +137,8 @@ authRouter.post('/password', requireAuth, async (req, res) => {
   const hash = await hashPassword(validatePassword(req.body?.next));
   const version = req.user.token_version + 1;
   await q('UPDATE users SET password_hash=?, token_version=? WHERE id=?', [hash, version, req.user.id]);
-  setCookie(res, { ...req.user, token_version: version });
+  // Інші пристрої виходять, цей отримує нову сесію.
+  await q('DELETE FROM auth_sessions WHERE user_id=?', [req.user.id]);
+  await startSession(res, { ...req.user, token_version: version });
   res.json({ ok: true });
 });

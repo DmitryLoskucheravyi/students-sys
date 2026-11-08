@@ -138,6 +138,7 @@ usersRouter.patch('/:id', async (req, res) => {
     }
     // token_version розлогінює користувача одразу
     await q('UPDATE users SET is_active=?, token_version=token_version+1 WHERE id=?', [active, u.id]);
+    await q('DELETE FROM auth_sessions WHERE user_id=?', [u.id]);
   }
   res.json((await withRooms([await managed(u.id)]))[0]);
 });
@@ -146,5 +147,6 @@ usersRouter.post('/:id/password', async (req, res) => {
   const u = await managed(req.params.id);
   const hash = await hashPassword(validatePassword(req.body?.password));
   await q('UPDATE users SET password_hash=?, token_version=token_version+1 WHERE id=?', [hash, u.id]);
+  await q('DELETE FROM auth_sessions WHERE user_id=?', [u.id]);
   res.json({ ok: true });
 });

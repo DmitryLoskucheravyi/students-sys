@@ -512,6 +512,8 @@ export function Modal({ title, onClose, children, side, narrow }) {
 
 /* Дрібні елементи */
 export const Status = ({ kind, children }) => <span className={`status status-${kind}`}>{children}</span>;
+/** Позначка «Із запізненням»: роботу чи тест здали після дедлайну. */
+export const LateTag = () => <span className="late-tag">Із запізненням</span>;
 
 export function Empty({ icon, title, action }) {
   return (

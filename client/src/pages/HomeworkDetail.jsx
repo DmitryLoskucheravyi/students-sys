@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
-import { Button, DatePicker, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Status, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
+import { Button, DatePicker, ErrorNote, IconButton, Input, LateTag, Linkify, Loader, Modal, PageHead, Status, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
 import { IconDownload, IconEdit, IconFile, IconFolderZip, IconLeft, IconTick, IconTrash } from '../icons.jsx';
-import { dateTimeShort, fileSize, nowLocal, time } from '../fmt.js';
-import { HW_STATUS } from './Homework.jsx';
+import { dateTimeShort, fileSize, isLate, nowLocal, time } from '../fmt.js';
+
+const firstAt = (s) => s.first_submitted_at ?? s.submitted_at;
+import { HW_STATUS, hwWhere } from './Homework.jsx';
 import Uploader from '../Uploader.jsx';
 import { TopicChips, TopicPicker } from './HomeworkTopics.jsx';
 import { notify } from './Quizzes.jsx';
@@ -35,11 +37,11 @@ export default function HomeworkDetail() {
     <>
       <BackLink />
       <PageHead title={hw.title}>
-        {!isStudent && <IconButton label="Редагувати" onClick={() => setEditing(true)}><IconEdit size={20} /></IconButton>}
-        {!isStudent && <IconButton label="Видалити" onClick={remove}><IconTrash size={20} /></IconButton>}
+        {hw.can_edit && <IconButton label="Редагувати" onClick={() => setEditing(true)}><IconEdit size={20} /></IconButton>}
+        {hw.can_edit && <IconButton label="Видалити" onClick={remove}><IconTrash size={20} /></IconButton>}
       </PageHead>
       <p className={`small ${late ? 'text-red' : 'muted'}`}>Здати до {dateTimeShort(hw.due_at)}</p>
-      <p className="muted small">{[hw.lesson_title, hw.teacher_name].filter(Boolean).join(', ')}</p>
+      <p className="muted small">{hwWhere(hw)}</p>
       {hw.topics?.length > 0 && (
         <div className="hw-topics">
           <TopicChips topics={hw.topics} />
@@ -105,6 +107,7 @@ function StudentWork({ hw, onChange }) {
     <section className="work">
       <header className="work-head">
         <h2>Моя робота</h2>
+        {sub && isLate(firstAt(sub), hw.due_at) && <LateTag />}
         {sub?.grade != null ? <span className="grade grade-big" title="Оцінка">{sub.grade}</span> : <Status kind={HW_STATUS[status][0]}>{HW_STATUS[status][1]}</Status>}
       </header>
       {sub?.feedback && (
@@ -136,8 +139,8 @@ function Submissions({ hw, onChange }) {
                 <h3>{row.student_name}</h3>
                 <p className="muted small">
                   {s ? `Здано ${dateTimeShort(s.submitted_at)}, файлів: ${s.files.length}` : 'Ще не здано'}
-                  {s && s.submitted_at > hw.due_at && <span className="text-red">, із запізненням</span>}
                 </p>
+                {s && isLate(firstAt(s), hw.due_at) && <LateTag />}
               </div>
               {s?.grade != null ? <span className="grade">{s.grade}</span> : <Status kind={HW_STATUS[st][0]}>{st === 'todo' ? 'Не здано' : HW_STATUS[st][1]}</Status>}
               {s && <Button variant={st === 'submitted' ? 'primary' : 'ghost'} small onClick={() => setReviewing(row)}>{st === 'submitted' ? 'Перевірити' : 'Відкрити'}</Button>}
@@ -145,12 +148,12 @@ function Submissions({ hw, onChange }) {
           );
         })}
       </ul>
-      {reviewing && <ReviewSheet row={reviewing} onClose={() => setReviewing(null)} onDone={() => { setReviewing(null); onChange(); }} />}
+      {reviewing && <ReviewSheet row={reviewing} dueAt={hw.due_at} onClose={() => setReviewing(null)} onDone={() => { setReviewing(null); onChange(); }} />}
     </section>
   );
 }
 
-function ReviewSheet({ row, onClose, onDone }) {
+function ReviewSheet({ row, dueAt, onClose, onDone }) {
   const s = row.submission;
   const [grade, setGrade] = useState(s.grade);
   const [feedback, setFeedback] = useState(s.feedback ?? '');
@@ -165,7 +168,7 @@ function ReviewSheet({ row, onClose, onDone }) {
   return (
     <Modal side title={row.student_name} onClose={onClose}>
       <div className="sheet">
-        <p className="muted small">Здано {dateTimeShort(s.submitted_at)}</p>
+        <p className="muted small">Здано {dateTimeShort(s.submitted_at)}{isLate(firstAt(s), dueAt) && <> <LateTag /></>}</p>
         {s.comment && <p className="note"><Linkify text={s.comment} /></p>}
         <FileList files={s.files} />
         <div className="field">
@@ -195,7 +198,8 @@ function EditHomework({ hw, onClose, onDone }) {
   const [run, busy] = useAction();
   const submit = async (e) => {
     e.preventDefault();
-    const ok = await run(() => api(`/homework/${hw.id}`, { method: 'PATCH', body: { title, description, due_at: `${date} ${t}:00`, ...(hw.schedule_id ? { topics } : {}) } }), 'Зміни збережено');
+    const withTopics = hw.on_roadmap || hw.schedule_id;
+    const ok = await run(() => api(`/homework/${hw.id}`, { method: 'PATCH', body: { title, description, due_at: `${date} ${t}:00`, ...(withTopics ? { topics } : {}) } }), 'Зміни збережено');
     if (ok) onDone();
   };
   return (
@@ -207,10 +211,12 @@ function EditHomework({ hw, onClose, onDone }) {
           <DatePicker label="Здати до" value={date} onChange={setDate} />
           <TimePicker label="Час" value={t} onChange={setT} />
         </div>
-        <TopicPicker query={hw.schedule_id ? `schedule_id=${hw.schedule_id}` : null} value={topics} onChange={setTopics} />
+        {hw.on_roadmap
+          ? <TopicPicker source={`/courses/${hw.course_id}`} value={topics} onChange={setTopics} hint="Хоча б одна тема: домашнє прив’язане до роадмапу." />
+          : <TopicPicker query={hw.schedule_id ? `schedule_id=${hw.schedule_id}` : null} value={topics} onChange={setTopics} />}
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Назад</Button>
-          <Button type="submit" busy={busy}>Зберегти</Button>
+          <Button type="submit" busy={busy} disabled={hw.on_roadmap && !topics.length}>Зберегти</Button>
         </div>
       </form>
     </Modal>

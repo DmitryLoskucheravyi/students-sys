@@ -12,6 +12,17 @@ CREATE TABLE IF NOT EXISTS users (
   INDEX idx_users_role (role, is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Сесії входу: «Вийти» видаляє рядок, і токен з цього пристрою більше не діє.
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  user_id INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at DATETIME NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_auth_sessions_user (user_id),
+  INDEX idx_auth_sessions_exp (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Кабінети вчителя: сервіс (Zoom, Google Meet...) і посилання. Обираються під час постановки в розклад.
 CREATE TABLE IF NOT EXISTS teacher_rooms (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -110,6 +121,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   lessons_total INT NOT NULL,
   lessons_used INT NOT NULL DEFAULT 0,
   price_per_lesson DECIMAL(10,2) NOT NULL,
+  sold_amount DECIMAL(10,2) NULL,  -- сума в момент видачі: «продано» у статистиці не змінюється після правок
   starts_on DATE NOT NULL,
   expires_on DATE NOT NULL,
   status ENUM('active','closed') NOT NULL DEFAULT 'active',
@@ -245,11 +257,15 @@ CREATE TABLE IF NOT EXISTS session_requests (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Домашнє належить постановці: його бачать лише учні цієї групи.
+-- Домашнє до уроку (lesson_id + schedule_id) або до теми роадмапу (course_id, теми в homework_topics).
+-- Домашнє до теми отримують учні курсу; якщо teacher_id заданий, лише учні цього вчителя.
 CREATE TABLE IF NOT EXISTS homework (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  lesson_id INT NOT NULL,
+  lesson_id INT NULL,
   schedule_id INT NULL,
   session_id INT NULL,
+  course_id INT NULL,
+  teacher_id INT NULL,
   title VARCHAR(160) NOT NULL,
   description TEXT NULL,
   due_at DATETIME NOT NULL,
@@ -257,6 +273,8 @@ CREATE TABLE IF NOT EXISTS homework (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE,
   FOREIGN KEY (schedule_id) REFERENCES lesson_schedules(id) ON DELETE SET NULL,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+  FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL,
   FOREIGN KEY (session_id) REFERENCES lesson_sessions(id) ON DELETE SET NULL,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
   INDEX idx_hw_lesson (lesson_id, due_at)
@@ -284,6 +302,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   grade TINYINT NULL,
   feedback TEXT NULL,
   submitted_at DATETIME NOT NULL,
+  first_submitted_at DATETIME NULL,  -- перша здача: за нею видно запізнення, повторна здача після повернення не рахується
   reviewed_at DATETIME NULL,
   reviewed_by INT NULL,
   UNIQUE KEY uq_submission (homework_id, student_id),

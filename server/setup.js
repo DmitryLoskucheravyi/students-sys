@@ -59,6 +59,25 @@ async function migrate(conn, { hadRoster, hadSchedules }) {
     await conn.query('ALTER TABLE submissions ADD COLUMN seen_at DATETIME NULL');
     await conn.query('UPDATE submissions SET seen_at = reviewed_at WHERE reviewed_at IS NOT NULL');
   }
+  // Домашнє до теми роадмапу: без уроку, з курсом і, якщо задав вчитель, з ним.
+  if ((await columnInfo(conn, 'homework', 'lesson_id'))?.nullable === 'NO') {
+    await conn.query('ALTER TABLE homework MODIFY lesson_id INT NULL');
+  }
+  if (!(await columnInfo(conn, 'homework', 'course_id'))) {
+    await conn.query('ALTER TABLE homework ADD COLUMN course_id INT NULL, ADD COLUMN teacher_id INT NULL');
+    await conn.query('ALTER TABLE homework ADD CONSTRAINT fk_homework_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE');
+    await conn.query('ALTER TABLE homework ADD CONSTRAINT fk_homework_teacher FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL');
+  }
+  // «Продано» — сума в момент видачі абонемента. Для старих записів беремо поточну.
+  if (!(await columnInfo(conn, 'subscriptions', 'sold_amount'))) {
+    await conn.query('ALTER TABLE subscriptions ADD COLUMN sold_amount DECIMAL(10,2) NULL');
+    await conn.query('UPDATE subscriptions SET sold_amount = lessons_total * price_per_lesson');
+  }
+  // Запізнення рахується від першої здачі.
+  if (!(await columnInfo(conn, 'submissions', 'first_submitted_at'))) {
+    await conn.query('ALTER TABLE submissions ADD COLUMN first_submitted_at DATETIME NULL');
+    await conn.query('UPDATE submissions SET first_submitted_at = submitted_at');
+  }
   if (hadSchedules && !hadRoster) {
     await conn.query(
       `INSERT IGNORE INTO schedule_students (schedule_id, student_id)

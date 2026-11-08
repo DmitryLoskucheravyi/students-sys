@@ -80,7 +80,7 @@ with sync_playwright() as pw:
     # 4. Домашнє з темами: цілий етап і окрема підтема
     tp.goto(f"{BASE}/homework"); tp.wait_for_load_state("networkidle")
     tp.get_by_role("button", name="Задати домашнє").click(); hm = tp.locator(".modal")
-    hm.get_by_label("Урок").click(); tp.get_by_role("option", name="Веб: група А").first.click()
+    hm.get_by_role("combobox", name="Урок").click(); tp.get_by_role("option", name="Веб: група А").first.click()
     expect(hm.locator(".topics")).to_be_visible(); check("після вибору уроку з'явились теми курсу", True)
     hm.get_by_label("Назва").fill("Сторінка з подіями")
     hm.locator(".topic", has_text="CSS і верстка").locator(".topic-head .check").click()
@@ -169,7 +169,7 @@ with sync_playwright() as pw:
         c, p = new(b, w, 760, touch=True); login(p, "teacher", "teacher123")
         p.goto(f"{BASE}/homework"); p.wait_for_load_state("networkidle")
         p.get_by_role("button", name="Задати домашнє").click(); hm = p.locator(".modal")
-        hm.get_by_label("Урок").click(); p.get_by_role("option", name="Веб: група А").first.click(); expect(hm.locator(".topics")).to_be_visible()
+        hm.get_by_role("combobox", name="Урок").click(); p.get_by_role("option", name="Веб: група А").first.click(); expect(hm.locator(".topics")).to_be_visible()
         wide = p.evaluate("(() => { const m = document.querySelector('.modal'); return m.scrollWidth - m.clientWidth; })()")
         check(f"{w}px: вибір тем вміщується в шторку", wide <= 0, str(wide))
         if w == 320: shot(p, "cp6-mobile-topics", full=True)

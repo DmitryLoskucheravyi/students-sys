@@ -144,12 +144,16 @@ subscriptionsRouter.post('/', requireRole('manager'), async (req, res) => {
   const expires_on = b.expires_on ? isoDate(b.expires_on, 'Закінчення') : addDays(starts_on, plan.valid_days);
   if (expires_on < starts_on) throw bad('Закінчення раніше за початок');
 
+  const lessonsTotal = b.lessons_total != null ? int(b.lessons_total, 'Уроків', { min: 1, max: 500 }) : plan.lessons_count;
+  const price = b.price_per_lesson != null ? money(b.price_per_lesson, 'Вартість заняття') : Number(plan.price_per_lesson);
   const r = await q('INSERT INTO subscriptions SET ?', [{
     student_id: studentId,
     plan_id: plan.id,
     name: plan.name,
-    lessons_total: b.lessons_total != null ? int(b.lessons_total, 'Уроків', { min: 1, max: 500 }) : plan.lessons_count,
-    price_per_lesson: b.price_per_lesson != null ? money(b.price_per_lesson, 'Вартість заняття') : plan.price_per_lesson,
+    lessons_total: lessonsTotal,
+    price_per_lesson: price,
+    // Знімок суми продажу: подальші правки ціни чи кількості уроків статистику не змінюють.
+    sold_amount: Math.round(lessonsTotal * price * 100) / 100,
     starts_on,
     expires_on,
     created_by: req.user.id,

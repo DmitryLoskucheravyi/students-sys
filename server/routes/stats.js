@@ -16,7 +16,7 @@ statsRouter.get('/', async (req, res) => {
   const range = [`${from} 00:00:00`, `${addDays(to, 1)} 00:00:00`];
 
   const [sold] = await q(
-    `SELECT COUNT(*) AS count, COALESCE(SUM(lessons_total * price_per_lesson), 0) AS amount
+    `SELECT COUNT(*) AS count, COALESCE(SUM(COALESCE(sold_amount, lessons_total * price_per_lesson)), 0) AS amount
        FROM subscriptions WHERE created_at >= ? AND created_at < ?`,
     range
   );
@@ -62,7 +62,7 @@ statsRouter.get('/', async (req, res) => {
   });
   const monthly = await q(
     `SELECT m.month,
-            COALESCE((SELECT SUM(s.lessons_total * s.price_per_lesson) FROM subscriptions s
+            COALESCE((SELECT SUM(COALESCE(s.sold_amount, s.lessons_total * s.price_per_lesson)) FROM subscriptions s
                        WHERE DATE_FORMAT(s.created_at, '%Y-%m') = m.month), 0) AS sold,
             COALESCE((SELECT SUM(a.price_charged) FROM attendance a JOIN lesson_sessions se ON se.id = a.session_id
                        WHERE a.attended = 1 AND DATE_FORMAT(se.starts_at, '%Y-%m') = m.month), 0)

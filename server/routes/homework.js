@@ -8,6 +8,7 @@ import { requireAuth, requireRole } from '../auth.js';
 import { HttpError, bad, conflict, dateTime, forbidden, id, int, notFound, nowStr, str } from '../lib.js';
 import { MAX_FILE_MB, UPLOAD_DIR, openFile, persistFile, removeFile } from '../storage.js';
 import { courseTopics, parseTopics, saveTopics, topicsOf } from '../topics.js';
+import { HW_FOR, HW_STAFF, IN_COURSE, TEACHES, sqlInt } from '../audience.js';
 
 export const homeworkRouter = Router();
 export const filesRouter = Router();
@@ -96,29 +97,68 @@ async function inspectFiles(req) {
   return rows;
 }
 
+// Домашнє до уроку бере курс і вчителя з уроку та постановки, домашнє до теми — зі своїх колонок.
 const HW_SELECT = `
   SELECT h.id, h.lesson_id, h.schedule_id, h.session_id, h.title, h.description, h.due_at, h.created_at,
-         l.title AS lesson_title, l.course_id, sc.teacher_id, u.name AS teacher_name, c.title AS course_title
+         h.course_id IS NOT NULL AS on_roadmap, h.teacher_id AS owner_teacher_id,
+         l.title AS lesson_title, COALESCE(h.course_id, l.course_id) AS course_id,
+         COALESCE(sc.teacher_id, h.teacher_id) AS teacher_id, u.name AS teacher_name, c.title AS course_title
     FROM homework h
-    JOIN lessons l ON l.id = h.lesson_id
+    LEFT JOIN lessons l ON l.id = h.lesson_id
     LEFT JOIN lesson_schedules sc ON sc.id = h.schedule_id
-    LEFT JOIN users u ON u.id = sc.teacher_id
-    LEFT JOIN courses c ON c.id = l.course_id`;
+    LEFT JOIN users u ON u.id = COALESCE(sc.teacher_id, h.teacher_id)
+    LEFT JOIN courses c ON c.id = COALESCE(h.course_id, l.course_id)`;
+const norm = (h) => ({ ...h, on_roadmap: Boolean(h.on_roadmap) });
 
 async function loadHomework(homeworkId) {
   const [h] = await q(`${HW_SELECT} WHERE h.id=?`, [homeworkId]);
   if (!h) throw notFound('Завдання не знайдено');
-  return h;
+  return norm(h);
 }
-/** Домашнє бачать лише учні постановки, якій його задали. */
+/** Домашнє до уроку бачать учні постановки, до теми роадмапу — учні курсу. */
 async function isStudentOf(hw, studentId) {
-  const [hit] = await q('SELECT 1 FROM schedule_students WHERE schedule_id=? AND student_id=?', [hw.schedule_id, studentId]);
+  const [hit] = await q(`SELECT 1 FROM homework h WHERE h.id=? AND ${HW_FOR('h', sqlInt(studentId))}`, [hw.id]);
   return Boolean(hit);
 }
-function assertStaff(user, hw) {
+/** Вчитель бачить лише своїх учнів на домашньому до теми, яке задав менеджер. */
+const limitedView = (user, hw) => user.role === 'teacher' && hw.on_roadmap && !hw.owner_teacher_id;
+
+/** Кому задано домашнє, очима співробітника. */
+async function rosterOf(hw, user) {
+  if (!hw.on_roadmap) {
+    return q(
+      `SELECT u.id, u.name FROM schedule_students ss JOIN users u ON u.id = ss.student_id
+        WHERE ss.schedule_id=? ORDER BY u.name`,
+      [hw.schedule_id]
+    );
+  }
+  const teacher = hw.owner_teacher_id ?? (user.role === 'teacher' ? user.id : null);
+  return q(
+    `SELECT u.id, u.name FROM users u
+      WHERE u.role = 'student' AND ${IN_COURSE(sqlInt(hw.course_id), teacher == null ? 'NULL' : sqlInt(teacher), 'u.id')}
+      ORDER BY u.name`
+  );
+}
+async function canStaff(user, hw) {
+  if (user.role === 'manager') return true;
+  if (user.role !== 'teacher') return false;
+  const [{ ok }] = await q(
+    `SELECT ${HW_STAFF('h', 'sc', sqlInt(user.id))} AS ok
+       FROM homework h LEFT JOIN lesson_schedules sc ON sc.id = h.schedule_id WHERE h.id=?`,
+    [hw.id]
+  );
+  return Boolean(ok);
+}
+/** Доступ співробітника; з studentId — ще й до роботи конкретного учня. */
+async function assertStaff(user, hw, studentId = null) {
+  if (!(await canStaff(user, hw))) throw forbidden();
+  if (studentId != null && limitedView(user, hw) && !(await rosterOf(hw, user)).some((s) => s.id === studentId)) throw forbidden();
+}
+/** Змінює й видаляє менеджер, вчитель уроку або вчитель, який сам задав домашнє до теми. */
+function assertOwner(user, hw) {
   if (user.role === 'manager') return;
   if (user.role === 'teacher' && hw.teacher_id === user.id) return;
-  throw forbidden();
+  throw forbidden(hw.on_roadmap ? 'Це домашнє задав менеджер: змінити його може лише він' : undefined);
 }
 async function filesOf(submissionIds) {
   if (!submissionIds.length) return [];
@@ -171,50 +211,74 @@ homeworkRouter.get('/topics', requireRole('manager', 'teacher'), async (req, res
 homeworkRouter.get('/', async (req, res) => {
   const { role, id: me } = req.user;
   if (role === 'student') {
-    const rows = await q(
-      `${HW_SELECT}
-       JOIN schedule_students ss ON ss.schedule_id = h.schedule_id AND ss.student_id = ?
-       ORDER BY h.due_at DESC`,
-      [me]
-    );
+    const rows = await q(`${HW_SELECT} WHERE ${HW_FOR('h', sqlInt(me))} ORDER BY h.due_at DESC`);
     const subs = await q(
-      'SELECT homework_id, status, grade, submitted_at, reviewed_at, seen_at FROM submissions WHERE student_id=?',
+      'SELECT homework_id, status, grade, submitted_at, first_submitted_at, reviewed_at, seen_at FROM submissions WHERE student_id=?',
       [me]
     );
     return res.json(
       rows.map((h) => {
         const s = subs.find((x) => x.homework_id === h.id);
-        return { ...h, my_status: s?.status ?? 'todo', my_grade: s?.grade ?? null, my_new: Boolean(s?.reviewed_at && !s.seen_at) };
+        return {
+          ...norm(h),
+          my_status: s?.status ?? 'todo',
+          my_grade: s?.grade ?? null,
+          my_new: Boolean(s?.reviewed_at && !s.seen_at),
+          my_late: Boolean(s && (s.first_submitted_at ?? s.submitted_at) > h.due_at),
+        };
       })
     );
   }
+  const teacher = role === 'teacher';
+  // Вчитель на домашньому менеджера до теми рахує лише своїх учнів курсу.
+  const courseTeacher = teacher ? `COALESCE(t.owner_teacher_id, ${sqlInt(me)})` : 't.owner_teacher_id';
+  const mine = teacher ? `AND (NOT t.on_roadmap OR ${IN_COURSE('t.course_id', courseTeacher, 's.student_id')})` : '';
   const rows = await q(
     `SELECT t.*,
-        (SELECT COUNT(*) FROM schedule_students ss WHERE ss.schedule_id = t.schedule_id) AS students_count,
-        (SELECT COUNT(*) FROM submissions s WHERE s.homework_id = t.id) AS submitted_count,
-        (SELECT COUNT(*) FROM submissions s WHERE s.homework_id = t.id AND s.status='submitted') AS to_review
-       FROM (${HW_SELECT} ${role === 'teacher' ? 'WHERE sc.teacher_id = ?' : ''}) t
-      ORDER BY to_review DESC, t.due_at DESC`,
-    role === 'teacher' ? [me] : []
+        CASE WHEN t.on_roadmap
+          THEN (SELECT COUNT(*) FROM users u WHERE u.role = 'student' AND ${IN_COURSE('t.course_id', courseTeacher, 'u.id')})
+          ELSE (SELECT COUNT(*) FROM schedule_students ss WHERE ss.schedule_id = t.schedule_id) END AS students_count,
+        (SELECT COUNT(*) FROM submissions s WHERE s.homework_id = t.id ${mine}) AS submitted_count,
+        (SELECT COUNT(*) FROM submissions s WHERE s.homework_id = t.id AND s.status='submitted' ${mine}) AS to_review,
+        (SELECT COUNT(*) FROM submissions s WHERE s.homework_id = t.id ${mine}
+            AND COALESCE(s.first_submitted_at, s.submitted_at) > t.due_at) AS late_count
+       FROM (${HW_SELECT} ${teacher ? `WHERE ${HW_STAFF('h', 'sc', sqlInt(me))}` : ''}) t
+      ORDER BY to_review DESC, t.due_at DESC`
   );
-  res.json(rows);
+  res.json(rows.map(norm));
 });
+
+/** Куди задають домашнє: до уроку в розкладі або до тем роадмапу курсу. */
+async function resolveTarget(b, user) {
+  if (b.course_id == null || b.course_id === '') {
+    const placement = await resolvePlacement(b);
+    if (user.role === 'teacher' && placement.teacher_id !== user.id) throw forbidden();
+    const topics = await parseHwTopics(b.topics, placement.course_id);
+    return { row: { lesson_id: placement.lesson_id, schedule_id: placement.id, session_id: placement.sessionId }, topics };
+  }
+  const courseId = id(b.course_id, 'Курс');
+  const [course] = await q('SELECT id FROM courses WHERE id=?', [courseId]);
+  if (!course) throw bad('Курс не знайдено');
+  if (user.role === 'teacher') {
+    const [{ ok }] = await q(`SELECT ${TEACHES(sqlInt(courseId), sqlInt(user.id))} AS ok`);
+    if (!ok) throw forbidden('Цей курс веде інший вчитель');
+  }
+  const topics = await parseTopics(b.topics, courseId);
+  if (!topics.length) throw bad('Оберіть хоча б одну тему роадмапу');
+  // Вчитель задає домашнє своїм учням курсу, менеджер — усім.
+  return { row: { course_id: courseId, teacher_id: user.role === 'teacher' ? user.id : null }, topics };
+}
 
 homeworkRouter.post('/', requireRole('manager', 'teacher'), async (req, res) => {
   const b = req.body ?? {};
-  // Домашнє задають постановці: напряму або через її заняття.
-  const placement = await resolvePlacement(b);
-  if (req.user.role === 'teacher' && placement.teacher_id !== req.user.id) throw forbidden();
+  const { row: target, topics } = await resolveTarget(b, req.user);
   const row = {
-    lesson_id: placement.lesson_id,
-    schedule_id: placement.id,
-    session_id: placement.sessionId,
+    ...target,
     title: str(b.title, 'Назва', { max: 160 }),
     description: str(b.description, 'Опис', { max: 5000, required: false }),
     due_at: dateTime(b.due_at, 'Здати до'),
     created_by: req.user.id,
   };
-  const topics = await parseHwTopics(b.topics, placement.course_id);
   const homeworkId = await tx(async (t) => {
     const r = await t('INSERT INTO homework SET ?', [row]);
     await saveHwTopics(t, r.insertId, topics);
@@ -234,16 +298,13 @@ homeworkRouter.get('/:id', async (req, res) => {
     if (submission?.reviewed_at && !submission.seen_at) await q('UPDATE submissions SET seen_at=? WHERE id=?', [nowStr(), submission.id]);
     return res.json({ ...hw, topics: await hwTopicsOf(hw.id), submission: submission ? { ...submission, files } : null });
   }
-  assertStaff(req.user, hw);
-  const students = await q(
-    `SELECT u.id, u.name FROM schedule_students ss JOIN users u ON u.id = ss.student_id
-      WHERE ss.schedule_id=? ORDER BY u.name`,
-    [hw.schedule_id]
-  );
-  const subs = await q(
+  await assertStaff(req.user, hw);
+  const students = await rosterOf(hw, req.user);
+  const limited = limitedView(req.user, hw);
+  const subs = (await q(
     `SELECT s.*, u.name AS student_name FROM submissions s JOIN users u ON u.id = s.student_id WHERE s.homework_id=?`,
     [hw.id]
-  );
+  )).filter((s) => !limited || students.some((st) => st.id === s.student_id));
   const files = await filesOf(subs.map((s) => s.id));
   // Учень міг вибути з групи, але його робота лишається видимою.
   const merged = [
@@ -255,12 +316,12 @@ homeworkRouter.get('/:id', async (req, res) => {
     ...row,
     submission: row.submission ? { ...row.submission, files: files.filter((f) => f.submission_id === row.submission.id) } : null,
   }));
-  res.json({ ...hw, topics: await hwTopicsOf(hw.id), students: merged });
+  res.json({ ...hw, can_edit: req.user.role === 'manager' || hw.teacher_id === req.user.id, topics: await hwTopicsOf(hw.id), students: merged });
 });
 
 homeworkRouter.patch('/:id', requireRole('manager', 'teacher'), async (req, res) => {
   const hw = await loadHomework(id(req.params.id));
-  assertStaff(req.user, hw);
+  assertOwner(req.user, hw);
   const b = req.body ?? {};
   const fields = [
     str(b.title, 'Назва', { max: 160 }),
@@ -270,6 +331,7 @@ homeworkRouter.patch('/:id', requireRole('manager', 'teacher'), async (req, res)
   ];
   // Теми змінюються, лише коли їх передали: старі клієнти їх не надсилають.
   const topics = b.topics === undefined ? null : await parseHwTopics(b.topics, hw.course_id);
+  if (hw.on_roadmap && topics && !topics.length) throw bad('Оберіть хоча б одну тему роадмапу');
   await tx(async (t) => {
     await t('UPDATE homework SET title=?, description=?, due_at=? WHERE id=?', fields);
     if (topics) await saveHwTopics(t, hw.id, topics);
@@ -279,7 +341,7 @@ homeworkRouter.patch('/:id', requireRole('manager', 'teacher'), async (req, res)
 
 homeworkRouter.delete('/:id', requireRole('manager', 'teacher'), async (req, res) => {
   const hw = await loadHomework(id(req.params.id));
-  assertStaff(req.user, hw);
+  assertOwner(req.user, hw);
   const stored = await q(
     `SELECT f.stored_name FROM submission_files f JOIN submissions s ON s.id = f.submission_id WHERE s.homework_id=?`,
     [hw.id]
@@ -329,7 +391,7 @@ homeworkRouter.post('/:id/submission', requireRole('student'), handleUpload, asy
         );
       } else {
         const r = await t('INSERT INTO submissions SET ?', [{
-          homework_id: hw.id, student_id: req.user.id, comment, submitted_at: nowStr(),
+          homework_id: hw.id, student_id: req.user.id, comment, submitted_at: nowStr(), first_submitted_at: nowStr(),
         }]);
         submissionId = r.insertId;
       }
@@ -372,9 +434,9 @@ filesRouter.delete('/:id', requireRole('student'), async (req, res) => {
 
 homeworkRouter.post('/submissions/:id/review', requireRole('manager', 'teacher'), async (req, res) => {
   const subId = id(req.params.id);
-  const [s] = await q('SELECT homework_id FROM submissions WHERE id=?', [subId]);
+  const [s] = await q('SELECT homework_id, student_id FROM submissions WHERE id=?', [subId]);
   if (!s) throw notFound('Роботу не знайдено');
-  assertStaff(req.user, await loadHomework(s.homework_id));
+  await assertStaff(req.user, await loadHomework(s.homework_id), s.student_id);
   const status = req.body?.status;
   if (!['accepted', 'returned'].includes(status)) throw bad('Оберіть: прийняти або повернути');
   const grade = req.body?.grade == null || req.body.grade === '' ? null : int(req.body.grade, 'Оцінка', { min: 1, max: 12 });
@@ -391,16 +453,15 @@ homeworkRouter.post('/submissions/:id/review', requireRole('manager', 'teacher')
 filesRouter.get('/:id', async (req, res) => {
   const fileId = id(req.params.id);
   const [f] = await q(
-    `SELECT f.*, s.student_id, sc.teacher_id
-       FROM submission_files f
-       JOIN submissions s ON s.id = f.submission_id
-       JOIN homework h ON h.id = s.homework_id
-       LEFT JOIN lesson_schedules sc ON sc.id = h.schedule_id
-      WHERE f.id=?`,
+    `SELECT f.*, s.student_id, s.homework_id FROM submission_files f
+       JOIN submissions s ON s.id = f.submission_id WHERE f.id=?`,
     [fileId]
   );
   const { role, id: me } = req.user;
-  const allowed = f && (role === 'manager' || (role === 'teacher' && f.teacher_id === me) || (role === 'student' && f.student_id === me));
+  let allowed = Boolean(f) && (role !== 'student' || f.student_id === me);
+  if (allowed && role !== 'student') {
+    allowed = await assertStaff(req.user, await loadHomework(f.homework_id), f.student_id).then(() => true, () => false);
+  }
   if (!allowed) throw new HttpError(404, 'Файл не знайдено');
 
   const missing = () => {

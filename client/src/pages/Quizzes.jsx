@@ -2,9 +2,9 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, uploadForm, useData } from '../api.js';
 import { useAuth } from '../session.jsx';
-import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, Linkify, Loader, Modal, PageHead, Select, Status, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
+import { Button, Checkbox, DatePicker, Empty, ErrorNote, IconButton, Input, LateTag, Linkify, Loader, Modal, PageHead, Select, Status, Textarea, TimePicker, useAction, useUI } from '../ui.jsx';
 import { IconClose, IconCopy, IconDown, IconEdit, IconImage, IconLeft, IconPlus, IconQuiz, IconRestore, IconRight, IconSpark, IconTick, IconTrash, IconUp, IconUser } from '../icons.jsx';
-import { dateTimeShort, nowLocal, plural, time } from '../fmt.js';
+import { dateTimeShort, isLate, nowLocal, plural, time } from '../fmt.js';
 import { TopicChips, TopicPicker } from './HomeworkTopics.jsx';
 import { MAX_OPTIONS, MAX_QUESTIONS, MIN_OPTIONS, QUIZ_PROMPT, parseQuizAnswer } from '../quizImport.js';
 
@@ -25,7 +25,12 @@ const fromServer = (questions) => questions.map((x) => ({
 /** Стан проходження: «Треба пройти» або бал. */
 export function QuizState({ a }) {
   if (!a.submitted_at) return <Status kind="warn">Треба пройти</Status>;
-  return <Status kind={a.score / a.max_score >= 0.5 ? 'completed' : 'cancelled'}>{a.score} з {a.max_score}</Status>;
+  return (
+    <>
+      {isLate(a.submitted_at, a.due_at) && <LateTag />}
+      <Status kind={a.score / a.max_score >= 0.5 ? 'completed' : 'cancelled'}>{a.score} з {a.max_score}</Status>
+    </>
+  );
 }
 
 /* Менеджер: список тестів (вкладка на сторінці завдань) */
@@ -468,7 +473,7 @@ export function QuizTake() {
           <strong>{a.score}<small> з {a.max_score}</small></strong>
           <div>
             <p>{Math.round((a.score / a.max_score) * 100)}% правильних відповідей</p>
-            <p className="muted small">Пройдено {dateTimeShort(a.submitted_at)}. Нижче видно правильні відповіді.</p>
+            <p className="muted small">Пройдено {dateTimeShort(a.submitted_at)}{isLate(a.submitted_at, a.due_at) && <> <LateTag /></>}. Нижче видно правильні відповіді.</p>
           </div>
         </section>
       )}
