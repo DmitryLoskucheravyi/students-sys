@@ -6,7 +6,7 @@ import { useAuth } from '../../session.jsx';
 import { Button, ErrorNote, Linkify, Loader, useAction } from '../../ui.jsx';
 import Login from '../Login.jsx';
 import { IconRestore } from '../../icons.jsx';
-import { notify, questionsWord } from './common.js';
+import { notify } from './common.js';
 import { QuizRunner, QuizReview, ResultHero, noCopy } from './runner.jsx';
 
 /*
@@ -24,7 +24,7 @@ export function PublicQuiz() {
   const image = (name) => `/api/public/quizzes/${token}/images/${name}`;
 
   if (signIn && !user) return <Login onLogin={(u) => { setUser(u); setSignIn(false); setResult(null); setRound((n) => n + 1); }} />;
-  if (error) return <div className="pq"><PublicHead /><ErrorNote text={error} onRetry={reload} /></div>;
+  if (error) return <div className="pq"><ErrorNote text={error} onRetry={reload} /><PublicLogo /></div>;
   if (!z) return loading ? <Loader /> : null;
 
   const finish = async (answers) => {
@@ -35,9 +35,7 @@ export function PublicQuiz() {
 
   return (
     <div className="pq" {...noCopy}>
-      <PublicHead />
       <h1 className="pq-title">{z.title}</h1>
-      <p className="muted small">{questionsWord(z.questions.length)}</p>
       {z.description && !result && <p className="task"><Linkify text={z.description} /></p>}
 
       {result ? (
@@ -57,23 +55,23 @@ export function PublicQuiz() {
           <QuizReview questions={result.questions} image={image} />
         </>
       ) : (
-        <>
-          <QuizRunner key={round} questions={z.questions} image={image} busy={busy} onFinish={finish} />
-        </>
+        <QuizRunner key={round} questions={z.questions} image={image} busy={busy} onFinish={finish} />
       )}
+      <PublicLogo />
     </div>
   );
 }
 
-function PublicHead() {
+/** Логотип у нижньому лівому куті: з'являється анімовано й далі ледь «дихає». */
+function PublicLogo() {
   return (
-    <header className="pq-head">
-      <span className="wordmark" role="img" aria-label="Be Smart School">
+    <div className="pq-logo" role="img" aria-label="Be Smart School">
+      <span className="wordmark">
         <span className="wordmark-full">
           <span className="wordmark-be">BE</span>
           <span className="wordmark-stack"><span>Smart</span><span>School</span></span>
         </span>
       </span>
-    </header>
+    </div>
   );
 }
