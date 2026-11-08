@@ -492,7 +492,6 @@ img { display: block; max-width: 100%; }
   background-size: calc(var(--hour) / 2) 100%;
 }
 .week-col .block { z-index: 2; }
-.page:has(.week) { max-width: none; }
 .week-col:last-child { border-right: 1px solid var(--grid-strong); }
 .week-col.is-today { background-color: var(--red-soft); }
 .week-col.can-add { cursor: copy; }
@@ -643,7 +642,6 @@ img { display: block; max-width: 100%; }
 .road-toolbar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
 /* Дорога: широка смуга з узбіччям і розміткою по центру. Пройдена частина заливається кольором теми. */
 .road { --road-w: 20px; position: relative; container-type: inline-size; }
-.page:has(.road) { max-width: none; }
 .road-line { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .road.is-ready .road-line { animation: road-show 0.6s ease both; }
 @keyframes road-show { from { opacity: 0; } }
@@ -1044,7 +1042,7 @@ button.stop:active { transform: scale(0.94); }
   .shell.is-collapsed .rail-user-text { display: none; }
   .shell.is-collapsed .rail-tools { flex-direction: column; padding-left: 0; }
 
-  .page { padding: 34px 40px 60px; max-width: 1240px; }
+  .page { padding: 34px 40px 60px; }
   .page-head { gap: 16px; margin-bottom: 22px; }
   .page-head h1 { font-size: 30px; }
   .lead { margin: -12px 0 22px; }
