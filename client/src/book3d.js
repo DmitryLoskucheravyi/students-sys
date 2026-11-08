@@ -49,7 +49,9 @@ function texture(w, h, draw) {
 }
 
 const MONO = '"Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace';
-const PAPER = '#fbf7f0';
+const PAPER = '#f1ebe1';
+// Сторінки трохи притемнені: на червоному тлі чисто білий папір світився
+const PAGE_TINT = '#efe9df';
 const RED = '#d6152f';
 
 const PAGE_TEXT = [
@@ -162,7 +164,7 @@ function buildBook() {
   const blockGeo = new THREE.BoxGeometry(W, H, T / 2);
   // Порядок граней Box: +x, -x, +y, -y, +z, -z
   const rightBlock = new THREE.Mesh(blockGeo, [edgeU, paper, edgeV, edgeV,
-    new THREE.MeshStandardMaterial({ map: pageTexture(PAGE_TEXT[3], 'left', 8), roughness: 0.9 }), paper]);
+    new THREE.MeshStandardMaterial({ map: pageTexture(PAGE_TEXT[3], 'left', 8), color: PAGE_TINT, roughness: 0.9 }), paper]);
   rightBlock.position.set(W / 2, 0, T / 4);
   book.add(backCover, rightBlock);
 
@@ -172,7 +174,7 @@ function buildBook() {
   const frontCover = new THREE.Mesh(coverGeo, [cloth, cloth, cloth, cloth, endpaper, front]);
   frontCover.position.set(-(W + O) / 2, 0, -C / 2 - pivotZ);
   const leftBlock = new THREE.Mesh(blockGeo, [paper, edgeU, edgeV, edgeV,
-    new THREE.MeshStandardMaterial({ map: pageTexture(PAGE_TEXT[0], 'right', 1), roughness: 0.9 }), paper]);
+    new THREE.MeshStandardMaterial({ map: pageTexture(PAGE_TEXT[0], 'right', 1), color: PAGE_TINT, roughness: 0.9 }), paper]);
   leftBlock.position.set(-W / 2, 0, T / 4 - pivotZ);
   left.add(frontCover, leftBlock);
   book.add(left);
@@ -188,8 +190,8 @@ function buildBook() {
     const geo = new THREE.PlaneGeometry(W, H, SEG, 1);
     geo.translate(W / 2, 0, 0);
     const base = Float32Array.from(geo.attributes.position.array);
-    const frontMat = new THREE.MeshStandardMaterial({ map: pageTexture(PAGE_TEXT[(i + 1) % 4], 'left', 2 * i + 3), roughness: 0.9, side: THREE.FrontSide });
-    const backMat = new THREE.MeshStandardMaterial({ map: pageTexture(PAGE_TEXT[(i + 2) % 4], 'right', 2 * i + 2, true), roughness: 0.9, side: THREE.BackSide });
+    const frontMat = new THREE.MeshStandardMaterial({ map: pageTexture(PAGE_TEXT[(i + 1) % 4], 'left', 2 * i + 3), color: PAGE_TINT, roughness: 0.9, side: THREE.FrontSide });
+    const backMat = new THREE.MeshStandardMaterial({ map: pageTexture(PAGE_TEXT[(i + 2) % 4], 'right', 2 * i + 2, true), color: PAGE_TINT, roughness: 0.9, side: THREE.BackSide });
     const g = new THREE.Group();
     g.position.z = pivotZ;
     g.add(new THREE.Mesh(geo, frontMat), new THREE.Mesh(geo, backMat));
@@ -237,10 +239,15 @@ function buildBook() {
   return { book, pose, dispose };
 }
 
-/* Траєкторія в частках панелі: u зліва, v згори. На низькій панелі телефона книга летить над лого праворуч */
-const PATH_WIDE = [[-0.12, 1.08], [0.18, 0.62], [0.4, 0.42], [0.55, 0.37], [0.8, 0.18], [1.22, -0.25]];
+/*
+ * Траєкторія в частках полотна: u зліва, v згори. На широкому екрані полотно — уся сторінка:
+ * книга виринає знизу зліва, розгортається над лівою панеллю й вилітає вгору через червоний виступ праворуч, повз форму.
+ * На низькій панелі телефона книга летить над лого праворуч.
+ */
+const PATH_WIDE = [[-0.08, 1.08], [0.11, 0.62], [0.25, 0.42], [0.34, 0.37], [0.56, 0.15], [0.76, -0.3]];
 const PATH_LOW = [[-0.1, 1.2], [0.52, 0.34], [0.8, 0.24], [0.86, 0.22], [1.0, 0.06], [1.2, -0.45]];
-const REST = [0.76, 0.27];
+const REST_WIDE = [0.4, 0.27];
+const REST_LOW = [0.76, 0.27];
 
 /**
  * Монтує сцену в елемент. Повертає функцію, що все прибирає.
@@ -255,7 +262,7 @@ export function mountBook(el, { still = false, startAt = performance.now() } = {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
   camera.position.set(0, 0, 14);
-  scene.add(new THREE.HemisphereLight('#ffffff', '#f3dcd8', 1.6));
+  scene.add(new THREE.HemisphereLight('#ffffff', '#f3dcd8', 1.4));
   const key = new THREE.DirectionalLight('#fff6ec', 2.4);
   key.position.set(-4, 6, 9);
   scene.add(key);
@@ -282,12 +289,12 @@ export function mountBook(el, { still = false, startAt = performance.now() } = {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     const halfH = camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-    view = { w, h, halfH, halfW: halfH * camera.aspect, low: w / h > 1.5 };
+    view = { w, h, halfH, halfW: halfH * camera.aspect, low: h < 320 };
   };
   const toWorld = ([u, v]) => new THREE.Vector3((u * 2 - 1) * view.halfW, (1 - v * 2) * view.halfH, 0);
   // Висота книги на екрані в пікселях → масштаб сцени
   const bookScale = () => {
-    const px = view.low ? Math.max(46, view.h * 0.26) : Math.min(190, Math.max(90, view.h * 0.2));
+    const px = view.low ? Math.max(46, view.h * 0.26) : Math.min(240, Math.max(110, view.h * 0.25));
     return (px * (2 * view.halfH / view.h)) / H;
   };
 
@@ -335,7 +342,7 @@ export function mountBook(el, { still = false, startAt = performance.now() } = {
     resize();
     pose(1, [1, 0, 0]);
     center.position.x = 0;
-    holder.position.copy(toWorld(REST));
+    holder.position.copy(toWorld(view.low ? REST_LOW : REST_WIDE));
     turn.rotation.set(-0.42, -0.1, -0.12);
     holder.scale.setScalar(bookScale() * 0.9);
     const size = holder.scale.x * (2 * W + 0.3);

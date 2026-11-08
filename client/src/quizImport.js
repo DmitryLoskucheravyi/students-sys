@@ -9,7 +9,7 @@ export const MAX_OPTIONS = 6;
 
 export const QUIZ_PROMPT = `Склади тест для перевірки знань учня за матеріалом, який я надішлю в кінці цього повідомлення.
 
-Відповідай лише самим тестом у форматі нижче, без вступу, пояснень і markdown:
+Відповідай лише самим тестом, без вступу й пояснень. Весь тест поклади в один блок коду (між рядками \`\`\`text і \`\`\`), щоб позначки «+» і «-» не загубились під час копіювання. Формат усередині блоку:
 
 Назва: коротка назва тесту
 
@@ -71,7 +71,8 @@ function fromLines(text) {
   let cur = null;
   for (const line of text.split(/\r?\n/)) {
     const s = unwrap(line.trim());
-    if (!s || /^```/.test(s) || /^(?:-{3,}|\*{3,})$/.test(s)) continue;
+    if (/^```/.test(s) || /^(?:-{3,}|\*{3,})$/.test(s)) continue;
+    if (!s) { if (cur) cur.closed = true; continue; }
     let m;
     if (!cur && !title && (m = s.match(TITLE))) { title = unwrap(m[1]); continue; }
     if ((m = s.match(OPTION)) && cur) {
@@ -83,8 +84,15 @@ function fromLines(text) {
       raw.push(cur);
       continue;
     }
-    // Продовження тексту питання, поки варіантів ще немає.
-    if (cur && !cur.options.length) cur.text += ` ${s}`;
+    if (!cur) continue;
+    // Рядок без позначки. Чат показує «+ » і «- » як маркований список, і під час копіювання позначки зникають.
+    // Тоді варіант — це рядок після порожнього рядка, після знака питання в кінці питання або після іншого варіанта.
+    if (cur.options.length || cur.closed || /[?:]\s*$/.test(cur.text)) {
+      cur.options.push({ text: s, correct: false, bare: true });
+      continue;
+    }
+    // Інакше це продовження тексту питання.
+    cur.text += ` ${s}`;
   }
   return { title: clean(title, 160), raw };
 }
@@ -95,10 +103,11 @@ function fromLines(text) {
  */
 export function parseQuizAnswer(text) {
   const src = typeof text === 'string' ? text.trim() : '';
-  if (!src) return { title: '', questions: [], skipped: [] };
+  if (!src) return { title: '', questions: [], skipped: [], unmarked: 0 };
   const parsed = (/^(```\w*\s*)?[[{]/.test(src) && fromJson(src.replace(/^```\w*\s*/, ''))) || fromLines(src);
   const questions = [];
   const skipped = [];
+  let unmarked = 0;
   parsed.raw.forEach((q, i) => {
     const n = i + 1;
     const qtext = clean(q.text, 500);
@@ -113,10 +122,15 @@ export function parseQuizAnswer(text) {
     if (!qtext) reason = 'немає тексту питання';
     else if (options.length < MIN_OPTIONS) reason = `варіантів ${options.length}, треба щонайменше ${MIN_OPTIONS}`;
     else if (options.length > MAX_OPTIONS) reason = `варіантів ${options.length}, можна не більше ${MAX_OPTIONS}`;
-    else if (!options.some((o) => o.correct)) reason = 'не позначено правильну відповідь';
     else if (questions.length >= MAX_QUESTIONS) reason = `у тесті не більше ${MAX_QUESTIONS} питань`;
+    // Без жодної позначки питання все одно береться: правильні відповіді менеджер позначить у редакторі.
+    const noMarks = !reason && !options.some((o) => o.correct);
+    if (noMarks && !q.options.some((o) => o.bare)) reason = 'не позначено правильну відповідь';
     if (reason) skipped.push({ n, text: qtext, reason });
-    else questions.push({ text: qtext, options });
+    else {
+      if (noMarks) unmarked += 1;
+      questions.push({ text: qtext, options });
+    }
   });
-  return { title: parsed.title, questions, skipped };
+  return { title: parsed.title, questions, skipped, unmarked };
 }

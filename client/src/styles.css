@@ -175,6 +175,11 @@ img { display: block; max-width: 100%; }
   vertical-align: 2px;
 }
 .tabs { margin-bottom: 18px; }
+.people-search { position: relative; display: flex; align-items: center; max-width: 420px; margin: -4px 0 16px; }
+.people-search > svg { position: absolute; left: 12px; color: var(--muted); pointer-events: none; }
+.people-search .input { padding-left: 40px; padding-right: 44px; }
+.people-search .input::-webkit-search-cancel-button { display: none; }
+.people-search .icon-btn { position: absolute; right: 2px; }
 
 /* Кнопки */
 .btn {
@@ -325,7 +330,9 @@ img { display: block; max-width: 100%; }
 .collapse-inner { min-height: 0; overflow: hidden; padding: 0 3px; margin: 0 -3px; }
 
 /* Вхід */
-.login { display: grid; grid-template-rows: 190px 1fr; min-height: 100dvh; }
+.login { position: relative; display: grid; grid-template-rows: 190px 1fr; min-height: 100dvh; overflow: hidden; }
+/* Червона «рідина» в правій колонці: лише на широкому екрані. Форму малює liquid.js */
+.login-flow { display: none; }
 .login-art {
   position: relative; overflow: hidden; background-color: var(--rail); padding: 20px;
   background-image:
@@ -382,13 +389,13 @@ img { display: block; max-width: 100%; }
   100% { opacity: 0; transform: translateX(var(--dx)); }
 }
 
-/* Тривимірна книга: полотно на всю панель над лого */
-.book3d { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+/* Тривимірна книга: на телефоні над червоною панеллю, на широкому екрані над усією сторінкою */
+.book3d { position: absolute; inset: 0 0 auto 0; height: 190px; z-index: 3; pointer-events: none; }
 .book3d canvas { display: block; width: 100%; height: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .bs-logo, .bs-word b, .bs-tail, .bs-tail > span, .bs-under > span, .bs-be, .bs-be-in { animation: none; }
 }
-.login-form { position: relative; justify-self: center; width: min(100%, 400px); padding: 24px 16px; display: flex; flex-direction: column; gap: 16px; }
+.login-form { position: relative; z-index: 1; justify-self: center; width: min(100%, 400px); padding: 24px 16px; display: flex; flex-direction: column; gap: 16px; }
 .login-form h1 { font: 700 28px/1.1 var(--display); letter-spacing: -0.03em; margin-bottom: 6px; }
 .login-theme { position: absolute; top: 16px; right: 16px; }
 
@@ -764,6 +771,7 @@ button.stop:active { transform: scale(0.94); }
 .sub-left.is-low { --left-bg: var(--left-low-bg); --left-ink: var(--left-low-ink); }
 .sub-row > .status { margin-left: auto; }
 .sub-row .row-actions { width: 100%; gap: 6px; }
+.sub-row .row-main { min-width: 120px; }
 .sub-row .row-actions .btn { flex: 1; }
 .charges li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .charges span:first-child { display: grid; min-width: 0; }
@@ -956,8 +964,10 @@ button.stop:active { transform: scale(0.94); }
   .sub-price { text-align: right; }
   .sub-left { min-width: 78px; justify-content: center; }
   .sub-price { min-width: 92px; }
-  .sub-row { flex-wrap: nowrap; }
-  .sub-row .row-actions { margin-left: 0; }
+  /* Ім'я не стискається в стовпчик: коли місця мало, кнопки переносяться на новий рядок */
+  .sub-row { flex-wrap: wrap; }
+  .sub-row .row-main { flex: 1 1 170px; min-width: 150px; }
+  .sub-row .row-actions { margin-left: auto; }
   .summary { grid-template-columns: minmax(0, 2fr) 1fr 1fr; margin-bottom: 22px; }
   .summary-next { grid-column: auto; padding: 16px 18px; }
   .summary-item { padding: 14px 16px; }
@@ -970,7 +980,20 @@ button.stop:active { transform: scale(0.94); }
   .ticket-stub strong { font-size: 19px; }
   .login { grid-template-rows: none; grid-template-columns: minmax(0, 1.2fr) minmax(340px, 1fr); }
   .login-art { padding: 40px; }
-  .bs-logo { font-size: clamp(50px, 6.8vw, 116px); }
+  /* Сітка прив'язана до вікна, щоб у червоному виступі лінії продовжували панель без зсуву */
+  .login-art, .login-flow { background-attachment: fixed; }
+  .login-flow {
+    display: block; grid-column: 2; grid-row: 1; align-self: stretch; justify-self: stretch;
+    margin-left: -1px; clip-path: inset(0 100% 0 0);
+    background-color: var(--rail);
+    background-image:
+      linear-gradient(rgb(255 255 255 / 0.13) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.13) 1px, transparent 1px);
+    background-size: 34px 34px;
+  }
+  .login-form { grid-column: 2; grid-row: 1; }
+  .book3d { height: auto; bottom: 0; }
+  .bs-logo { font-size: clamp(50px, 8vw, 140px); }
   .login-form { align-self: center; padding: 32px 24px; }
   .login-form h1 { font-size: 30px; }
   .login-theme { top: 28px; right: 24px; }
@@ -1121,6 +1144,7 @@ button.stop:active { transform: scale(0.94); }
 .qi-result { display: grid; gap: 6px; padding: 12px 14px; border-radius: 12px; background: var(--left-ok-bg); color: var(--left-ok-ink); }
 .qi-result.is-empty { background: var(--left-low-bg); color: var(--left-low-ink); }
 .qi-result p { margin: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 600; }
+.qi-result p.qi-warn { display: block; font-weight: 500; }
 .qi-result p.small { font-weight: 500; }
 .qi-skipped { margin: 0; padding-left: 18px; display: grid; gap: 2px; color: var(--ink); overflow-wrap: anywhere; }
 

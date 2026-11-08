@@ -1,12 +1,22 @@
 import { useState } from 'react';
 import { api, useData } from '../api.js';
 import { Button, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageHead, PasswordInput, Segmented, Select, useAction, useUI } from '../ui.jsx';
-import { IconBan, IconEdit, IconKey, IconPeople, IconPlus, IconRestore, IconTrash } from '../icons.jsx';
+import { IconBan, IconClose, IconEdit, IconKey, IconPeople, IconPlus, IconRestore, IconSearch, IconTrash } from '../icons.jsx';
 import { lessonsWord, randomPassword } from '../fmt.js';
 import { Avatar, AvatarPicker } from '../avatars.jsx';
 
+/** Для пошуку: без регістру й різниці між апострофами. */
+const norm = (s) => s.toLocaleLowerCase('uk').replace(/[’ʼ`']/g, "'").replace(/ё/g, 'е');
+/** Кожне слово запиту має бути в імені: «бойко дар» знайде «Дарина Бойко». */
+const matches = (name, query) => {
+  const words = norm(query).split(/\s+/).filter(Boolean);
+  const n = norm(name);
+  return words.every((w) => n.includes(w));
+};
+
 export default function People() {
   const [role, setRole] = useState('student');
+  const [query, setQuery] = useState('');
   const { data, loading, error, reload } = useData('/users');
   const [editing, setEditing] = useState(null);
   const [resetting, setResetting] = useState(null);
@@ -14,7 +24,8 @@ export default function People() {
   const [run] = useAction();
   const { confirm } = useUI();
 
-  const list = (data ?? []).filter((u) => u.role === role);
+  const all = (data ?? []).filter((u) => u.role === role);
+  const list = query.trim() ? all.filter((u) => matches(u.name, query)) : all;
   const isStudent = role === 'student';
 
   const toggleActive = async (u) => {
@@ -39,7 +50,16 @@ export default function People() {
       </div>
       {error && <ErrorNote text={error} onRetry={reload} />}
       {!data && loading && <Loader />}
-      {data && !list.length && <Empty icon={<IconPeople size={36} />} title={isStudent ? 'Додайте першого учня' : 'Додайте першого вчителя'} />}
+      {all.length > 0 && (
+        <div className="people-search">
+          <IconSearch size={18} />
+          <input type="search" className="input" placeholder="Пошук за ім’ям і прізвищем" aria-label="Пошук за ім’ям і прізвищем"
+            value={query} onChange={(e) => setQuery(e.target.value)} />
+          {query && <IconButton label="Очистити пошук" onClick={() => setQuery('')}><IconClose size={18} /></IconButton>}
+        </div>
+      )}
+      {data && all.length > 0 && !list.length && <Empty icon={<IconSearch size={36} />} title="Нікого не знайдено" />}
+      {data && !all.length && <Empty icon={<IconPeople size={36} />} title={isStudent ? 'Додайте першого учня' : 'Додайте першого вчителя'} />}
       {list.length > 0 && (
         <ul className="rows">
           {list.map((u) => (

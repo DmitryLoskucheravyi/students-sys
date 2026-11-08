@@ -263,7 +263,7 @@ function QuizImport({ onClose, onDone }) {
           <li>
             <div>
               <strong>Надішліть його в будь-який ШІ</strong>
-              <p className="muted small">ChatGPT, Gemini, Claude чи інший. Після промпту вставте конспект або тему уроку.</p>
+              <p className="muted small">ChatGPT, Gemini, Claude чи інший. Після промпту вставте конспект або тему уроку. Відповідь копіюйте кнопкою копіювання над блоком коду.</p>
             </div>
           </li>
           <li>
@@ -281,6 +281,12 @@ function QuizImport({ onClose, onDone }) {
                 ? <><IconTick size={16} /> Знайдено {questionsWord(found)}{result.title && <> · «{result.title}»</>}</>
                 : 'Не знайдено жодного питання. Перевірте, що відповідь у форматі з промпту.'}
             </p>
+            {result.unmarked > 0 && (
+              <p className="small qi-warn">
+                У {result.unmarked} {result.unmarked % 10 === 1 && result.unmarked % 100 !== 11 ? 'питанні' : 'питаннях'} немає позначок «+» і «−»: схоже, вони загубились під час копіювання з чату.
+                Питання й варіанти розставимо, а правильні відповіді позначте в редакторі. Щоб не позначати вручну, скопіюйте відповідь кнопкою над блоком коду.
+              </p>
+            )}
             {result.skipped.length > 0 && (
               <>
                 <p className="small">Пропущено {result.skipped.length}:</p>

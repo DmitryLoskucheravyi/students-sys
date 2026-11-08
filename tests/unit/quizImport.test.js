@@ -57,3 +57,41 @@ test('порожній чи сторонній текст не дає питан
   assert.match(QUIZ_PROMPT, /\? Текст першого питання/);
   assert.match(QUIZ_PROMPT, /«\+ » для правильного/);
 });
+
+test('позначки загубились під час копіювання з чату: питання й варіанти все одно розставлені', () => {
+  const r = parseQuizAnswer(`Назва: Основи JavaScript
+
+? Яке ключове слово оголошує незмінну змінну?
+
+const
+let
+var
+static
+
+? Які з наведених типів є примітивними в JavaScript?
+
+string
+boolean
+object
+array
+
+? Що поверне typeof null?
+“object”
+“null”
+“undefined”`);
+  assert.equal(r.title, 'Основи JavaScript');
+  assert.equal(r.questions.length, 3);
+  assert.equal(r.unmarked, 3);
+  assert.equal(r.questions[0].text, 'Яке ключове слово оголошує незмінну змінну?');
+  assert.deepEqual(r.questions[0].options.map((o) => o.text), ['const', 'let', 'var', 'static']);
+  assert.ok(r.questions.every((q) => q.options.every((o) => !o.correct)));
+  assert.equal(r.questions[2].options.length, 3);
+  assert.deepEqual(r.skipped, []);
+});
+
+test('промпт просить блок коду, а позначені варіанти з блоку розбираються як завжди', () => {
+  assert.match(QUIZ_PROMPT, /```text/);
+  const r = parseQuizAnswer('```text\nНазва: X\n\n? Q?\n\n+ a\n- b\n- c\n```');
+  assert.equal(r.unmarked, 0);
+  assert.deepEqual(r.questions[0].options.map((o) => o.correct), [true, false, false]);
+});

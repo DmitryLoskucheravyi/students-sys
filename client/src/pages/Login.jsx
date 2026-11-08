@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { Button, Input, PasswordInput } from '../ui.jsx';
-import { ThemeButton } from '../session.jsx';
+import { mountLiquid } from '../liquid.js';
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -21,6 +21,13 @@ function Book3D() {
     return () => { alive = false; stop?.(); };
   }, []);
   return <div ref={ref} className="book3d" aria-hidden="true" />;
+}
+
+/** Червоний фон перетікає в праву колонку й огинає форму. На телефоні блок прихований. */
+function Liquid({ formRef }) {
+  const ref = useRef(null);
+  useEffect(() => mountLiquid(ref.current, formRef.current, { still: reducedMotion() }), [formRef]);
+  return <div ref={ref} className="login-flow" aria-hidden="true" />;
 }
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -68,6 +75,7 @@ export default function Login({ onLogin }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const formRef = useRef(null);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -85,7 +93,6 @@ export default function Login({ onLogin }) {
     <div className="login">
       <div className="login-art">
         <Bits />
-        <Book3D />
         <p className="bs-logo" role="img" aria-label="Be Smart School">
           <span className="bs-be" aria-hidden="true">
             <span className="bs-word bs-be-in"><b>B</b><span className="bs-tail"><span>E</span></span></span>
@@ -96,8 +103,10 @@ export default function Login({ onLogin }) {
           </span>
         </p>
       </div>
-      <form className="login-form" onSubmit={submit}>
-        <ThemeButton className="login-theme" />
+      <Liquid formRef={formRef} />
+      {/* Книга летить над усією сторінкою: з лівої панелі через червоний виступ угору */}
+      <Book3D />
+      <form ref={formRef} className="login-form" onSubmit={submit}>
         <h1>Вхід</h1>
         <Input label="Логін" autoComplete="username" autoCapitalize="none" spellCheck={false} autoFocus value={login} onChange={(e) => setLogin(e.target.value)} required />
         <PasswordInput autoComplete="current-password" value={password} onChange={setPassword} required />
