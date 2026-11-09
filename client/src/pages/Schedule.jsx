@@ -725,7 +725,6 @@ function PlaceField({ session, canEdit, onSaved }) {
           <Button variant="ghost" small onClick={() => setEditing(false)}>Скасувати</Button>
           <Button type="submit" small busy={busy}>Зберегти</Button>
         </div>
-        <small className="muted">Лише для цього заняття. Порожньо: місце з уроку.</small>
       </form>
     );
   }
@@ -796,7 +795,7 @@ function PlacementForm({ scheduleId, onCancel, onDone }) {
     <form className="sheet-form" onSubmit={go}>
       <h3>Склад</h3>
       <PeopleFields teacherId={tId} setTeacherId={setTeacherId} students={sIds} setStudents={setStudents} room={roomValue} setRoom={setRoom} options={options} />
-      {placement.kind === 'weekly' && <p className="muted small">Зміна діє на всі майбутні заняття. Минулі й списання не зміняться.</p>}
+      {placement.kind === 'weekly' && <p className="muted small">Діє на всі майбутні заняття.</p>}
       <FormActions onCancel={onCancel} action="Зберегти" busy={busy} />
     </form>
   );
@@ -856,7 +855,7 @@ export function ScheduleForm({ preset = {}, onClose, onDone }) {
                 <TimePicker label="Час" value={t} onChange={setT} />
                 <DatePicker label="Починаючи з" value={startDate} onChange={setStartDate} />
               </div>
-              <DatePicker label="До якої дати" hint="Порожньо: без кінцевої дати" placeholder="Без кінця" clearable value={endDate} onChange={setEndDate} min={startDate} />
+              <DatePicker label="До якої дати" placeholder="Без кінця" clearable value={endDate} onChange={setEndDate} min={startDate} />
             </>
           ) : (
             <div className="form-row">

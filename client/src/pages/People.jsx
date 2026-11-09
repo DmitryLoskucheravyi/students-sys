@@ -113,7 +113,6 @@ function RoomsEditor({ rooms, setRooms }) {
   return (
     <fieldset className="rooms">
       <legend className="field-label">Кабінети</legend>
-      {rooms.length === 0 && <p className="muted small">Додайте Zoom, Google Meet чи інший сервіс, щоб посилання саме з'являлося в розкладі.</p>}
       {rooms.map((r, i) => (
         <div key={r.key} className={`room ${r.is_default ? 'is-main' : ''}`}>
           <div className="room-head">

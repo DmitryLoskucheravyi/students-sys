@@ -176,34 +176,27 @@ export function QuizRunner({ questions, image, busy, onFinish }) {
   );
 }
 
-/** Результат: кільце з часткою правильних, бал і короткий відгук. Звук і конфеті — один раз при показі. */
+/**
+ * Результат: лише бал великими цифрами й смужка з поділкою на кожен бал (або суцільна, коли балів багато).
+ * Звук і конфеті — один раз при показі. children — кнопки під результатом, якщо треба.
+ */
 export function ResultHero({ score, max, fresh, children }) {
   const share = max ? score / max : 0;
   const good = share >= 0.5;
-  const title = share === 1 ? 'Ідеально!' : share >= 0.8 ? 'Чудовий результат' : good ? 'Добре, так тримати' : 'Варто повторити тему';
   useEffect(() => { if (fresh) (good ? sfx.win : sfx.soft)(); }, [fresh, good]);
+  const ticks = max > 0 && max <= 20 ? max : 0;
   return (
-    <section className={`quiz-score qr-result ${good ? 'is-good' : 'is-low'} ${fresh ? 'is-fresh' : ''}`} aria-label="Результат">
+    <section className={`quiz-score qr-result ${good ? 'is-good' : 'is-low'} ${fresh ? 'is-fresh' : ''}`} aria-label={`Результат: ${score} з ${max}`}>
       {fresh && share >= 0.8 && (
         <div className="qr-confetti" aria-hidden="true">
           {Array.from({ length: 18 }, (_, k) => <i key={k} style={{ '--x': `${(k * 37) % 100}%`, '--d': `${(k % 6) * 90}ms`, '--r': `${(k * 47) % 360}deg`, '--c': k % 3 }} />)}
         </div>
       )}
-      <div className="qr-dial">
-        <svg className="qr-ring" viewBox="0 0 120 120" aria-hidden="true">
-          <circle cx="60" cy="60" r="52" className="qr-ring-bg" />
-          <circle cx="60" cy="60" r="52" className="qr-ring-fg" pathLength="1" style={{ '--share': share }} />
-        </svg>
-        <div className="qr-score">
-          <strong>{score}<small> з {max}</small></strong>
-          <span>{Math.round(share * 100)}%</span>
-        </div>
+      <p className="qr-big"><strong>{score}</strong><span>/ {max}</span></p>
+      <div className={`qr-meter ${ticks ? 'has-ticks' : ''}`} style={{ '--share': share }} aria-hidden="true">
+        {ticks ? Array.from({ length: ticks }, (_, k) => <i key={k} className={k < Math.round(score) ? 'is-on' : ''} style={{ '--k': k }} />) : <i className="is-on" />}
       </div>
-      <div className="qr-verdict">
-        <h2>{title}</h2>
-        <p>{Math.round(share * 100)}% правильних відповідей</p>
-        {children}
-      </div>
+      {children}
     </section>
   );
 }

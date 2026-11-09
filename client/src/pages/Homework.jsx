@@ -178,7 +178,7 @@ function NewHomework({ onClose, onDone }) {
         </div>
         {target === 'lesson'
           ? <TopicPicker query={scheduleId ? `schedule_id=${scheduleId}` : null} value={topics} onChange={setTopics} />
-          : courseId && <TopicPicker source={`/courses/${courseId}`} value={topics} onChange={setTopics} hint="Оберіть хоча б одну тему: домашнє з’явиться на роадмапі в ній." />}
+          : courseId && <TopicPicker source={`/courses/${courseId}`} value={topics} onChange={setTopics} hint="Хоча б одна тема" />}
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Назад</Button>
           <Button type="submit" busy={busy} disabled={!ready}>Задати</Button>

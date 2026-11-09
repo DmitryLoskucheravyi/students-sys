@@ -213,7 +213,7 @@ function EditHomework({ hw, onClose, onDone }) {
           <TimePicker label="Час" value={t} onChange={setT} />
         </div>
         {hw.on_roadmap
-          ? <TopicPicker source={`/courses/${hw.course_id}`} value={topics} onChange={setTopics} hint="Хоча б одна тема: домашнє прив’язане до роадмапу." />
+          ? <TopicPicker source={`/courses/${hw.course_id}`} value={topics} onChange={setTopics} hint="Хоча б одна тема" />
           : <TopicPicker query={hw.schedule_id ? `schedule_id=${hw.schedule_id}` : null} value={topics} onChange={setTopics} />}
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Назад</Button>

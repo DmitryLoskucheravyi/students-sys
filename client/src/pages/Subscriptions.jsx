@@ -348,7 +348,6 @@ function PlanForm({ plan, onClose, onDone }) {
         {!isNew && (
           <>
             <Segmented label="Доступність" value={active ? 1 : 0} onChange={setActive} options={[{ value: 1, label: 'Можна видавати' }, { value: 0, label: 'Приховано' }]} />
-            <p className="muted small">Вже видані абонементи не зміняться, лише колір квитка.</p>
           </>
         )}
         <div className="form-actions">

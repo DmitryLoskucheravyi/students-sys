@@ -50,7 +50,6 @@ with sync_playwright() as pw:
     tc, t = new(b); login(t, "teacher", "teacher123")
     t.goto(f"{BASE}/homework?tab=quizzes"); t.wait_for_load_state("networkidle")
     t.get_by_role("button", name="Новий тест").click(); t.wait_for_url("**/quizzes/new")
-    expect(t.locator("main")).to_contain_text("перевірить менеджер"); check("вчителя попереджено про модерацію", True)
     check("тест вчителя на модерації", api(tc, "POST", "/quizzes", data={**QUIZ, "title": "JS від вчителя"}).json()["status"] == "pending")
     tq = api(tc, "GET", "/quizzes").json()
     check("вчитель бачить лише свої тести", [z["title"] for z in tq] == ["JS від вчителя"] and tq[0]["status"] == "pending", str([z['title'] for z in tq]))

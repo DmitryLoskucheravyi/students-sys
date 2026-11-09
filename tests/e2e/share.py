@@ -68,8 +68,10 @@ with sync_playwright() as pw:
     answer(g, right=True)
     g.get_by_role("button", name="Завершити тест").click(); g.wait_for_load_state("networkidle")
     expect(g.locator(".quiz-score")).to_contain_text("2")
-    check("гість бачить результат 2 з 2", "2" in g.locator(".quiz-score strong").inner_text() and "100%" in g.locator(".quiz-score").inner_text())
-    check("гостю сказано, що результат не збережено", "не зберігається" in g.locator(".quiz-score").inner_text())
+    check("гість бачить результат 2 / 2", g.locator(".qr-big").inner_text().replace("\n", " ").split() == ["2", "/", "2"], g.locator(".qr-big").inner_text())
+    check("смужка: дві поділки, обидві заповнені", g.locator(".qr-meter i").count() == 2 and g.locator(".qr-meter i.is-on").count() == 2)
+    check("під балом без пояснень і кнопки входу", g.locator(".quiz-score p:not(.qr-big)").count() == 0 and g.locator(".quiz-score").get_by_role("button", name="Увійти").count() == 0
+          and "зберіг" not in g.locator(".quiz-score").inner_text())
     check("після здачі видно правильні відповіді", g.locator(".q-opt.is-correct").count() == 2)
     over = g.evaluate("document.documentElement.scrollWidth - window.innerWidth")
     check("телефон: без прокрутки вбік", over <= 0, str(over))
@@ -91,7 +93,8 @@ with sync_playwright() as pw:
     s.goto(url); s.wait_for_load_state("networkidle")
     answer(s, right=False)
     s.get_by_role("button", name="Завершити тест").click(); s.wait_for_load_state("networkidle")
-    expect(s.locator(".quiz-score")).to_contain_text("записано")
+    expect(s.locator(".quiz-score")).to_be_visible()
+    check("учню, чий результат записано, без «Пройти ще раз»", s.locator(".quiz-score").get_by_role("button", name="Пройти ще раз").count() == 0)
     a = api(mc, "GET", f"/quizzes/{qid}").json()["assignments"]
     check("результат учня записано", len(a) == 1 and a[0]["student_name"] == "Марко Шевчук" and a[0]["score"] == 0 and a[0]["max_score"] == 2, str(a))
     check("тест з’явився в тестах учня", any(x["quiz_id"] == qid and x["submitted_at"] for x in api(sc, "GET", "/quizzes/my").json()))
@@ -99,18 +102,9 @@ with sync_playwright() as pw:
     s.goto(url); s.wait_for_load_state("networkidle")
     answer(s, right=True)
     s.get_by_role("button", name="Завершити тест").click(); s.wait_for_load_state("networkidle")
-    expect(s.locator(".quiz-score")).to_contain_text("перший результат")
+    expect(s.locator(".quiz-score")).to_be_visible()
     a = api(mc, "GET", f"/quizzes/{qid}").json()["assignments"]
     check("друга спроба не перезаписала першу", a[0]["score"] == 0, str(a[0]["score"]))
-
-    # 5. Гість входить зі сторінки тесту й лишається на ній
-    lc, l = new(b)
-    l.goto(url); l.wait_for_load_state("networkidle")
-    answer(l); l.get_by_role("button", name="Завершити тест").click(); l.wait_for_load_state("networkidle")
-    l.locator(".quiz-score").get_by_role("button", name="Увійти").click()
-    l.get_by_label("Логін").fill("boiko"); l.locator("input[type=password]").fill("student123")
-    l.get_by_role("button", name="Увійти").click(); l.wait_for_selector(".qr-card"); l.wait_for_load_state("networkidle")
-    check("після входу знову тест", "/q/" in l.url and l.locator(".qr-card").count() == 1)
 
     # 6. Вимкнене посилання, несхвалений тест, сміття в токені
     check("відповідь без правильного варіанта відхилено", api(gc, "POST", f"/public/quizzes/{token}/check", data={"answers": {"999999": [1]}}).status in (200, 400))

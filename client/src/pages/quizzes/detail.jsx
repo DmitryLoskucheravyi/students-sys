@@ -123,7 +123,7 @@ function RejectForm({ quiz, onClose, onDone }) {
   return (
     <Modal narrow title="Відхилити тест" onClose={onClose}>
       <form className="form" onSubmit={submit}>
-        <Textarea label="Що виправити" hint="Вчитель побачить це поруч із тестом" rows={3} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} />
+        <Textarea label="Що виправити" rows={3} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} />
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Назад</Button>
           <Button type="submit" variant="danger" busy={busy}>Відхилити</Button>
@@ -158,7 +158,7 @@ function AssignForm({ quiz, assignment, onClose, onDone }) {
     <Modal side title={assignment ? assignment.student_name : 'Відкрити тест учневі'} onClose={onClose}>
       <form className="form sheet" onSubmit={submit}>
         {!assignment && <Select label="Учень" value={studentId} onChange={setStudentId} placeholder="Оберіть учня" options={pupils} />}
-        <Select label="Курс" hint="Необов’язково: підпис у списку тестів учня" value={courseId} clearable placeholder="Без курсу"
+        <Select label="Курс" value={courseId} clearable placeholder="Без курсу"
           onChange={setCourseId} options={(courses.data ?? []).map((c) => ({ value: c.id, label: c.title }))} />
         <div className="form-row">
           <DatePicker label="Пройти до" value={date} onChange={setDate} clearable placeholder="Без терміну" />
@@ -187,8 +187,6 @@ export function ShareForm({ quiz, onClose, onChange }) {
   return (
     <Modal narrow title="Посилання на тест" onClose={onClose}>
       <div className="form share-form">
-        <p className="muted small">Пройти тест за посиланням може будь-хто, навіть без акаунта, і одразу побачить результат.
-          Записується лише результат учня, який увійшов.</p>
         {token ? (
           <>
             <div className="share-url">

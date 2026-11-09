@@ -117,7 +117,6 @@ function LessonForm({ lesson, onClose, onDone }) {
           <Input label="Місце" placeholder="Кабінет або посилання" maxLength={200} value={location} onChange={(e) => setLocation(e.target.value)} />
         </div>
         <Textarea label="Нотатка" rows={2} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
-        {isNew && <p className="muted small">Учнів і час обираєте, коли ставите урок у розклад. Вчитель підставиться звідси, його можна змінити.</p>}
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Назад</Button>
           <Button type="submit" busy={busy}>{isNew ? 'Створити' : 'Зберегти'}</Button>

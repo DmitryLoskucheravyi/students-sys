@@ -67,7 +67,6 @@ function QuizForm({ quiz }) {
       <PageHead title={quiz ? 'Редагувати тест' : 'Новий тест'}>
         <Button variant="ghost" icon={<IconSpark size={18} />} onClick={() => setAiOpen(true)}>Вставити з ШІ</Button>
       </PageHead>
-      {user.role === 'teacher' && <p className="note small">Ваш тест перевірить менеджер. Після схвалення він з’явиться в загальному списку тестів.</p>}
       {done > 0 && <p className="note small">Тест уже пройшли: {done}. Їхні бали не зміняться, нові учні проходитимуть оновлений варіант.</p>}
       <form className="quiz-form" onSubmit={save}>
         <div className="form quiz-head">
@@ -118,7 +117,7 @@ function QuestionEditor({ q, n, total, onChange, onMove, onRemove }) {
           <IconButton label={`Видалити питання ${n}`} disabled={total === 1} onClick={onRemove}><IconTrash size={18} /></IconButton>
         </div>
       </header>
-      <Textarea label="Питання" hint="Код обгорніть у ^^…^^: він підсвітиться, як у редакторі" required rows={2} maxLength={2000} value={q.text} onChange={(e) => onChange({ text: e.target.value })} />
+      <Textarea label="Питання" hint="Код — у ^^…^^" required rows={2} maxLength={2000} value={q.text} onChange={(e) => onChange({ text: e.target.value })} />
       <div className="q-image">
         {q.image ? (
           <figure>
@@ -131,7 +130,7 @@ function QuestionEditor({ q, n, total, onChange, onMove, onRemove }) {
         <input ref={fileRef} type="file" hidden accept="image/png,image/jpeg,image/webp,image/gif" aria-label={`Картинка до питання ${n}`} onChange={pickImage} />
       </div>
       <fieldset className="q-options">
-        <legend>Варіанти <span className="muted small">· позначте одну або кілька правильних</span></legend>
+        <legend>Варіанти</legend>
         {q.options.map((o, k) => (
           <div key={o.key} className={`q-option ${o.correct ? 'is-correct' : ''}`}>
             <Checkbox checked={o.correct} onChange={(v) => setOpt(o.key, { correct: v })}><span className="sr">Правильна відповідь {k + 1}</span></Checkbox>
@@ -184,7 +183,6 @@ function QuizImport({ onClose, onDone }) {
           <li>
             <div>
               <strong>Скопіюйте промпт</strong>
-              <p className="muted small">У ньому лише формат відповіді. Матеріал уроку додасте в чаті самі.</p>
             </div>
             <div className="qi-copy">
               <Button icon={<IconCopy size={18} />} onClick={copy}>Скопіювати промпт</Button>
@@ -195,7 +193,6 @@ function QuizImport({ onClose, onDone }) {
           <li>
             <div>
               <strong>Надішліть його в будь-який ШІ</strong>
-              <p className="muted small">ChatGPT, Gemini, Claude чи інший. Після промпту вставте конспект або тему уроку. Відповідь копіюйте кнопкою копіювання над блоком коду.</p>
             </div>
           </li>
           <li>

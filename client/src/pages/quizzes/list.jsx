@@ -56,7 +56,6 @@ export function QuizList({ isManager }) {
       {pending.length > 0 && (
         <section className="hw-group moderation" aria-label="Тести на модерації">
           <h2>На модерації <span className="count">{pending.length}</span></h2>
-          <p className="muted small">Тести вчителів. Учні побачать їх лише після схвалення.</p>
           <ul className="rows">
             {pending.map((z) => row(z, (
               <div className="row-actions moderation-actions">

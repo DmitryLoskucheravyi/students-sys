@@ -192,7 +192,7 @@ export default function Uploader({ homeworkId, resubmit, canSendWithoutNew, onDo
         onDragLeave={() => setHover(false)}
         onDrop={onDrop}>
         <IconUpload size={30} />
-        <p className="for-pointer"><strong>Перетягніть сюди файли або папку</strong><br /><span className="muted small">Скрін можна вставити через Ctrl+V</span></p>
+        <p className="for-pointer"><strong>Перетягніть сюди файли або папку</strong></p>
         <p className="for-touch"><strong>Додайте файли, папку або скріни</strong></p>
         <p className="muted small">До {MAX_FILE_MB} МБ на файл</p>
         <div className="drop-buttons">

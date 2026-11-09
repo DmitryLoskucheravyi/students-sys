@@ -78,7 +78,6 @@ export default function CourseDetail() {
             <div className="road-toolbar">
               <Select compact label="Прогрес учня" value={studentId} onChange={setStudentId}
                 options={course.students.map((s) => ({ value: s.id, label: s.name, icon: <Avatar user={s} size={22} />, hint: s.direct && !s.from_schedule ? 'на курсі без розкладу' : undefined }))} />
-              {course.can_edit && <p className="muted small">Натисніть на етап або підпункт, щоб позначити.</p>}
             </div>
           )}
           {!isStudent && !course.students.length && (
