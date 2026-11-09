@@ -107,9 +107,13 @@ with sync_playwright() as pw:
     check("назва короткого блока читається, не сплющена", squash["h"] >= 14 and squash["inside"], str(squash))
     check("блок не вилазить за низ доби", head.evaluate("e=>parseFloat(e.style.top)+e.getBoundingClientRect().height") <= sum(rows) + 1)
     # Стрілка на смужці розгортає вільні години; далі клік по порожній клітинці в різні години
+    bars = m.locator(".fold-bar").count()
     m.locator(".fold-bar").first.click(); m.wait_for_timeout(500)
+    check("стрілка розгортає лише свій проміжок, інші лишаються згорнутими", m.locator(".fold-bar").count() == bars - 1 and m.locator(".fold-up").count() == 1, str(bars))
+    while m.locator(".fold-bar").count():
+        m.locator(".fold-bar").first.click(); m.wait_for_timeout(450)
     rows, y = scale()
-    check("стрілка розгортає вільні години до звичайної висоти", all(r == 88 for r in rows) and m.locator(".fold-up").count() >= 1, str(rows))
+    check("стрілки розгортають вільні години до звичайної висоти", all(r == 88 for r in rows) and m.locator(".fold-up").count() == bars, str(rows))
     m.evaluate("document.querySelector('.week').scrollTop = 0")
     col = m.locator(".week-col").nth(4); bx = col.bounding_box()
     m.mouse.click(bx["x"] + bx["width"] / 2, bx["y"] + y(3.4))

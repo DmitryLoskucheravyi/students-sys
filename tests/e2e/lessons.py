@@ -226,7 +226,9 @@ with sync_playwright() as pw:
     before = api(mc, "GET", f"/stats?from={today}&to={today}").json()
     plan = api(mc, "POST", "/plans", data={"name": "Стат", "lessons_count": 4, "price_per_lesson": 250, "valid_days": 30}).json()["id"]
     sub = api(mc, "POST", "/subscriptions", data={"student_id": ann, "plan_id": plan, "price_per_lesson": 200})
-    now = dt.datetime.now(); start = max(now - dt.timedelta(hours=1), now.replace(hour=0, minute=0, second=0, microsecond=0))
+    now = dt.datetime.now(); midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    # Минуле заняття сьогодні рано-вранці, щоб не перетнутися з тими, що тест створив раніше
+    start = midnight + dt.timedelta(minutes=10) if now.hour >= 1 else max(now - dt.timedelta(hours=1), midnight)
     ps = api(mc, "POST", "/schedules", data={"lesson_id": other, "kind": "once", "date": str(start.date()), "time": start.strftime("%H:%M"), "student_ids": [ann, bob]}).json()
     api(mc, "POST", f"/sessions/{ps['session_id']}/complete", data={"attended_ids": [ann]})
     cs = api(mc, "POST", "/schedules", data={"lesson_id": other, "kind": "once", "date": str(start.date()), "time": "23:55" if start.hour < 23 else "23:58"}).json()

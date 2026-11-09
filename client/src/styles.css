@@ -89,14 +89,14 @@ img { display: block; max-width: 100%; }
 .text-link { color: var(--red); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
 @media (hover: hover) and (pointer: fine) { .text-link:hover { text-decoration-thickness: 2px; } }
 /* Статистика */
-.stats-bar { margin-bottom: 18px; max-width: 520px; }
+.stats-bar { margin-bottom: 18px; }
 .stat-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 26px; }
 .stat-tile { display: grid; align-content: start; gap: 4px; padding: 14px; border-radius: 10px; background: var(--wash); min-width: 0; }
 .stat-tile small { color: var(--muted); font-size: 13px; }
 .stat-tile strong { font: 700 clamp(20px, 6vw, 26px)/1.1 var(--display); letter-spacing: -0.03em; overflow-wrap: anywhere; }
 .stat-tile span { color: var(--muted); font-size: 12.5px; }
 .stat-tile.is-alert span { color: var(--red); font-weight: 500; }
-.stats-section { margin-bottom: 28px; max-width: 900px; }
+.stats-section { margin-bottom: 28px; }
 .stats-section h2 { font: 600 17px/1.25 var(--display); letter-spacing: -0.02em; margin-bottom: 12px; }
 .stats-note { max-width: 70ch; }
 .bars { margin: 0 0 14px; }
@@ -119,7 +119,7 @@ img { display: block; max-width: 100%; }
 .stats-table th:first-child { text-align: left; }
 .stats-table thead th { color: var(--muted); font-weight: 500; font-size: 12.5px; }
 .stats-table tbody th { font-weight: 500; }
-@media (min-width: 900px) { .stat-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 900px; } }
+@media (min-width: 900px) { .stat-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 .lesson-people { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .lesson-people > span { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
@@ -206,7 +206,7 @@ img { display: block; max-width: 100%; }
 .dock-filter.is-on::after { content: ''; position: absolute; top: 6px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--red-fill); box-shadow: 0 0 0 2px var(--wash); }
 /* Шторка фільтрів: кожен фільтр на всю ширину, вибір застосовується одразу */
 .filter-sheet { display: grid; gap: 12px; padding-bottom: 8px; }
-.people-search { position: relative; display: flex; align-items: center; max-width: 420px; margin: -4px 0 16px; }
+.people-search { position: relative; display: flex; align-items: center; margin: -4px 0 16px; }
 .people-search > svg { position: absolute; left: 12px; color: var(--muted); pointer-events: none; }
 .people-search .input { padding-left: 40px; padding-right: 44px; }
 .people-search .input::-webkit-search-cancel-button { display: none; }
@@ -807,7 +807,7 @@ button.stop:active { transform: scale(0.94); }
 .ai-more { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (prefers-reduced-motion: reduce) { .ai-thinking svg { animation: none; } }
 
-.road-editor { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; max-width: 760px; }
+.road-editor { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
 .road-editor .rows { width: 100%; }
 .road-editor .row { align-items: flex-start; }
 .road-editor .step-num { padding-top: 4px; }
@@ -923,7 +923,7 @@ button.stop:active { transform: scale(0.94); }
 }
 .grade-big { width: 56px; height: 56px; font-size: 21px; border-width: 3px; }
 .task { margin-top: 14px; max-width: 72ch; white-space: pre-wrap; overflow-wrap: anywhere; }
-.work { margin-top: 26px; display: flex; flex-direction: column; gap: 14px; max-width: 840px; }
+.work { margin-top: 26px; display: flex; flex-direction: column; gap: 14px; }
 .work-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .feedback { display: flex; gap: 10px; padding: 12px 14px; border-left: 4px solid var(--red-fill); background: var(--red-soft); border-radius: 0 8px 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .feedback svg { flex: none; color: var(--red); margin-top: 2px; }
@@ -952,7 +952,7 @@ button.stop:active { transform: scale(0.94); }
 .grades button { height: 44px; border-radius: 7px; background: var(--wash); font: 600 14px/1 var(--display); }
 .grades button.is-on { background: var(--red-fill); color: #fff; }
 
-.profile-form { max-width: 420px; margin-top: 24px; }
+.profile-form { margin-top: 24px; }
 .profile-tools { display: flex; margin-top: 26px; align-items: center; gap: 10px; }
 
 /* Великий телефон */
@@ -1255,7 +1255,7 @@ button.stop:active { transform: scale(0.94); }
 @keyframes badge-pop { from { transform: scale(0.4); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .nav-badge { animation: none; } }
 .new-dot { display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--red); vertical-align: 2px; }
-.tabs-row { max-width: 320px; margin: -6px 0 18px; }
+.tabs-row { margin: -6px 0 18px; }
 
 /* Тести: список і рядки */
 .quiz-ico { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--wash); color: var(--ink); --ia: var(--red); }
@@ -1263,7 +1263,7 @@ button.stop:active { transform: scale(0.94); }
 
 /* Проходження тесту: одне питання на екрані */
 .qr, .qr-review, .pq, .qr-result { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.qr { display: grid; gap: 12px; margin-top: 14px; max-width: 760px; }
+.qr { display: grid; gap: 12px; margin-top: 14px; }
 .qr-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .qr-count { font-size: 14px; color: var(--muted); }
 .qr-count b { font: 700 22px/1 var(--display); color: var(--ink); letter-spacing: -0.03em; margin-right: 2px; }
@@ -1303,7 +1303,7 @@ button.stop:active { transform: scale(0.94); }
 }
 
 /* Результат: кільце, бал, відгук, конфеті */
-.qr-result { max-width: 760px; position: relative; display: grid; grid-template-columns: 1fr; justify-items: center; text-align: center; align-items: center; gap: 8px 22px; padding: 22px; border-radius: 22px; overflow: hidden; }
+.qr-result { position: relative; display: grid; grid-template-columns: 1fr; justify-items: center; text-align: center; align-items: center; gap: 8px 22px; padding: 22px; border-radius: 22px; overflow: hidden; }
 .qr-result.is-fresh { animation: qr-hero 0.55s var(--ease) both; }
 @keyframes qr-hero { from { opacity: 0; transform: translateY(14px) scale(0.97); } }
 .qr-dial { position: relative; width: 128px; height: 128px; }
@@ -1328,7 +1328,7 @@ button.stop:active { transform: scale(0.94); }
 .qr-confetti i:nth-child(3n + 1) { background: #f5b301; }
 .qr-confetti i:nth-child(3n + 2) { background: #2aa772; width: 6px; height: 6px; border-radius: 50%; }
 @keyframes qr-fall { 10% { opacity: 1; } to { opacity: 0; transform: translateY(220px) rotate(calc(var(--r) + 300deg)); } }
-.qr-review { margin-top: 22px; max-width: 760px; }
+.qr-review { margin-top: 22px; }
 .q-yours { margin-left: auto; flex: none; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: color-mix(in srgb, currentColor 12%, transparent); }
 .qr-review h2 { font: 600 18px/1.2 var(--display); letter-spacing: -0.02em; margin: 0 0 12px; }
 .qr-review .q-card { animation: qr-opt-in 0.4s var(--ease) both; }
@@ -1400,7 +1400,7 @@ button.stop:active { transform: scale(0.94); }
 @media (min-width: 480px) { .share-url { flex-direction: row; } }
 
 /* Редактор тесту */
-.quiz-form { display: grid; gap: 16px; max-width: 860px; }
+.quiz-form { display: grid; gap: 16px; }
 .quiz-head { padding: 0; }
 .q-list, .q-take, .q-preview { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
 .q-card { display: grid; gap: 12px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--raise); min-width: 0; }
@@ -1585,4 +1585,4 @@ button.stop:active { transform: scale(0.94); }
 @media (hover: hover) { .avatar-opt:hover { transform: scale(1.08); } }
 .profile-head { display: flex; align-items: center; gap: 16px; }
 .profile-head .page-head { margin-bottom: 4px; }
-.profile-avatar { margin: 18px 0; max-width: 560px; }
+.profile-avatar { margin: 18px 0; }

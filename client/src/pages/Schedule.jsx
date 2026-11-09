@@ -42,15 +42,16 @@ function idleRuns(busy) {
 }
 
 /**
- * Шкала сітки: зайняті години звичайні; вільні або теж звичайні, або згорнуті — проміжок стає смужкою FOLD_PX.
+ * Шкала сітки: зайняті години звичайні; кожен проміжок вільних годин окремо або звичайний,
+ * або згорнутий у смужку FOLD_PX. isFolded(from) каже, чи згорнутий проміжок, що починається з години from.
  * yOf переводить хвилину доби в пікселі, minuteAt навпаки.
  */
-function makeScale(busy, folded) {
-  const runs = idleRuns(busy);
+function makeScale(busy, isFolded) {
+  const runs = idleRuns(busy).map(([from, to]) => ({ from, to, folded: isFolded(from) }));
+  const runOf = (h) => runs.find((r) => h >= r.from && h < r.to);
   const heights = HOURS.map((h) => {
-    if (busy.has(h) || !folded) return HOUR_PX;
-    const [from, to] = runs.find(([a, b]) => h >= a && h < b);
-    return FOLD_PX / (to - from);
+    const run = busy.has(h) ? null : runOf(h);
+    return run?.folded ? FOLD_PX / (run.to - run.from) : HOUR_PX;
   });
   const tops = heights.reduce((acc, hgt, i) => [...acc, acc[i] + hgt], [0]);
   const yOf = (min) => {
@@ -61,7 +62,7 @@ function makeScale(busy, folded) {
     const h = Math.max(0, tops.findIndex((t, i) => i < 24 && y >= t && y < tops[i + 1]));
     return h * 60 + ((y - tops[h]) / heights[h]) * 60;
   };
-  return { heights, tops, yOf, minuteAt, dayPx: tops[24], busy, runs, folded };
+  return { heights, tops, yOf, minuteAt, dayPx: tops[24], busy, runs, isFolded: (h) => Boolean(runOf(h)?.folded) && !busy.has(h) };
 }
 const currentMinute = () => {
   const now = new Date();
@@ -241,17 +242,24 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot, focusId }) {
   // Десктоп: шкала спільна для тижня — година із заняттям у будь-який день розгорнута в усіх днях.
   // Телефон: рахується лише показаний день.
   const busyKey = [...busyHours(single ? sessionsOfDay(sessions, days[0]) : sessions)].sort((a, b) => a - b).join();
-  // Вільні години згорнуті, якщо є хоч одне заняття; без занять — розгорнуті. Стрілка перемикає для цього дня чи тижня.
-  const [foldPick, setFoldPick] = useState(null);
-  const folded = foldPick?.key === daysKey ? foldPick.value : Boolean(busyKey);
+  // Вільні години згорнуті, якщо є хоч одне заняття; без занять — розгорнуті.
+  // Стрілка перемикає лише свій проміжок (00:00–17:00 окремо від 19:00–24:00), вибір живе в межах цього дня чи тижня.
+  const foldKey = `${daysKey}|${busyKey}`;
+  const [foldPick, setFoldPick] = useState({ key: '', runs: {} });
+  const picks = foldPick.key === foldKey ? foldPick.runs : {};
+  const foldDefault = Boolean(busyKey);
   // Плавна зміна висот — лише коли години згортає чи розгортає стрілка, а не при переході між днями.
   const [animating, setAnimating] = useState(false);
-  const setFolded = (value) => {
-    setFoldPick({ key: daysKey, value });
+  const setFolded = (from, value) => {
+    setFoldPick({ key: foldKey, runs: { ...picks, [from]: value } });
     setAnimating(true);
     setTimeout(() => setAnimating(false), 400);
   };
-  const scale = useMemo(() => makeScale(new Set(busyKey ? busyKey.split(',').map(Number) : []), folded), [busyKey, folded]);
+  const picksKey = JSON.stringify(picks);
+  const scale = useMemo(
+    () => makeScale(new Set(busyKey ? busyKey.split(',').map(Number) : []), (from) => picks[from] ?? foldDefault),
+    [busyKey, picksKey, foldDefault], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const { yOf, minuteAt, dayPx } = scale;
   const hh = (h) => `${String(h).padStart(2, '0')}:00`; // 24 → «24:00»: кінець доби
 
@@ -309,20 +317,20 @@ function TimeGrid({ days, sessions, ready, today, onOpen, onSlot, focusId }) {
       <div className="week-body" style={{ height: dayPx }}>
         {/* Лінії годин окремим шаром: години до 10:00 нижчі, тож фон-візерунок тут не підходить */}
         <div className="hour-rows" aria-hidden="true">
-          {HOURS.map((h) => <i key={h} className={!scale.busy.has(h) && folded ? 'is-folded' : ''} style={{ height: scale.heights[h] }} />)}
+          {HOURS.map((h) => <i key={h} className={scale.isFolded(h) ? 'is-folded' : ''} style={{ height: scale.heights[h] }} />)}
         </div>
         <div className="week-hours">
-          {HOURS.map((h) => <span key={h} className={!scale.busy.has(h) && folded ? 'is-folded' : ''} style={{ top: yOf(h * 60) }}>{hh(h)}</span>)}
+          {HOURS.map((h) => <span key={h} className={scale.isFolded(h) ? 'is-folded' : ''} style={{ top: yOf(h * 60) }}>{hh(h)}</span>)}
         </div>
         {/* Стрілки вільних годин: згорнутий проміжок — смужка на всю ширину, розгорнутий — стрілка біля першої години */}
-        {scale.runs.map(([from, to]) => (folded ? (
+        {scale.runs.map(({ from, to, folded }) => (folded ? (
           <button key={from} type="button" className="fold-bar" style={{ top: scale.tops[from], height: FOLD_PX }}
-            aria-label={`Розгорнути вільні години ${hh(from)}–${hh(to)}`} onClick={() => setFolded(false)}>
+            aria-label={`Розгорнути вільні години ${hh(from)}–${hh(to)}`} onClick={() => setFolded(from, false)}>
             <IconDown size={14} /><span>{hh(from)}–{hh(to)}</span>
           </button>
         ) : (
           <button key={from} type="button" className="fold-up" style={{ top: scale.tops[from] }}
-            aria-label={`Згорнути вільні години ${hh(from)}–${hh(to)}`} title="Згорнути вільні години" onClick={() => setFolded(true)}>
+            aria-label={`Згорнути вільні години ${hh(from)}–${hh(to)}`} title="Згорнути вільні години" onClick={() => setFolded(from, true)}>
             <IconUp size={14} />
           </button>
         )))}
