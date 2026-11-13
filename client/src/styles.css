@@ -852,13 +852,13 @@ button.stop:active { transform: scale(0.94); }
 
 /* Кольори квитка. Кожен клас перевизначає акцент усередині квитка: корінець, велике число, кнопку. */
 .tk-red { --tk: #d6112b; --tk-text: #c20f27; --tk-on: #fff; }
-.tk-orange { --tk: #e8620f; --tk-text: #b84a06; --tk-on: #fff; }
-.tk-amber { --tk: #f2b705; --tk-text: #8a6400; --tk-on: #2a2100; }
-.tk-green { --tk: #1f9254; --tk-text: #18784a; --tk-on: #fff; }
-.tk-teal { --tk: #0e8a8c; --tk-text: #0b7072; --tk-on: #fff; }
-.tk-blue { --tk: #2f6bd6; --tk-text: #2556ad; --tk-on: #fff; }
-.tk-violet { --tk: #7448d0; --tk-text: #6337b8; --tk-on: #fff; }
-.tk-pink { --tk: #d63a7c; --tk-text: #b82a66; --tk-on: #fff; }
+.tk-orange { --tk: #ff7a1a; --tk-text: #d95a07; --tk-on: #fff; }
+.tk-amber { --tk: #ffc61a; --tk-text: #946a00; --tk-on: #2a2100; }
+.tk-green { --tk: #1cc062; --tk-text: #12964b; --tk-on: #fff; }
+.tk-teal { --tk: #10b9b4; --tk-text: #0b8f8b; --tk-on: #fff; }
+.tk-blue { --tk: #3d86ff; --tk-text: #2563eb; --tk-on: #fff; }
+.tk-violet { --tk: #9061ff; --tk-text: #7346e6; --tk-on: #fff; }
+.tk-pink { --tk: #f2489a; --tk-text: #d62a7e; --tk-on: #fff; }
 .tk-ink { --tk: #2b2730; --tk-text: #2b2730; --tk-on: #fff; }
 :root[data-theme='dark'] .tk-red { --tk-text: #ff7a8a; }
 :root[data-theme='dark'] .tk-orange { --tk-text: #ff9a55; }

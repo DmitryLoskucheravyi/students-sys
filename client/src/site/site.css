@@ -603,16 +603,6 @@
 @keyframes s-peek-out { to { transform: translateY(-110%); } }
 @media (prefers-reduced-motion: reduce) { .s-peek, .s-peek.is-out { animation-duration: 0.01s; } }
 
-/* Абонементи на сайті: яскравіші й світліші кольори, ніж у кабінеті */
-.site .tk-red { --tk: #ec1834; --tk-text: #d6112b; }
-.site .tk-orange { --tk: #ff7a1a; --tk-text: #e0600a; }
-.site .tk-amber { --tk: #ffc61a; --tk-text: #9a6f00; --tk-on: #2a2100; }
-.site .tk-green { --tk: #1cc062; --tk-text: #129a4c; }
-.site .tk-teal { --tk: #10b9b4; --tk-text: #0b918d; }
-.site .tk-blue { --tk: #3d86ff; --tk-text: #2563eb; }
-.site .tk-violet { --tk: #9061ff; --tk-text: #7346e6; }
-.site .tk-pink { --tk: #f2489a; --tk-text: #d62a7e; }
-.site .tk-ink { --tk: #2b2730; }
 
 /* Ціни на головній: слайдер на телефоні, ряд із трьох на компʼютері */
 .s-plan-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; border-radius: 16px; }
