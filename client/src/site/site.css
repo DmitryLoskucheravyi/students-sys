@@ -461,7 +461,7 @@
   .s-slider-nav { display: flex; }
 }
 @media (min-width: 900px) {
-  .s-slider { grid-auto-columns: calc((100% - 2 * var(--gut)) / 2.4); }
+  .s-slider { grid-auto-columns: calc((100% - 2 * var(--gut) - 32px) / 3); }
   .s-course-cover { height: 280px; }
   .s-course-body { padding: 26px 28px 28px; }
   .s-course h3 { font-size: 28px; }
@@ -469,7 +469,6 @@
   .s-hero h1 { max-width: 22ch; }
 }
 @media (min-width: 1400px) {
-  .s-slider { grid-auto-columns: calc((100% - 2 * var(--gut)) / 3.2); }
 }
 
 /* Соцмережі: круглі кнопки-іконки у футері й мобільному меню */
