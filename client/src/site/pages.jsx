@@ -238,7 +238,7 @@ function SoloArt() {
         <span className="s-art-link" aria-hidden="true"><i /><i /><i /></span>
         <span className="s-art-person"><span className="s-art-ava is-big is-you">Ти</span><small>Учень</small></span>
       </div>
-      <small className="s-art-label">Програма під тебе</small>
+      <small className="s-art-label">Індивідуальна програма</small>
       <ul className="s-art-tags"><li>Python</li><li>Свої ігри</li><li>Свій темп</li></ul>
       <div className="s-art-row"><small>Наступне заняття</small><small><b>Вт, 17:00</b></small></div>
     </div>
@@ -289,7 +289,7 @@ function CabinetArt() {
 function PlanArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><b>Твоя програма</b><span className="s-art-pill is-ok">Під тебе</span></div>
+      <div className="s-art-row"><b>Твоя програма</b><span className="s-art-pill is-ok">Індивідуально</span></div>
       <div className="s-art-note"><span className="s-art-ava is-you">Ти</span><p>Хочу робити свої ігри!</p></div>
       <ol className="s-art-plan">
         <li><b>1</b>Основи Python</li>
@@ -386,6 +386,7 @@ function CardStack({ cards }) {
   const ref = useRef(null);
   const [front, setFront] = useState(0);
   const [run, setRun] = useState(false);
+  const [held, setHeld] = useState(false); // обрану вручну картку тримаємо довше
   useEffect(() => {
     const el = ref.current;
     if (!el || typeof IntersectionObserver === 'undefined' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
@@ -395,9 +396,9 @@ function CardStack({ cards }) {
   }, []);
   useEffect(() => {
     if (!run) return undefined;
-    const t = setInterval(() => setFront((f) => (f + 1) % cards.length), 3400);
-    return () => clearInterval(t);
-  }, [run, cards.length]);
+    const t = setTimeout(() => { setHeld(false); setFront((f) => (f + 1) % cards.length); }, held ? 9000 : 3400);
+    return () => clearTimeout(t);
+  }, [run, front, held, cards.length]);
   return (
     <div className="s-stack" ref={ref}>
       <div className="s-stack-cards">
@@ -407,7 +408,7 @@ function CardStack({ cards }) {
         })}
       </div>
       <div className="s-stack-dots">
-        {cards.map((_, k) => <button key={k} type="button" className={k === front ? 'is-on' : ''} aria-label={`Картка ${k + 1}`} onClick={() => setFront(k)} />)}
+        {cards.map((_, k) => <button key={k} type="button" className={k === front ? 'is-on' : ''} aria-label={`Картка ${k + 1}`} onClick={() => { setFront(k); setHeld(true); }} />)}
       </div>
     </div>
   );
