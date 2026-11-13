@@ -5,7 +5,7 @@ import { api } from '../api.js';
 import { CourseIcon, themeClass } from '../courseLook.jsx';
 import { lessonsWord, money, plural } from '../fmt.js';
 import { Button, IconButton } from '../ui.jsx';
-import { IconDown, IconExternal, IconLeft, IconPhone, IconQuote, IconRight } from '../icons.jsx';
+import { IconDown, IconExternal, IconLeft, IconPhone, IconQuote, IconRight, IconSpark } from '../icons.jsx';
 import { CTA, FEATURES, HERO, PAGES, STEPS } from './content.js';
 import { prettyPhone, telHref, useLead, useSite } from './ctx.js';
 
@@ -209,6 +209,28 @@ function HeroArt() {
           <span className="s-smile">:)</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Шторка під кнопкою в хіро: висувається, висить ~5 с і ховається. Лише раз за сесію. */
+function TrialPeek() {
+  const [state, setState] = useState('hidden');
+  useEffect(() => {
+    let seen = false;
+    try { seen = sessionStorage.getItem('bs.trialPeek') === '1'; } catch { /* приватний режим */ }
+    if (seen) return undefined;
+    const timers = [
+      setTimeout(() => { setState('open'); try { sessionStorage.setItem('bs.trialPeek', '1'); } catch { /* ок */ } }, 1600),
+      setTimeout(() => setState('closing'), 1600 + 4800),
+      setTimeout(() => setState('done'), 1600 + 4800 + 700),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+  if (state === 'hidden' || state === 'done') return null;
+  return (
+    <div className="s-peek-wrap" role="status">
+      <div className={`s-peek ${state === 'closing' ? 'is-out' : ''}`}><IconSpark size={18} />Перше пробне заняття <b>безкоштовно</b></div>
     </div>
   );
 }
@@ -467,6 +489,7 @@ export function Home() {
               {phone
                 ? <a className="btn btn-onred s-big" href={telHref(phone)}><IconPhone size={20} /><span>Зателефонувати</span></a>
                 : <Button className="btn-onred s-big" onClick={() => lead()}>Записатись</Button>}
+              <TrialPeek />
             </div>
           </div>
         </div>
