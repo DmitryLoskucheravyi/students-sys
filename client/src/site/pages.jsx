@@ -448,7 +448,7 @@ function TicketArt() {
   return (
     <div className="s-art-card">
       <div className="s-art-row"><b>Абонемент</b><span className="s-art-pill is-ok">Активний</span></div>
-      <div className="s-art-ticket"><b>6</b><span>занять лишилось<small>з 8, до 20 грудня</small></span></div>
+      <div className="s-art-ticket"><b>6</b><span>занять лишилось<small>з 8</small></span></div>
       <div className="s-mock-progress"><i style={{ width: '75%' }} /></div>
     </div>
   );
