@@ -1,15 +1,14 @@
 /* Сторінки сайту і їхні частини: картки курсів, квитки абонементів, відгуки, заклик записатись. */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { CourseIcon, themeClass } from '../courseLook.jsx';
 import { lessonsWord, money, plural } from '../fmt.js';
 import { Button } from '../ui.jsx';
-import { IconExternal, IconHomework, IconPhone, IconQuiz, IconQuote, IconRight, IconRoadmap, IconUser } from '../icons.jsx';
+import { IconExternal, IconLeft, IconPhone, IconQuote, IconRight } from '../icons.jsx';
 import { CTA, FEATURES, HERO, PAGES, STEPS } from './content.js';
 import { prettyPhone, telHref, useLead, useSite } from './ctx.js';
 
-const FEATURE_ICON = { road: IconRoadmap, check: IconHomework, quiz: IconQuiz, cabinet: IconUser };
 const TK = ['red', 'orange', 'amber', 'green', 'teal', 'blue', 'violet', 'pink', 'ink'];
 const tk = (color) => `tk-${TK.includes(color) ? color : 'red'}`;
 const topicsWord = (n) => `${n} ${plural(n, 'тема', 'теми', 'тем')}`;
@@ -32,12 +31,15 @@ function SectionHead({ title, to, more }) {
 function CourseCard({ c }) {
   return (
     <Link to={`/courses/${c.id}`} className={`s-card s-course ${themeClass(c.theme)}`}>
-      <CourseIcon course={c} size={30} big />
-      <h3>{c.title}</h3>
-      {c.summary && <p>{c.summary}</p>}
-      <span className="s-course-foot">
-        {c.steps > 0 && <span className="s-chip">{topicsWord(c.steps)}</span>}
-        <span className="s-course-go" aria-hidden="true"><IconRight size={18} /></span>
+      <span className="s-course-cover">
+        <CourseIcon course={c} size={30} big />
+        <span className="s-course-mark" aria-hidden="true"><CourseIcon course={c} size={150} /></span>
+        {c.steps > 0 && <span className="s-course-count">{topicsWord(c.steps)}</span>}
+      </span>
+      <span className="s-course-body">
+        <h3>{c.title}</h3>
+        {c.summary && <p>{c.summary}</p>}
+        <span className="s-course-go">Програма курсу<IconRight size={18} /></span>
       </span>
     </Link>
   );
@@ -167,6 +169,80 @@ function HeroArt() {
   );
 }
 
+/** Зʼявляється, коли доскролили: кожен елемент окремо, тож контент виростає поступово. */
+function Reveal({ as: Tag = 'div', className = '', delay = 0, children }) {
+  const ref = useRef(null);
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') { setOn(true); return undefined; }
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setOn(true); io.disconnect(); } }, { rootMargin: '0px 0px -15% 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return <Tag ref={ref} className={`s-reveal ${on ? 'is-in' : ''} ${className}`} style={{ '--d': `${delay}ms` }}>{children}</Tag>;
+}
+
+const Tick = () => <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+
+function RoadArt() {
+  return (
+    <div className="s-art-card">
+      <div className="s-mock-course"><span className="s-mock-ico">Py</span><span><b>Python. Старт</b><small>Тема 3 з 5</small></span><em>48%</em></div>
+      <ol className="s-mock-steps">
+        {MOCK_TOPICS.map(([t, st], i) => (
+          <li key={t} className={st ? `is-${st}` : ''}>
+            <span className="s-mock-dot">{st === 'done' ? <Tick /> : i + 1}</span><span>{t}</span>{st === 'now' && <small>Зараз</small>}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function HomeworkArt() {
+  return (
+    <div className="s-art-card">
+      <div className="s-art-row"><b>Домашнє · Цикли</b><span className="s-art-pill is-ok">Перевірено</span></div>
+      <div className="s-art-code"><span><u className="k">for</u> n <u className="k">in</u> <u className="f">range</u>(<u className="n">5</u>):</span><span>    <u className="f">print</u>(n * n)</span></div>
+      <div className="s-art-note"><span className="s-art-ava">ОК</span><p>Гарно! Наступного разу спробуй винести це у функцію.</p></div>
+      <div className="s-art-row"><small>Оцінка</small><b className="s-art-grade">11<span>/12</span></b></div>
+    </div>
+  );
+}
+
+function QuizArt() {
+  return (
+    <div className="s-art-card">
+      <div className="s-art-row"><small>Тест · Цикли</small><small>3 / 10</small></div>
+      <b className="s-art-q">Що виведе <code>print(2 ** 3)</code>?</b>
+      <ul className="s-art-options">
+        <li>6</li>
+        <li className="is-right">8<Tick /></li>
+        <li>9</li>
+      </ul>
+      <div className="s-art-row"><small>Результат</small><b className="s-art-grade is-green">9<span>/10</span></b></div>
+    </div>
+  );
+}
+
+function CabinetArt() {
+  return (
+    <div className="s-art-card">
+      <small className="s-art-label">Найближчі заняття</small>
+      <ul className="s-art-lessons">
+        <li><b>Пн</b><span>17:00 · Python. Старт</span></li>
+        <li><b>Ср</b><span>17:00 · Python. Старт</span></li>
+        <li><b>Пт</b><span>16:00 · Розбір домашнього</span></li>
+      </ul>
+      <div className="s-art-row"><small>Абонемент</small><small><b>6</b> з 8 занять</small></div>
+      <div className="s-mock-progress"><i style={{ width: '75%' }} /></div>
+    </div>
+  );
+}
+
+const FEATURE_ART = { road: RoadArt, check: HomeworkArt, quiz: QuizArt, cabinet: CabinetArt };
+
 function Bits() {
   return (
     <div className="s-bits" aria-hidden="true">
@@ -208,10 +284,9 @@ export function Home() {
               <h1>{HERO.title}</h1>
               <p className="s-lead">{HERO.lead}</p>
               <div className="s-hero-actions">
-                <Button className="btn-onred s-big" onClick={() => lead()}>Записатись</Button>
                 {phone
-                  ? <a className="btn s-call s-big" href={telHref(phone)}><IconPhone size={20} /><span>Зателефонувати</span></a>
-                  : <Link className="btn s-call s-big" to="/courses"><span>Курси</span><IconRight size={20} /></Link>}
+                  ? <a className="btn btn-onred s-big" href={telHref(phone)}><IconPhone size={20} /><span>Зателефонувати</span></a>
+                  : <Button className="btn-onred s-big" onClick={() => lead()}>Записатись</Button>}
               </div>
             </div>
             <HeroArt />
@@ -219,20 +294,24 @@ export function Home() {
         </div>
       </section>
 
-      <section className="s-wrap s-sec">
-        <ul className="s-features">
-          {FEATURES.map((f, i) => {
-            const Icon = FEATURE_ICON[f.icon] ?? IconRoadmap;
-            return (
-              <li key={f.title} className="s-card s-feature" style={{ '--i': i }}>
-                <span className="s-feature-ico"><Icon size={26} /></span>
-                <h3>{f.title}</h3>
-                <p>{f.text}</p>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+      <div className="s-story">
+        {FEATURES.map((f, i) => {
+          const Art = FEATURE_ART[f.icon] ?? RoadArt;
+          return (
+            <section key={f.title} className="s-wrap s-chapter">
+              <div className="s-chapter-text">
+                <Reveal as="p" className="s-chapter-n">{String(i + 1).padStart(2, '0')}</Reveal>
+                <Reveal as="h2" className="s-chapter-title">{f.title}</Reveal>
+                <Reveal as="p" className="s-chapter-lead" delay={120}>{f.text}</Reveal>
+                <ul className="s-chapter-points">
+                  {f.points.map((pt, k) => <Reveal as="li" key={pt} delay={200 + k * 140}><Tick />{pt}</Reveal>)}
+                </ul>
+              </div>
+              <Reveal className="s-chapter-art" delay={150}><Art /></Reveal>
+            </section>
+          );
+        })}
+      </div>
 
       {error && !data && <LoadError onRetry={reload} />}
       {!data && !error && <Loading />}
@@ -329,26 +408,30 @@ export function CoursePage() {
   if (!course) return <Loading />;
   return (
     <>
-      <section className="s-wrap">
-        <div className={`s-course-hero ${themeClass(course.theme)}`}>
-          <Link to="/courses" className="s-back">← Усі курси</Link>
-          <CourseIcon course={course} size={40} big />
+      <section className={`s-course-hero ${themeClass(course.theme)}`}>
+        <div className="s-wrap s-course-hero-in">
+          <Link to="/courses" className="s-back"><IconLeft size={18} />Усі курси</Link>
+          <CourseIcon course={course} size={34} big />
           <h1>{course.title}</h1>
           {course.summary && <p className="s-lead">{course.summary}</p>}
           <div className="s-course-hero-actions">
-            <Button className="s-big" onClick={() => lead(`Курс: ${course.title}`)}>Записатись на курс</Button>
-            {course.steps.length > 0 && <span className="s-chip">{topicsWord(course.steps.length)}</span>}
+            <Button className="btn-onred s-big" onClick={() => lead(`Курс: ${course.title}`)}>Записатись на курс</Button>
+            {course.steps.length > 0 && <span className="s-course-hero-meta">{topicsWord(course.steps.length)}</span>}
           </div>
         </div>
+        <span className="s-course-hero-mark" aria-hidden="true"><CourseIcon course={course} size={320} /></span>
       </section>
 
       {course.steps.length > 0 && (
-        <section className="s-wrap s-sec">
-          <SectionHead title="Програма" />
-          <ol className={`s-program ${themeClass(course.theme)}`}>
+        <section className={`s-wrap s-sec s-program-wrap ${themeClass(course.theme)}`}>
+          <div className="s-program-side">
+            <h2>Програма</h2>
+            <p>{topicsWord(course.steps.length)}</p>
+          </div>
+          <ol className="s-program">
             {course.steps.map((s, i) => (
-              <li key={s.id} style={{ '--i': Math.min(i, 12) }}>
-                <span className="s-program-n">{i + 1}</span>
+              <li key={s.id}>
+                <span className="s-program-n">{String(i + 1).padStart(2, '0')}</span>
                 <div>
                   <h3>{s.title}</h3>
                   {s.description && <p>{s.description}</p>}
