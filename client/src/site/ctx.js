@@ -8,6 +8,20 @@ export const LeadCtx = createContext(() => {});
 /** Відкрити форму заявки; note — підказка в поле «Додатково» (наприклад, обраний курс). */
 export const useLead = () => useContext(LeadCtx);
 
+const SOCIAL = [
+  ['instagram', 'Instagram', 'https://instagram.com/'],
+  ['tiktok', 'TikTok', 'https://www.tiktok.com/@'],
+  ['facebook', 'Facebook', 'https://facebook.com/'],
+  ['telegram', 'Telegram', 'https://t.me/'],
+];
+/** Посилання на соцмережі з контактів: «@school» або повна адреса. Лише заповнені. */
+export function socialLinks(c = {}) {
+  return SOCIAL.filter(([key]) => c[key]).map(([key, label, base]) => {
+    const v = String(c[key]).trim();
+    return { key, label, href: /^https?:\/\//.test(v) ? v : base + v.replace(/^@/, '') };
+  });
+}
+
 /** Телефон для посилання tel: лише цифри й плюс. */
 export const telHref = (phone) => `tel:${String(phone).replace(/[^\d+]/g, '')}`;
 /** +380671234567 → +380 67 123 45 67 */

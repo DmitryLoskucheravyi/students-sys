@@ -35,7 +35,7 @@ export function QuizTake() {
       {/* Після здачі — лише бал (співробітнику ще ім'я учня); до здачі коротко: курс, кількість питань, термін */}
       {(!done || !isStudent) && (
         <p className="muted small">
-          {(done ? [a.student_name] : [!isStudent && a.student_name, a.course_title, questionsWord(a.questions.length), a.due_at && `пройти до ${dateTimeShort(a.due_at)}`]).filter(Boolean).join(' · ')}
+          {(done ? [a.student_name] : [!isStudent && a.student_name, a.course_title, questionsWord(a.questions.length), a.due_at && `пройти до ${dateTimeShort(a.due_at)}`]).filter(Boolean).join(', ')}
         </p>
       )}
       {a.description && !done && <p className="task"><Linkify text={a.description} /></p>}

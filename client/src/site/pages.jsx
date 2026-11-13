@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { CourseIcon, themeClass } from '../courseLook.jsx';
 import { lessonsWord, money, plural } from '../fmt.js';
-import { Button } from '../ui.jsx';
+import { Button, IconButton } from '../ui.jsx';
 import { IconExternal, IconLeft, IconPhone, IconQuote, IconRight } from '../icons.jsx';
 import { CTA, FEATURES, HERO, PAGES, STEPS } from './content.js';
 import { prettyPhone, telHref, useLead, useSite } from './ctx.js';
@@ -19,29 +19,58 @@ function useTitle(title) {
 
 /* ───────── Частини ───────── */
 
-function SectionHead({ title, to, more }) {
+function SectionHead({ title, to, more, children }) {
   return (
     <div className="s-sec-head">
       <h2>{title}</h2>
-      {to && <Link to={to} className="s-more">{more}<IconRight size={18} /></Link>}
+      <div className="s-sec-tools">
+        {to && <Link to={to} className="s-more">{more}<IconRight size={18} /></Link>}
+        {children}
+      </div>
     </div>
   );
 }
 
-function CourseCard({ c }) {
+/** Горизонтальний слайдер: свайп на телефоні, стрілки в заголовку секції. */
+function SliderSection({ title, to, more, label, children }) {
+  const ref = useRef(null);
+  const go = (dir) => {
+    const el = ref.current;
+    const card = el?.firstElementChild;
+    if (!card) return;
+    el.scrollBy({ left: dir * (card.getBoundingClientRect().width + 16), behavior: 'smooth' });
+  };
   return (
-    <Link to={`/courses/${c.id}`} className={`s-card s-course ${themeClass(c.theme)}`}>
+    <section className="s-wrap s-sec">
+      <SectionHead title={title} to={to} more={more}>
+        <span className="s-slider-nav">
+          <IconButton label="Попередні" onClick={() => go(-1)}><IconLeft size={20} /></IconButton>
+          <IconButton label="Наступні" onClick={() => go(1)}><IconRight size={20} /></IconButton>
+        </span>
+      </SectionHead>
+      <div className="s-slider" ref={ref} role="region" aria-label={label} tabIndex={0}>{children}</div>
+    </section>
+  );
+}
+
+function CourseCard({ c }) {
+  const lead = useLead();
+  return (
+    <article className={`s-card s-course ${themeClass(c.theme)}`}>
       <span className="s-course-cover">
         <CourseIcon course={c} size={30} big />
         <span className="s-course-mark" aria-hidden="true"><CourseIcon course={c} size={150} /></span>
         {c.steps > 0 && <span className="s-course-count">{topicsWord(c.steps)}</span>}
       </span>
-      <span className="s-course-body">
-        <h3>{c.title}</h3>
+      <div className="s-course-body">
+        <h3><Link to={`/courses/${c.id}`} className="s-course-link">{c.title}</Link></h3>
         {c.summary && <p>{c.summary}</p>}
-        <span className="s-course-go">Програма курсу<IconRight size={18} /></span>
-      </span>
-    </Link>
+        <div className="s-course-actions">
+          <Link to={`/courses/${c.id}`} className="btn btn-ghost">Детальніше</Link>
+          <Button onClick={() => lead(`Курс: ${c.title}`)}>Записатись</Button>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -58,7 +87,7 @@ function ProjectCard({ p }) {
         <h3>{p.url
           ? <a href={p.url} target="_blank" rel="noopener noreferrer nofollow" className="s-project-link">{p.title}</a>
           : p.title}</h3>
-        {(p.author || p.course_title) && <p className="s-project-by">{[p.author, p.course_title].filter(Boolean).join(' · ')}</p>}
+        {(p.author || p.course_title) && <p className="s-project-by">{[p.author, p.course_title].filter(Boolean).join(', ')}</p>}
         {p.description && <p className="s-project-text">{p.description}</p>}
         {p.url && <span className="s-project-go" aria-hidden="true">Відкрити проєкт<IconExternal size={16} /></span>}
       </div>
@@ -72,7 +101,7 @@ function PlanTicket({ p }) {
     <article className={`ticket s-ticket ${tk(p.color)}`}>
       <div className="ticket-main">
         <h3>{p.name}</h3>
-        <p className="ticket-count">{lessonsWord(p.lessons_count)}<span aria-hidden="true">·</span>{p.valid_days} днів</p>
+        <p className="ticket-count">{lessonsWord(p.lessons_count)}, {p.valid_days} днів</p>
         <p className="s-ticket-per">{money(p.price_per_lesson)} за заняття</p>
       </div>
       <div className="ticket-stub">
@@ -93,7 +122,7 @@ function ReviewCard({ r }) {
         <span className="s-review-ava" aria-hidden="true">{r.author.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}</span>
         <span>
           <strong>{r.author}</strong>
-          {(r.author_role || r.course_title) && <small>{[r.author_role, r.course_title].filter(Boolean).join(' · ')}</small>}
+          {(r.author_role || r.course_title) && <small>{[r.author_role, r.course_title].filter(Boolean).join(', ')}</small>}
         </span>
       </figcaption>
     </figure>
@@ -125,44 +154,102 @@ function CtaBand({ title = CTA.title, text = CTA.text, note }) {
   );
 }
 
-/** Ілюстрація першого екрана: вікно кабінету з роадмапом курсу, результат тесту й шматок коду. Декор. */
 const MOCK_TOPICS = [['Змінні й типи', 'done'], ['Умови', 'done'], ['Цикли', 'now'], ['Функції', ''], ['Перший проєкт', '']];
 
-function HeroArt() {
+/* Перший екран: живий редактор. Код друкується сам, «запускається», і праворуч зʼявляється результат. */
+const PLAY = [
+  {
+    file: 'star.py', out: 'star',
+    code: [['k', 'from'], ['', ' turtle '], ['k', 'import'], ['', ' *\n\n'], ['k', 'for'], ['', ' i '], ['k', 'in'], ['', ' '], ['f', 'range'], ['', '('], ['n', '5'], ['', '):\n    '],
+      ['f', 'forward'], ['', '('], ['n', '150'], ['', ')\n    '], ['f', 'right'], ['', '('], ['n', '144'], ['', ')']],
+  },
+  {
+    file: 'hello.py', out: 'hello',
+    code: [['', 'name = '], ['f', 'input'], ['', '('], ['s', '"Як тебе звати? "'], ['', ')\n\n'], ['f', 'print'], ['', '('], ['s', '"Привіт, "'], ['', ' + name + '], ['s', '"!"'], ['', ')']],
+  },
+  {
+    file: 'index.html', out: 'button',
+    code: [['', '<'], ['t', 'button'], ['', '>Тисни!</'], ['t', 'button'], ['', '>\n\n<'], ['t', 'style'], ['', '>\n  '], ['t', 'button'], ['', ' {\n    '],
+      ['a', 'background'], ['', ': '], ['n', 'crimson'], ['', ';\n    '], ['a', 'border-radius'], ['', ': '], ['n', '99px'], ['', ';\n  }\n</'], ['t', 'style'], ['', '>']],
+  },
+];
+const playLength = (ex) => ex.code.reduce((n, [, t]) => n + t.length, 0);
+const PLAY_LINES = Math.max(...PLAY.map((ex) => ex.code.map(([, t]) => t).join('').split('\n').length));
+
+function PlayResult({ out }) {
+  if (out === 'star') {
+    return (
+      <svg className="s-run-star" viewBox="0 0 200 200" aria-hidden="true">
+        <path d="M100 22 L147 167 L24 77 L176 77 L53 167 Z" pathLength="1" />
+        <g className="s-run-turtle"><path d="M0 -9 L7 6 L0 3 L-7 6 Z" /></g>
+      </svg>
+    );
+  }
+  if (out === 'hello') {
+    return (
+      <div className="s-run-term">
+        <p><span>Як тебе звати? </span><b className="s-run-typed">Оля</b></p>
+        <p className="s-run-line">Привіт, Оля!</p>
+      </div>
+    );
+  }
   return (
-    <div className="s-hero-art" aria-hidden="true">
-      <div className="s-stage">
-        <div className="s-mock">
-          <div className="s-mock-bar"><i /><i /><i /><span>Кабінет учня</span></div>
-          <div className="s-mock-body">
-            <div className="s-mock-course">
-              <span className="s-mock-ico">Py</span>
-              <span><b>Python. Старт</b><small>Тема 3 з 5</small></span>
-              <em>48%</em>
-            </div>
-            <div className="s-mock-progress"><i /></div>
-            <ol className="s-mock-steps">
-              {MOCK_TOPICS.map(([t, st], i) => (
-                <li key={t} className={st ? `is-${st}` : ''} style={{ '--i': i }}>
-                  <span className="s-mock-dot">{st === 'done'
-                    ? <svg viewBox="0 0 16 16" fill="none"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    : i + 1}</span>
-                  <span>{t}</span>
-                  {st === 'now' && <small>Зараз</small>}
-                </li>
+    <div className="s-run-btn">
+      <span className="s-run-button">Тисни!</span>
+      <svg className="s-run-cursor" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 8-6 1.5L10 19z" /></svg>
+    </div>
+  );
+}
+
+function HeroArt() {
+  const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const [i, setI] = useState(0);
+  const ex = PLAY[i];
+  const total = playLength(ex);
+  const [typed, setTyped] = useState(reduce ? total : 0);
+  const ran = typed >= total;
+  useEffect(() => {
+    if (reduce) return undefined;
+    const t = ran
+      ? setTimeout(() => { setI((k) => (k + 1) % PLAY.length); setTyped(0); }, 4600)
+      : setTimeout(() => setTyped((n) => n + 1), 34);
+    return () => clearTimeout(t);
+  }, [typed, ran, reduce]);
+  const open = (k) => { setI(k); setTyped(reduce ? playLength(PLAY[k]) : 0); };
+
+  let left = typed;
+  const shown = ex.code.map(([cls, text], k) => {
+    if (left <= 0) return null;
+    const part = text.slice(0, left);
+    left -= text.length;
+    return <u key={k} className={cls}>{part}</u>;
+  });
+
+  return (
+    <div className="s-hero-art">
+      <div className="s-play" role="group" aria-label="Приклад: пишемо код і бачимо результат">
+        <div className="s-play-code">
+          <div className="s-play-bar">
+            <span className="s-play-dots" aria-hidden="true"><i /><i /><i /></span>
+            <div className="s-play-tabs">
+              {PLAY.map((p, k) => (
+                <button key={p.file} type="button" className={k === i ? 'is-on' : ''} aria-pressed={k === i} onClick={() => open(k)}>{p.file}</button>
               ))}
-            </ol>
+            </div>
+            <button type="button" className={`s-play-run ${ran ? 'is-on' : ''}`} onClick={() => setTyped(total)}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" /></svg>Запуск
+            </button>
+          </div>
+          <div className="s-play-body" aria-hidden="true">
+            <span className="s-play-nums">{Array.from({ length: PLAY_LINES }, (_, k) => <span key={k}>{k + 1}</span>)}</span>
+            <code style={{ '--lines': PLAY_LINES }}>{shown}<i className="s-caret" /></code>
           </div>
         </div>
-        <div className="s-tile s-tile-score">
-          <small>Тест · Цикли</small>
-          <b>9<span>/10</span></b>
-          <i className="s-tile-meter">{Array.from({ length: 10 }, (_, k) => <em key={k} className={k < 9 ? 'is-on' : ''} />)}</i>
-        </div>
-        <div className="s-tile s-code">
-          <span className="s-code-line"><span>1</span><span><u className="k">for</u> i <u className="k">in</u> <u className="f">range</u>(<u className="n">3</u>):</span></span>
-          <span className="s-code-line"><span>2</span><span>    <u className="f">print</u>(<u className="s">"Привіт!"</u>, i)</span></span>
-          <span className="s-code-line"><span>3</span><span><i className="s-caret" /></span></span>
+        <div className="s-play-out">
+          <div className="s-play-out-head"><span className={`s-play-led ${ran ? 'is-on' : ''}`} />{ran ? 'Працює' : 'Пишемо код'}</div>
+          <div className="s-play-stage" aria-hidden="true">
+            {ran ? <PlayResult key={`${i}-${typed}`} out={ex.out} /> : <span className="s-play-wait"><i /><i /><i /></span>}
+          </div>
         </div>
       </div>
     </div>
@@ -203,7 +290,7 @@ function RoadArt() {
 function HomeworkArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><b>Домашнє · Цикли</b><span className="s-art-pill is-ok">Перевірено</span></div>
+      <div className="s-art-row"><b>Домашнє «Цикли»</b><span className="s-art-pill is-ok">Перевірено</span></div>
       <div className="s-art-code"><span><u className="k">for</u> n <u className="k">in</u> <u className="f">range</u>(<u className="n">5</u>):</span><span>    <u className="f">print</u>(n * n)</span></div>
       <div className="s-art-note"><span className="s-art-ava">ОК</span><p>Гарно! Наступного разу спробуй винести це у функцію.</p></div>
       <div className="s-art-row"><small>Оцінка</small><b className="s-art-grade">11<span>/12</span></b></div>
@@ -214,7 +301,7 @@ function HomeworkArt() {
 function QuizArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><small>Тест · Цикли</small><small>3 / 10</small></div>
+      <div className="s-art-row"><small>Тест «Цикли»</small><small>3 з 10</small></div>
       <b className="s-art-q">Що виведе <code>print(2 ** 3)</code>?</b>
       <ul className="s-art-options">
         <li>6</li>
@@ -231,9 +318,9 @@ function CabinetArt() {
     <div className="s-art-card">
       <small className="s-art-label">Найближчі заняття</small>
       <ul className="s-art-lessons">
-        <li><b>Пн</b><span>17:00 · Python. Старт</span></li>
-        <li><b>Ср</b><span>17:00 · Python. Старт</span></li>
-        <li><b>Пт</b><span>16:00 · Розбір домашнього</span></li>
+        <li><b>Пн</b><span><em>17:00</em>Python. Старт</span></li>
+        <li><b>Ср</b><span><em>17:00</em>Python. Старт</span></li>
+        <li><b>Пт</b><span><em>16:00</em>Розбір домашнього</span></li>
       </ul>
       <div className="s-art-row"><small>Абонемент</small><small><b>6</b> з 8 занять</small></div>
       <div className="s-mock-progress"><i style={{ width: '75%' }} /></div>
@@ -280,7 +367,7 @@ export function Home() {
           <div className="s-hero-panel">
             <Bits />
             <div className="s-hero-text">
-              <p className="s-eyebrow">{HERO.eyebrow}</p>
+              <ul className="s-chips">{HERO.chips.map((c) => <li key={c} className="s-eyebrow">{c}</li>)}</ul>
               <h1>{HERO.title}</h1>
               <p className="s-lead">{HERO.lead}</p>
               <div className="s-hero-actions">
@@ -317,10 +404,9 @@ export function Home() {
       {!data && !error && <Loading />}
 
       {data?.courses.length > 0 && (
-        <section className="s-wrap s-sec">
-          <SectionHead title="Курси" to="/courses" more="Усі курси" />
-          <div className="s-grid">{data.courses.slice(0, 3).map((c) => <CourseCard key={c.id} c={c} />)}</div>
-        </section>
+        <SliderSection title="Курси" to="/courses" more="Усі курси" label="Курси">
+          {data.courses.map((c) => <CourseCard key={c.id} c={c} />)}
+        </SliderSection>
       )}
 
       {data?.projects?.length > 0 && (

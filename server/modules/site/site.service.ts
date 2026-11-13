@@ -54,9 +54,10 @@ async function dropImage(name: string | null) {
 }
 
 /** Контакти школи, які менеджер задає в кабінеті. Решта ключів ігнорується. */
-export const SETTINGS = ['phone', 'telegram', 'instagram', 'email', 'address'] as const;
+export const SETTINGS = ['phone', 'telegram', 'instagram', 'tiktok', 'facebook', 'email', 'address'] as const;
 type Setting = (typeof SETTINGS)[number];
-const SETTING_MAX: Record<Setting, number> = { phone: 32, telegram: 120, instagram: 120, email: 120, address: 300 };
+const SETTING_MAX: Record<Setting, number> = { phone: 32, telegram: 120, instagram: 120, tiktok: 120, facebook: 160, email: 120, address: 300 };
+const SOCIAL_NAME: Partial<Record<Setting, string>> = { telegram: 'Telegram', instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook' };
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -301,7 +302,7 @@ export class SiteAdminService {
       let value = str(b[key], key, { max: SETTING_MAX[key], required: false }) ?? '';
       if (key === 'phone' && value) value = normalizePhone(value);
       if (key === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) throw bad('Перевірте email');
-      if ((key === 'telegram' || key === 'instagram') && value && !/^(https:\/\/|@)?[\w./-]+$/.test(value)) throw bad(`Перевірте ${key === 'telegram' ? 'Telegram' : 'Instagram'}`);
+      if (SOCIAL_NAME[key] && value && !/^(https:\/\/|@)?[\w./?=&%-]+$/.test(value)) throw bad(`Перевірте ${SOCIAL_NAME[key]}`);
       if (value) await q('INSERT INTO site_settings (name, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)', [key, value]);
       else await q('DELETE FROM site_settings WHERE name = ?', [key]);
     }

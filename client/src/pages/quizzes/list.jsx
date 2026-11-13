@@ -38,7 +38,7 @@ export function QuizList({ isManager }) {
         <span className="quiz-ico"><IconQuiz size={20} /></span>
         <div className="row-main">
           <h3>{z.title}</h3>
-          <p className="muted small">{[questionsWord(z.questions_count), isManager && z.author_role === 'teacher' && `автор: ${z.author_name}`].filter(Boolean).join(' · ')}</p>
+          <p className="muted small">{[questionsWord(z.questions_count), isManager && z.author_role === 'teacher' && `автор: ${z.author_name}`].filter(Boolean).join(', ')}</p>
           {z.status === 'rejected' && z.review_note && <p className="small text-red">Причина: {z.review_note}</p>}
         </div>
         {isManager && z.status === 'approved'
@@ -90,7 +90,7 @@ export function MyQuizzes() {
               <span className="quiz-ico"><IconQuiz size={20} /></span>
               <div className="row-main">
                 <h3>{a.quiz_title}</h3>
-                <p className="muted small">{[a.course_title, questionsWord(a.questions_count)].filter(Boolean).join(' · ')}</p>
+                <p className="muted small">{[a.course_title, questionsWord(a.questions_count)].filter(Boolean).join(', ')}</p>
               </div>
               {a.due_at && !a.submitted_at && <span className={`small ${a.due_at < now ? 'text-red' : 'muted'}`}>до {dateTimeShort(a.due_at)}</span>}
               <QuizState a={a} />

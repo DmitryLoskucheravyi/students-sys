@@ -124,8 +124,8 @@ const placementWhen = (p) => (p.kind === 'weekly'
   ? `${p.weekdays.map((d) => WEEKDAYS[d - 1]).join(', ')} ${p.time}`
   : `${shortDate(p.start_date).slice(0, 5)} ${p.time}`);
 
-/** «Урок, вчитель» або «Курс · роадмап, вчитель»: звідки це домашнє. */
-export const hwWhere = (h) => [h.on_roadmap ? `${h.course_title} · роадмап` : h.lesson_title, h.teacher_name].filter(Boolean).join(', ');
+/** «Урок, вчитель» або «Курс (роадмап), вчитель»: звідки це домашнє. */
+export const hwWhere = (h) => [h.on_roadmap ? `${h.course_title} (роадмап)` : h.lesson_title, h.teacher_name].filter(Boolean).join(', ');
 
 function NewHomework({ onClose, onDone }) {
   const { user } = useAuth();
@@ -162,8 +162,8 @@ function NewHomework({ onClose, onDone }) {
           <Select label="Урок" value={scheduleId} onChange={pick} placeholder="Оберіть урок у розкладі"
             options={(placements.data ?? []).map((p) => ({
               value: p.id,
-              label: `${p.title} · ${placementWhen(p)}`,
-              hint: [p.teacher_name, p.students.map((s) => s.name).join(', ') || 'без учнів'].filter(Boolean).join(' · '),
+              label: `${p.title}, ${placementWhen(p)}`,
+              hint: [p.teacher_name, p.students.map((s) => s.name).join(', ') || 'без учнів'].filter(Boolean).join(', '),
             }))} />
         ) : (
           <Select label="Курс" value={courseId} onChange={pickCourse} placeholder="Оберіть курс"

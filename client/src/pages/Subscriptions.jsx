@@ -124,7 +124,7 @@ export default function Subscriptions() {
               <li key={p.id} className={`ticket ${ticketClass(p.color)} ${p.is_active ? '' : 'is-off'}`}>
                 <div className="ticket-main">
                   <h3>{p.name}</h3>
-                  <p className="ticket-count">{lessonsWord(p.lessons_count)}<span aria-hidden="true">·</span>{p.valid_days} днів</p>
+                  <p className="ticket-count">{lessonsWord(p.lessons_count)}, {p.valid_days} днів</p>
                 </div>
                 <div className="ticket-stub">
                   <strong>{money(p.price_per_lesson)}</strong>

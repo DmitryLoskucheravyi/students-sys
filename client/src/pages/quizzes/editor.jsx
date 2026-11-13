@@ -207,7 +207,7 @@ function QuizImport({ onClose, onDone }) {
           <div className={`qi-result ${found ? '' : 'is-empty'}`} role="status">
             <p>
               {found
-                ? <><IconTick size={16} /> Знайдено {questionsWord(found)}{result.title && <> · «{result.title}»</>}</>
+                ? <><IconTick size={16} /> Знайдено {questionsWord(found)}{result.title && <>: «{result.title}»</>}</>
                 : 'Не знайдено жодного питання. Перевірте, що відповідь у форматі з промпту.'}
             </p>
             {result.unmarked > 0 && (

@@ -27,7 +27,7 @@ function StepHomework({ items, step, viewerId }) {
               <IconHomework size={16} />
               <span className="road-hw-title">
                 {h.title}
-                {subTitles.length > 0 && <small className="muted"> · {subTitles.join(', ')}</small>}
+                {subTitles.length > 0 && <small className="muted">: {subTitles.join(', ')}</small>}
               </span>
               <small className={late ? 'text-red' : 'muted'}>до {dateTimeShort(h.due_at)}</small>
               {st && <Status kind={HW_STATUS[st][0]}>{HW_STATUS[st][1]}</Status>}

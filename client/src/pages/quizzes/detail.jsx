@@ -76,7 +76,7 @@ export function QuizDetail() {
                 <div className="row-main">
                   <h3><Link to={`/tests/${a.id}`}><Who name={a.student_name} avatar={a.student_avatar} size={30} /></Link></h3>
                   <p className="muted small">
-                    {[a.course_title, a.due_at && `до ${dateTimeShort(a.due_at)}`, a.submitted_at && `пройдено ${dateTimeShort(a.submitted_at)}`].filter(Boolean).join(' · ') || 'Без курсу'}
+                    {[a.course_title, a.due_at && `до ${dateTimeShort(a.due_at)}`, a.submitted_at && `пройдено ${dateTimeShort(a.submitted_at)}`].filter(Boolean).join(', ') || 'Без курсу'}
                   </p>
                 </div>
                 <QuizState a={a} />

@@ -465,7 +465,7 @@ export function TimePicker({ label, hint, value, onChange }) {
 }
 
 /* Модальне вікно або бічна панель */
-export function Modal({ title, onClose, children, side, narrow }) {
+export function Modal({ title, onClose, children, side, narrow, badge }) {
   const ref = useRef(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -500,7 +500,8 @@ export function Modal({ title, onClose, children, side, narrow }) {
 
   return createPortal(
     <div className={`modal-backdrop ${side ? 'is-side' : ''}`} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} className={`modal ${narrow ? 'is-narrow' : ''}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
+      <div ref={ref} className={`modal ${narrow ? 'is-narrow' : ''} ${badge ? 'has-badge' : ''}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
+        {badge && <div className="modal-badge">{badge}</div>}
         <header className="modal-head">
           <h2>{title}</h2>
           <IconButton label="Закрити" onClick={onClose}><IconClose /></IconButton>

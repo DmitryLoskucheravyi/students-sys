@@ -52,7 +52,7 @@ export function CourseStudents({ course, onClose, onChange }) {
               <li key={s.id} className="row">
                 <div className="row-main">
                   <h3><Who name={s.name} avatar={s.avatar} size={30} /></h3>
-                  <p className="muted small">{[s.direct && 'доданий напряму', s.from_schedule && 'з розкладу'].filter(Boolean).join(' · ')}</p>
+                  <p className="muted small">{[s.direct && 'доданий напряму', s.from_schedule && 'з розкладу'].filter(Boolean).join(', ')}</p>
                   {s.direct && (
                     <Select compact label="Вчитель" value={s.teacher_id} placeholder="Без вчителя" clearable options={teachers}
                       onChange={(v) => setTeacher(s, v)} />

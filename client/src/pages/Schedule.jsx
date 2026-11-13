@@ -734,7 +734,7 @@ function PlaceField({ session, canEdit, onSaved }) {
         <span>
           {session.room_service && <strong className="room-tag">{session.room_service}</strong>}
           <Linkify text={session.location} />
-          {session.own_location && <small className="muted"> · лише це заняття</small>}
+          {session.own_location && <small className="muted">, лише це заняття</small>}
         </span>
       ) : <span className="muted">Місце не вказано</span>}
       {canEdit && <IconButton label="Змінити місце" onClick={open}><IconEdit size={16} /></IconButton>}

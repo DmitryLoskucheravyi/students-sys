@@ -7,9 +7,10 @@ import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-
 import { api } from '../api.js';
 import BsLogo from '../BsLogo.jsx';
 import { Button, IconButton, Input, Modal, Textarea } from '../ui.jsx';
-import { IconClose, IconMenu, IconPhone, IconSend, IconTick, IconUser } from '../icons.jsx';
+import { IconFacebook, IconInstagram, IconTelegram, IconTiktok, IconSpark, IconClose, IconMenu, IconPhone, IconSend, IconTick, IconUser } from '../icons.jsx';
 import { CoursePage, CoursesPage, Home, NotFound, PricesPage, ProjectsPage, ReviewsPage } from './pages.jsx';
-import { LeadCtx, SiteCtx, prettyPhone, telHref, useSite } from './ctx.js';
+import { socialLinks, LeadCtx, SiteCtx, prettyPhone, telHref, useSite } from './ctx.js';
+import '@fontsource-variable/rubik';
 import './site.css';
 
 /* ───────── Дані сайту: один запит на все, кешується на час відвідування ───────── */
@@ -50,7 +51,8 @@ function LeadModal({ note: initialNote, phone, onClose }) {
   };
 
   return (
-    <Modal title={done ? 'Заявку надіслано' : 'Записатись'} onClose={onClose} narrow>
+    <Modal title={done ? 'Заявку надіслано' : 'Записатись'} onClose={onClose} narrow
+      badge={!done && <><IconSpark size={18} /><span>Пробне заняття <b>безкоштовно</b></span></>}>
       {done ? (
         <div className="lead-done" role="status">
           <span className="lead-done-mark" aria-hidden="true"><IconTick size={34} /></span>
@@ -134,6 +136,7 @@ function Header({ onLead }) {
             {NAV.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
             <a href="/cabinet" className="s-menu-cabinet"><IconUser size={20} />Для учнів</a>
           </nav>
+          <Socials className="is-menu" />
           <Button className="btn-wide" onClick={() => { setMenu(false); onLead(); }}>Записатись</Button>
         </div>
       )}
@@ -141,28 +144,41 @@ function Header({ onLead }) {
   );
 }
 
+const SOCIAL_ICON = { instagram: IconInstagram, tiktok: IconTiktok, facebook: IconFacebook, telegram: IconTelegram };
+
+/** Ряд круглих іконок соцмереж (лише заповнені в кабінеті). */
+function Socials({ className = '' }) {
+  const links = socialLinks(useSite().data?.contacts);
+  if (!links.length) return null;
+  return (
+    <div className={`s-socials ${className}`}>
+      {links.map(({ key, label, href }) => {
+        const Icon = SOCIAL_ICON[key];
+        return <a key={key} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label}><Icon size={20} /></a>;
+      })}
+    </div>
+  );
+}
+
 function Footer() {
   const { data } = useSite();
   const c = data?.contacts ?? {};
-  const tg = c.telegram && (c.telegram.startsWith('http') ? c.telegram : `https://t.me/${c.telegram.replace(/^@/, '')}`);
-  const ig = c.instagram && (c.instagram.startsWith('http') ? c.instagram : `https://instagram.com/${c.instagram.replace(/^@/, '')}`);
   return (
     <footer className="s-foot">
       <div className="s-wrap s-foot-in">
         <div className="s-foot-brand">
           <Link to="/" aria-label="Be Smart School — на головну"><BsLogo className="is-foot" /></Link>
+          <Socials className="is-foot" />
         </div>
         <nav className="s-foot-col" aria-label="Розділи сайту">
           <h2>Сайт</h2>
           {NAV.map(([to, label]) => <Link key={to} to={to}>{label}</Link>)}
           <a href="/cabinet">Для учнів</a>
         </nav>
-        {(c.phone || tg || ig || c.email || c.address) && (
+        {(c.phone || c.email || c.address) && (
           <div className="s-foot-col">
             <h2>Контакти</h2>
             {c.phone && <a href={telHref(c.phone)}>{prettyPhone(c.phone)}</a>}
-            {tg && <a href={tg} target="_blank" rel="noreferrer">Telegram</a>}
-            {ig && <a href={ig} target="_blank" rel="noreferrer">Instagram</a>}
             {c.email && <a href={`mailto:${c.email}`}>{c.email}</a>}
             {c.address && <p>{c.address}</p>}
           </div>

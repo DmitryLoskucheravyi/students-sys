@@ -58,7 +58,7 @@ with sync_playwright() as pw:
     hm.get_by_role("button", name="Задати").click()
     m.wait_for_url("**/homework/*"); m.wait_for_load_state("networkidle")
     hw_id = int(m.url.rstrip("/").split("/")[-1])
-    expect(m.locator("main")).to_contain_text("Python · роадмап")
+    expect(m.locator("main")).to_contain_text("Python (роадмап)")
     names = [r.inner_text() for r in m.locator(".work .row h3 .who-name").all()]
     check("домашнє отримали всі учні курсу: з розкладу й напряму", sorted(names) == ["Ілля Ткаченко", "Марко Шевчук"], str(names))
     shot(m, "hr2-detail")

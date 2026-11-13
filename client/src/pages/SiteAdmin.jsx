@@ -115,7 +115,7 @@ function Reviews({ state, onEdit }) {
         <li key={r.id} className="row review-row">
           <div className="row-main">
             <h3>{r.author}</h3>
-            {(r.author_role || r.course_title) && <p className="muted small">{[r.author_role, r.course_title].filter(Boolean).join(' · ')}</p>}
+            {(r.author_role || r.course_title) && <p className="muted small">{[r.author_role, r.course_title].filter(Boolean).join(', ')}</p>}
             <p className="review-text">{r.text}</p>
           </div>
           {!r.is_published && <Status kind="cancelled">Прихований</Status>}
@@ -202,7 +202,7 @@ function Projects({ state, onEdit }) {
           <span className="project-thumb">{p.image ? <img src={imageUrl(p.image)} alt="" loading="lazy" /> : <IconImage size={22} />}</span>
           <div className="row-main">
             <h3>{p.title}</h3>
-            {(p.author || p.course_title) && <p className="muted small">{[p.author, p.course_title].filter(Boolean).join(' · ')}</p>}
+            {(p.author || p.course_title) && <p className="muted small">{[p.author, p.course_title].filter(Boolean).join(', ')}</p>}
             {p.url && <p className="small"><a href={p.url} target="_blank" rel="noopener noreferrer" className="lead-phone">{p.url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a></p>}
           </div>
           {!p.is_published && <Status kind="cancelled">Прихований</Status>}
@@ -317,7 +317,7 @@ function Showcase() {
                 <Checkbox checked={Boolean(p.on_site)} disabled={!p.is_active && !p.on_site} onChange={(on) => toggle('plans', p, on)}>
                   <span className="showcase-item">
                     <i className={`tk-dot tk-${p.color}`} />{p.name}
-                    <small className="muted">{lessonsWord(p.lessons_count)} · {money(p.price_per_lesson)}{!p.is_active && ' · в архіві'}</small>
+                    <small className="muted">{lessonsWord(p.lessons_count)}, {money(p.price_per_lesson)}{!p.is_active && ', в архіві'}</small>
                   </span>
                 </Checkbox>
               </li>
@@ -356,6 +356,10 @@ function ContactsForm({ initial, onSaved }) {
       <div className="form-row">
         <Input label="Telegram" placeholder="@school або https://t.me/…" value={v.telegram} onChange={set('telegram')} />
         <Input label="Instagram" placeholder="@school або посилання" value={v.instagram} onChange={set('instagram')} />
+      </div>
+      <div className="form-row">
+        <Input label="TikTok" placeholder="@school або посилання" value={v.tiktok ?? ''} onChange={set('tiktok')} />
+        <Input label="Facebook" placeholder="Посилання на сторінку" value={v.facebook ?? ''} onChange={set('facebook')} />
       </div>
       <Input label="Адреса" maxLength={300} value={v.address} onChange={set('address')} />
       <div className="form-actions start">
