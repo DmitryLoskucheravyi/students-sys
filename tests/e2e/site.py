@@ -129,7 +129,9 @@ with sync_playwright() as pw:
     check("превʼю проєкту учня без чернетки", "Змійка" in g.locator(".s-project").inner_text() and "Чернетка" not in g.content())
     g.locator(".s-project img").scroll_into_view_if_needed()
     expect(g.locator(".s-project img")).to_be_visible()
-    check("скрін проєкту видно на сайті", g.locator(".s-project img").evaluate("i => i.complete && i.naturalWidth > 0"))
+    # Картинка лінива: чекаємо, доки справді завантажиться, а не лише потрапить у вікно
+    loaded = g.locator(".s-project img").evaluate("i => i.complete && i.naturalWidth > 0 || new Promise(r => { i.onload = () => r(i.naturalWidth > 0); i.onerror = () => r(false); setTimeout(() => r(false), 10000); })")
+    check("скрін проєкту видно на сайті", loaded)
     check("посилання проєкту — у новій вкладці", g.locator(".s-project-link").get_attribute("target") == "_blank" and "noopener" in g.locator(".s-project-link").get_attribute("rel"))
     check("скрін прихованого проєкту відвідувачу недоступний", api(gc, "GET", f"/site/images/{hidden['image']}").status == 404 and api(gc, "GET", "/site/images/00000000-0000-0000-0000-000000000000.bin").status == 404)
     check("кнопка «Зателефонувати» з номером", g.locator(".s-hero a[href='tel:+380671234567']").count() == 1)
