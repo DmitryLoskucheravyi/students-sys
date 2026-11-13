@@ -303,7 +303,12 @@
 
 /* ───────── Футер ───────── */
 .s-foot { margin-top: 72px; background: #1f1114; color: #fff; }
-.s-foot-in { display: grid; gap: 28px; padding-top: 40px; padding-bottom: 28px; }
+/* Розділи сайту — великим списком угорі футера */
+.s-foot-top { padding-top: 36px; padding-bottom: 28px; border-bottom: 1px solid rgb(255 255 255 / 0.12); }
+.s-foot-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; }
+.s-foot-nav a { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 0; border-bottom: 1px solid rgb(255 255 255 / 0.08); font: 700 19px/1.2 var(--display); letter-spacing: -0.03em; transition: color 0.15s; }
+.s-foot-nav a svg { color: rgb(255 255 255 / 0.35); transition: transform 0.2s var(--ease), color 0.15s; }
+.s-foot-in { display: grid; gap: 28px; padding-top: 32px; padding-bottom: 28px; }
 .bs-logo.is-foot { color: #fff; font-size: 30px; }
 .s-foot-col { display: grid; align-content: start; gap: 10px; }
 .s-foot-col h2 { margin-bottom: 4px; color: rgb(255 255 255 / 0.55); font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
@@ -352,7 +357,8 @@
   .s-cta-actions .btn { width: auto; }
   .or-line.is-light { flex-direction: column; gap: 6px; margin: 0 4px; }
   .or-line.is-light::before, .or-line.is-light::after { width: 1px; height: 14px; flex: none; }
-  .s-foot-in { grid-template-columns: 1.4fr 1fr 1fr; }
+  .s-foot-in { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+  .s-foot-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 28px; }
 }
 
 /* ───────── Десктоп ───────── */
@@ -412,7 +418,10 @@
   .s-cta { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 56px; margin-top: 96px; }
   .s-page-hero { padding-top: 48px; padding-bottom: 28px; }
   .s-foot { margin-top: 96px; }
-  .s-foot-in { padding-top: 56px; padding-bottom: 40px; }
+  .s-foot-top { padding-top: 56px; padding-bottom: 40px; }
+  .s-foot-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .s-foot-nav a { padding: 16px 0; font-size: 24px; }
+  .s-foot-in { padding-top: 40px; padding-bottom: 40px; }
 }
 
 @media (hover: hover) {
@@ -422,7 +431,8 @@
   .s-project:hover .s-project-shot img { transform: scale(1.03); }
   .s-nav a:hover:not(.active) { background: var(--wash); }
   .s-more:hover { text-decoration: underline; text-underline-offset: 4px; }
-  .s-foot-col a:hover { color: #ff9aa7; }
+  .s-foot-col a:hover, .s-foot-nav a:hover { color: #ff9aa7; }
+  .s-foot-nav a:hover svg { color: #ff9aa7; transform: translateX(4px); }
   .btn.s-call:hover { background: rgb(255 255 255 / 0.2); }
 }
 

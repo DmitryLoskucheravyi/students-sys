@@ -14,11 +14,11 @@ const SOCIAL = [
   ['facebook', 'Facebook', 'https://facebook.com/'],
   ['telegram', 'Telegram', 'https://t.me/'],
 ];
-/** Посилання на соцмережі з контактів: «@school» або повна адреса. Лише заповнені. */
+/** Соцмережі з контактів: «@school» або повна адреса. Незаповнені теж ідуть (href = null) — показуємо заглушкою. */
 export function socialLinks(c = {}) {
-  return SOCIAL.filter(([key]) => c[key]).map(([key, label, base]) => {
-    const v = String(c[key]).trim();
-    return { key, label, href: /^https?:\/\//.test(v) ? v : base + v.replace(/^@/, '') };
+  return SOCIAL.map(([key, label, base]) => {
+    const v = String(c[key] ?? '').trim();
+    return { key, label, href: !v ? null : /^https?:\/\//.test(v) ? v : base + v.replace(/^@/, '') };
   });
 }
 

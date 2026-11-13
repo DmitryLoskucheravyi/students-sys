@@ -7,7 +7,7 @@ import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-
 import { api } from '../api.js';
 import BsLogo from '../BsLogo.jsx';
 import { Button, IconButton, Input, Modal, Textarea } from '../ui.jsx';
-import { IconFacebook, IconInstagram, IconTelegram, IconTiktok, IconSpark, IconClose, IconMenu, IconPhone, IconSend, IconTick, IconUser } from '../icons.jsx';
+import { IconRight, IconFacebook, IconInstagram, IconTelegram, IconTiktok, IconSpark, IconClose, IconMenu, IconPhone, IconSend, IconTick, IconUser } from '../icons.jsx';
 import { CoursePage, CoursesPage, Home, NotFound, PricesPage, ProjectsPage, ReviewsPage } from './pages.jsx';
 import { socialLinks, LeadCtx, SiteCtx, prettyPhone, telHref, useSite } from './ctx.js';
 import '@fontsource-variable/nunito';
@@ -149,12 +149,14 @@ const SOCIAL_ICON = { instagram: IconInstagram, tiktok: IconTiktok, facebook: Ic
 /** Ряд круглих іконок соцмереж (лише заповнені в кабінеті). */
 function Socials({ className = '' }) {
   const links = socialLinks(useSite().data?.contacts);
-  if (!links.length) return null;
   return (
     <div className={`s-socials ${className}`}>
       {links.map(({ key, label, href }) => {
         const Icon = SOCIAL_ICON[key];
-        return <a key={key} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label}><Icon size={20} /></a>;
+        // Поки посилання не задане в кабінеті — іконка-заглушка без переходу
+        return href
+          ? <a key={key} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label}><Icon size={20} /></a>
+          : <a key={key} href="#" onClick={(e) => e.preventDefault()} aria-label={label} title={label}><Icon size={20} /></a>;
       })}
     </div>
   );
@@ -165,16 +167,17 @@ function Footer() {
   const c = data?.contacts ?? {};
   return (
     <footer className="s-foot">
+      <div className="s-wrap s-foot-top">
+        <nav className="s-foot-nav" aria-label="Розділи сайту">
+          {NAV.map(([to, label]) => <Link key={to} to={to}>{label}<IconRight size={20} /></Link>)}
+          <a href="/cabinet">Для учнів<IconRight size={20} /></a>
+        </nav>
+      </div>
       <div className="s-wrap s-foot-in">
         <div className="s-foot-brand">
           <Link to="/" aria-label="Be Smart School — на головну"><BsLogo className="is-foot" /></Link>
           <Socials className="is-foot" />
         </div>
-        <nav className="s-foot-col" aria-label="Розділи сайту">
-          <h2>Сайт</h2>
-          {NAV.map(([to, label]) => <Link key={to} to={to}>{label}</Link>)}
-          <a href="/cabinet">Для учнів</a>
-        </nav>
         {(c.phone || c.email || c.address) && (
           <div className="s-foot-col">
             <h2>Контакти</h2>
