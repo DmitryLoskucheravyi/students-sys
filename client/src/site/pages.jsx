@@ -5,7 +5,7 @@ import { api } from '../api.js';
 import { CourseIcon, themeClass } from '../courseLook.jsx';
 import { lessonsWord, money, plural } from '../fmt.js';
 import { Button, IconButton } from '../ui.jsx';
-import { IconExternal, IconLeft, IconPhone, IconQuote, IconRight } from '../icons.jsx';
+import { IconDown, IconExternal, IconLeft, IconPhone, IconQuote, IconRight } from '../icons.jsx';
 import { CTA, FEATURES, HERO, PAGES, STEPS } from './content.js';
 import { prettyPhone, telHref, useLead, useSite } from './ctx.js';
 
@@ -154,102 +154,59 @@ function CtaBand({ title = CTA.title, text = CTA.text, note }) {
   );
 }
 
-const MOCK_TOPICS = [['Змінні й типи', 'done'], ['Умови', 'done'], ['Цикли', 'now'], ['Функції', ''], ['Перший проєкт', '']];
-
-/* Перший екран: живий редактор. Код друкується сам, «запускається», і праворуч зʼявляється результат. */
-const PLAY = [
-  {
-    file: 'star.py', out: 'star',
-    code: [['k', 'from'], ['', ' turtle '], ['k', 'import'], ['', ' *\n\n'], ['k', 'for'], ['', ' i '], ['k', 'in'], ['', ' '], ['f', 'range'], ['', '('], ['n', '5'], ['', '):\n    '],
-      ['f', 'forward'], ['', '('], ['n', '150'], ['', ')\n    '], ['f', 'right'], ['', '('], ['n', '144'], ['', ')']],
-  },
-  {
-    file: 'hello.py', out: 'hello',
-    code: [['', 'name = '], ['f', 'input'], ['', '('], ['s', '"Як тебе звати? "'], ['', ')\n\n'], ['f', 'print'], ['', '('], ['s', '"Привіт, "'], ['', ' + name + '], ['s', '"!"'], ['', ')']],
-  },
-  {
-    file: 'index.html', out: 'button',
-    code: [['', '<'], ['t', 'button'], ['', '>Тисни!</'], ['t', 'button'], ['', '>\n\n<'], ['t', 'style'], ['', '>\n  '], ['t', 'button'], ['', ' {\n    '],
-      ['a', 'background'], ['', ': '], ['n', 'crimson'], ['', ';\n    '], ['a', 'border-radius'], ['', ': '], ['n', '99px'], ['', ';\n  }\n</'], ['t', 'style'], ['', '>']],
-  },
+/* Перший екран: роадмап від новачка до сертифіката. Шлях малюється, «Ти» йде ним, кроки загоряються. */
+const ROAD_PATH = 'M80 540 C 240 560, 420 520, 400 440 S 120 380, 110 320 S 380 270, 390 200 S 290 80, 250 66';
+const ROAD = [
+  { x: 80, y: 540, label: 'Старт', title: 'Новачок у програмуванні', side: 'r', at: 0 },
+  { x: 400, y: 440, label: 'Крок 1', title: 'Перша програма', side: 'l', at: 0.3 },
+  { x: 110, y: 320, label: 'Крок 2', title: 'Свій сайт або гра', side: 'r', at: 0.59 },
+  { x: 390, y: 200, label: 'Крок 3', title: 'Проєкт у команді', side: 'l', at: 0.85 },
 ];
-const playLength = (ex) => ex.code.reduce((n, [, t]) => n + t.length, 0);
-const PLAY_LINES = Math.max(...PLAY.map((ex) => ex.code.map(([, t]) => t).join('').split('\n').length));
-
-function PlayResult({ out }) {
-  if (out === 'star') {
-    return (
-      <svg className="s-run-star" viewBox="0 0 200 200" aria-hidden="true">
-        <path d="M100 22 L147 167 L24 77 L176 77 L53 167 Z" pathLength="1" />
-        <g className="s-run-turtle"><path d="M0 -9 L7 6 L0 3 L-7 6 Z" /></g>
-      </svg>
-    );
-  }
-  if (out === 'hello') {
-    return (
-      <div className="s-run-term">
-        <p><span>Як тебе звати? </span><b className="s-run-typed">Оля</b></p>
-        <p className="s-run-line">Привіт, Оля!</p>
-      </div>
-    );
-  }
-  return (
-    <div className="s-run-btn">
-      <span className="s-run-button">Тисни!</span>
-      <svg className="s-run-cursor" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 8-6 1.5L10 19z" /></svg>
-    </div>
-  );
-}
+const ROAD_START = 0.4; // с
+const ROAD_TIME = 4; // с
+const roadDelay = (at) => `${(ROAD_START + at * ROAD_TIME).toFixed(2)}s`;
+const CONFETTI = [[-90, -60, '#ffd479'], [80, -70, '#fff'], [-120, 10, '#a3e6b0'], [120, 0, '#ffd479'], [-60, 70, '#fff'], [70, 66, '#a7d4ff'], [0, -92, '#ff9aa7'], [-140, -40, '#fff'], [140, -44, '#a3e6b0'], [10, 90, '#ffd479']];
 
 function HeroArt() {
   const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const [i, setI] = useState(0);
-  const ex = PLAY[i];
-  const total = playLength(ex);
-  const [typed, setTyped] = useState(reduce ? total : 0);
-  const ran = typed >= total;
-  useEffect(() => {
-    if (reduce) return undefined;
-    const t = ran
-      ? setTimeout(() => { setI((k) => (k + 1) % PLAY.length); setTyped(0); }, 4600)
-      : setTimeout(() => setTyped((n) => n + 1), 34);
-    return () => clearTimeout(t);
-  }, [typed, ran, reduce]);
-  const open = (k) => { setI(k); setTyped(reduce ? playLength(PLAY[k]) : 0); };
-
-  let left = typed;
-  const shown = ex.code.map(([cls, text], k) => {
-    if (left <= 0) return null;
-    const part = text.slice(0, left);
-    left -= text.length;
-    return <u key={k} className={cls}>{part}</u>;
-  });
-
+  const total = ROAD_START + ROAD_TIME;
   return (
-    <div className="s-hero-art">
-      <div className="s-play" role="group" aria-label="Приклад: пишемо код і бачимо результат">
-        <div className="s-play-code">
-          <div className="s-play-bar">
-            <span className="s-play-dots" aria-hidden="true"><i /><i /><i /></span>
-            <div className="s-play-tabs">
-              {PLAY.map((p, k) => (
-                <button key={p.file} type="button" className={k === i ? 'is-on' : ''} aria-pressed={k === i} onClick={() => open(k)}>{p.file}</button>
-              ))}
-            </div>
-            <button type="button" className={`s-play-run ${ran ? 'is-on' : ''}`} onClick={() => setTyped(total)}>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" /></svg>Запуск
-            </button>
+    <div className="s-hero-art" aria-hidden="true">
+      <div className="s-roadmap">
+        <svg viewBox="0 0 500 600">
+          <path className="s-road-bed" d={ROAD_PATH} />
+          <path className="s-road-dash" d={ROAD_PATH} />
+          <path className="s-road-line" d={ROAD_PATH} pathLength="1" />
+          {ROAD.map((st) => (
+            <g key={st.title} className="s-road-node" style={{ '--d': roadDelay(st.at) }}>
+              <circle cx={st.x} cy={st.y} r="15" />
+              <path d={`M${st.x - 6} ${st.y}l4 4 8-8.500`} />
+            </g>
+          ))}
+          <g className="s-road-you" transform={reduce ? 'translate(250 66)' : undefined}>
+            <circle className="s-road-ring" r="18" />
+            <circle r="18" />
+            <text>Ти</text>
+            {!reduce && (
+              <animateMotion dur={`${total}s`} fill="freeze" path={ROAD_PATH} calcMode="spline"
+                keyPoints="0;0;1" keyTimes={`0;${(ROAD_START / total).toFixed(3)};1`} keySplines="0 0 1 1;0.42 0 0.58 1" />
+            )}
+          </g>
+        </svg>
+        {ROAD.map((st) => (
+          <div key={st.title} className={`s-road-card is-${st.side}`} style={{ left: `${st.x / 5}%`, top: `${st.y / 6}%`, '--d': roadDelay(st.at) }}>
+            <small>{st.label}</small>{st.title}
           </div>
-          <div className="s-play-body" aria-hidden="true">
-            <span className="s-play-nums">{Array.from({ length: PLAY_LINES }, (_, k) => <span key={k}>{k + 1}</span>)}</span>
-            <code style={{ '--lines': PLAY_LINES }}>{shown}<i className="s-caret" /></code>
-          </div>
-        </div>
-        <div className="s-play-out">
-          <div className="s-play-out-head"><span className={`s-play-led ${ran ? 'is-on' : ''}`} />{ran ? 'Працює' : 'Пишемо код'}</div>
-          <div className="s-play-stage" aria-hidden="true">
-            {ran ? <PlayResult key={`${i}-${typed}`} out={ex.out} /> : <span className="s-play-wait"><i /><i /><i /></span>}
-          </div>
+        ))}
+        <div className="s-road-finish" style={{ '--d': roadDelay(1) }}>
+          <span className="s-confetti">{CONFETTI.map(([x, y, c], k) => <i key={k} style={{ '--x': `${x}px`, '--y': `${y}px`, '--c': c, '--r': `${k * 47}deg` }} />)}</span>
+          <svg className="s-medal" viewBox="0 0 48 48">
+            <path d="M15 26 10 44l7-4 4 6 3-14zM33 26l5 18-7-4-4 6-3-14z" fill="#d6112b" />
+            <circle cx="24" cy="20" r="15" fill="#ffd479" stroke="#e5a91a" strokeWidth="3" />
+            <path d="M24 11.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="#fff" />
+          </svg>
+          <span><small>Фініш</small><b>Маю сертифікат від крутої школи</b></span>
+          <span className="s-smile">:)</span>
         </div>
       </div>
     </div>
@@ -272,17 +229,18 @@ function Reveal({ as: Tag = 'div', className = '', delay = 0, children }) {
 
 const Tick = () => <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 
-function RoadArt() {
+function SoloArt() {
   return (
     <div className="s-art-card">
-      <div className="s-mock-course"><span className="s-mock-ico">Py</span><span><b>Python. Старт</b><small>Тема 3 з 5</small></span><em>48%</em></div>
-      <ol className="s-mock-steps">
-        {MOCK_TOPICS.map(([t, st], i) => (
-          <li key={t} className={st ? `is-${st}` : ''}>
-            <span className="s-mock-dot">{st === 'done' ? <Tick /> : i + 1}</span><span>{t}</span>{st === 'now' && <small>Зараз</small>}
-          </li>
-        ))}
-      </ol>
+      <div className="s-art-row"><b>Заняття 1 на 1</b><span className="s-art-pill is-live">Наживо</span></div>
+      <div className="s-art-duo">
+        <span className="s-art-person"><span className="s-art-ava is-big">ОК</span><small>Викладач</small></span>
+        <span className="s-art-link" aria-hidden="true"><i /><i /><i /></span>
+        <span className="s-art-person"><span className="s-art-ava is-big is-you">Ти</span><small>Учень</small></span>
+      </div>
+      <small className="s-art-label">Програма під тебе</small>
+      <ul className="s-art-tags"><li>Python</li><li>Свої ігри</li><li>Свій темп</li></ul>
+      <div className="s-art-row"><small>Наступне заняття</small><small><b>Вт, 17:00</b></small></div>
     </div>
   );
 }
@@ -328,7 +286,139 @@ function CabinetArt() {
   );
 }
 
-const FEATURE_ART = { road: RoadArt, check: HomeworkArt, quiz: QuizArt, cabinet: CabinetArt };
+function PlanArt() {
+  return (
+    <div className="s-art-card">
+      <div className="s-art-row"><b>Твоя програма</b><span className="s-art-pill is-ok">Під тебе</span></div>
+      <div className="s-art-note"><span className="s-art-ava is-you">Ти</span><p>Хочу робити свої ігри!</p></div>
+      <ol className="s-art-plan">
+        <li><b>1</b>Основи Python</li>
+        <li><b>2</b>Pygame: перша гра</li>
+        <li><b>3</b>Своя гра від ідеї до релізу</li>
+      </ol>
+    </div>
+  );
+}
+
+function TimeArt() {
+  const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  return (
+    <div className="s-art-card">
+      <div className="s-art-row"><b>Зручний час</b><small>Листопад</small></div>
+      <div className="s-art-week">
+        {days.map((d, k) => <span key={d} className={k === 1 || k === 4 ? 'is-on' : ''}><small>{d}</small>{k === 1 ? '17:00' : k === 4 ? '15:30' : ''}</span>)}
+      </div>
+      <div className="s-art-row"><small>Переносимо, якщо треба</small><span className="s-art-pill is-ok">Без штрафів</span></div>
+    </div>
+  );
+}
+
+function TaskArt() {
+  return (
+    <div className="s-art-card">
+      <div className="s-art-row"><b>Нове домашнє</b><span className="s-art-pill is-live">до пт</span></div>
+      <p className="s-art-task">Зроби гру «Вгадай число»: компʼютер загадує, ти вгадуєш, а програма підказує «більше» чи «менше».</p>
+      <div className="s-art-row"><small>Тема «Цикли»</small><span className="s-art-btn">Здати роботу</span></div>
+    </div>
+  );
+}
+
+function StreakArt() {
+  return (
+    <div className="s-art-card">
+      <div className="s-art-row"><b>Домашні за місяць</b><b className="s-art-grade is-green">8<span>/8</span></b></div>
+      <div className="s-art-streak">{Array.from({ length: 8 }, (_, k) => <i key={k}><Tick /></i>)}</div>
+      <div className="s-art-row"><small>Середня оцінка</small><small><b>10,5</b> з 12</small></div>
+    </div>
+  );
+}
+
+function ResultArt() {
+  return (
+    <div className="s-art-card">
+      <div className="s-art-row"><b>Тест «Умови»</b><b className="s-art-grade is-green">9<span>/10</span></b></div>
+      <ul className="s-art-check">
+        <li className="is-ok"><Tick />if та else</li>
+        <li className="is-ok"><Tick />Порівняння</li>
+        <li className="is-again"><span>!</span>Логічні оператори<small>повторити</small></li>
+      </ul>
+    </div>
+  );
+}
+
+function Quiz2Art() {
+  return (
+    <div className="s-art-card">
+      <div className="s-art-row"><small>Тест «Рядки»</small><small>5 з 10</small></div>
+      <b className="s-art-q">Що поверне <code>len("код")</code>?</b>
+      <ul className="s-art-options">
+        <li className="is-right">3<Tick /></li>
+        <li>4</li>
+        <li>"код"</li>
+      </ul>
+    </div>
+  );
+}
+
+function TicketArt() {
+  return (
+    <div className="s-art-card">
+      <div className="s-art-row"><b>Абонемент</b><span className="s-art-pill is-ok">Активний</span></div>
+      <div className="s-art-ticket"><b>6</b><span>занять лишилось<small>з 8, до 20 грудня</small></span></div>
+      <div className="s-mock-progress"><i style={{ width: '75%' }} /></div>
+    </div>
+  );
+}
+
+function GradesArt() {
+  const g = [9, 11, 10, 12, 11, 12];
+  return (
+    <div className="s-art-card">
+      <div className="s-art-row"><b>Оцінки</b><small>останні 6</small></div>
+      <div className="s-art-bars">{g.map((v, k) => <span key={k} style={{ '--h': `${(v / 12) * 100}%` }}><b>{v}</b></span>)}</div>
+      <div className="s-art-row"><small>Прогрес курсу</small><small><b>64%</b></small></div>
+    </div>
+  );
+}
+
+/** Стопка карток: передня по колу йде назад, наступна виходить уперед. Крутиться, лише коли видно. */
+function CardStack({ cards }) {
+  const ref = useRef(null);
+  const [front, setFront] = useState(0);
+  const [run, setRun] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+    const io = new IntersectionObserver(([e]) => setRun(e.isIntersecting), { threshold: 0.4 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!run) return undefined;
+    const t = setInterval(() => setFront((f) => (f + 1) % cards.length), 3400);
+    return () => clearInterval(t);
+  }, [run, cards.length]);
+  return (
+    <div className="s-stack" ref={ref}>
+      <div className="s-stack-cards">
+        {cards.map((Card, k) => {
+          const pos = (k - front + cards.length) % cards.length;
+          return <div key={k} className="s-stack-item" data-pos={pos} aria-hidden={pos !== 0}><Card /></div>;
+        })}
+      </div>
+      <div className="s-stack-dots">
+        {cards.map((_, k) => <button key={k} type="button" className={k === front ? 'is-on' : ''} aria-label={`Картка ${k + 1}`} onClick={() => setFront(k)} />)}
+      </div>
+    </div>
+  );
+}
+
+const FEATURE_ART = {
+  solo: [SoloArt, PlanArt, TimeArt],
+  check: [HomeworkArt, TaskArt, StreakArt],
+  quiz: [QuizArt, ResultArt, Quiz2Art],
+  cabinet: [CabinetArt, TicketArt, GradesArt],
+};
 
 function Bits() {
   return (
@@ -370,20 +460,20 @@ export function Home() {
               <ul className="s-chips">{HERO.chips.map((c) => <li key={c} className="s-eyebrow">{c}</li>)}</ul>
               <h1>{HERO.title}</h1>
               <p className="s-lead">{HERO.lead}</p>
-              <div className="s-hero-actions">
-                {phone
-                  ? <a className="btn btn-onred s-big" href={telHref(phone)}><IconPhone size={20} /><span>Зателефонувати</span></a>
-                  : <Button className="btn-onred s-big" onClick={() => lead()}>Записатись</Button>}
-              </div>
             </div>
             <HeroArt />
+            <div className="s-hero-actions">
+              {phone
+                ? <a className="btn btn-onred s-big" href={telHref(phone)}><IconPhone size={20} /><span>Зателефонувати</span></a>
+                : <Button className="btn-onred s-big" onClick={() => lead()}>Записатись</Button>}
+            </div>
           </div>
         </div>
       </section>
 
       <div className="s-story">
         {FEATURES.map((f, i) => {
-          const Art = FEATURE_ART[f.icon] ?? RoadArt;
+          const cards = FEATURE_ART[f.icon] ?? FEATURE_ART.solo;
           return (
             <section key={f.title} className="s-wrap s-chapter">
               <div className="s-chapter-text">
@@ -394,7 +484,7 @@ export function Home() {
                   {f.points.map((pt, k) => <Reveal as="li" key={pt} delay={200 + k * 140}><Tick />{pt}</Reveal>)}
                 </ul>
               </div>
-              <Reveal className="s-chapter-art" delay={150}><Art /></Reveal>
+              <Reveal className="s-chapter-art" delay={150}><CardStack cards={cards} /></Reveal>
             </section>
           );
         })}
@@ -514,18 +604,26 @@ export function CoursePage() {
             <h2>Програма</h2>
             <p>{topicsWord(course.steps.length)}</p>
           </div>
+          <div className="s-program-main">
           <ol className="s-program">
             {course.steps.map((s, i) => (
-              <li key={s.id}>
+              <li key={s.id} className={i % 2 ? 'is-r' : 'is-l'}>
                 <span className="s-program-n">{String(i + 1).padStart(2, '0')}</span>
-                <div>
+                <div className="s-program-card">
                   <h3>{s.title}</h3>
                   {s.description && <p>{s.description}</p>}
-                  {s.topics.length > 0 && <ul className="s-topics">{s.topics.map((t) => <li key={t}>{t}</li>)}</ul>}
+                  {s.topics.length > 0 && (
+                    <details className="s-topics-box">
+                      <summary>{s.topics.length} {plural(s.topics.length, 'підтема', 'підтеми', 'підтем')}<IconDown size={16} /></summary>
+                      <ul className="s-topics">{s.topics.map((t) => <li key={t}>{t}</li>)}</ul>
+                    </details>
+                  )}
                 </div>
               </li>
             ))}
           </ol>
+          <p className="s-program-end"><span>:)</span>Фініш курсу і сертифікат</p>
+          </div>
         </section>
       )}
 
