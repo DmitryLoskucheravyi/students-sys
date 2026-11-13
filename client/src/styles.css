@@ -1149,7 +1149,7 @@ button.stop:active { transform: scale(0.94); }
   .back:hover { color: var(--red); }
   .btn-primary:hover:not(:disabled), .btn-danger:hover { background: var(--red-hover); }
   .btn-ghost:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
-  .btn-onred:hover { background: #ffe3e6; }
+  .btn.btn-onred:hover:not(:disabled) { background: #ffe3e6; }
   .icon-btn:hover:not(:disabled) { background: var(--red-soft); color: var(--red); }
   .input:hover { border-bottom-color: var(--muted); }
   .input:focus:hover, .input.is-open:hover { border-bottom-color: var(--red); }

@@ -123,26 +123,46 @@ function CtaBand({ title = CTA.title, text = CTA.text, note }) {
   );
 }
 
-/** Ілюстрація першого екрана: шматочки кабінету — дорога-роадмап, результат тесту, квиток. Декор. */
+/** Ілюстрація першого екрана: вікно кабінету з роадмапом курсу, результат тесту й шматок коду. Декор. */
+const MOCK_TOPICS = [['Змінні й типи', 'done'], ['Умови', 'done'], ['Цикли', 'now'], ['Функції', ''], ['Перший проєкт', '']];
+
 function HeroArt() {
   return (
     <div className="s-hero-art" aria-hidden="true">
-      <svg className="s-road" viewBox="0 0 320 360" fill="none">
-        <path className="s-road-bed" d="M40 340 C 40 260, 280 270, 270 190 S 60 140, 80 70 S 230 20, 280 20" />
-        <path className="s-road-line" d="M40 340 C 40 260, 280 270, 270 190 S 60 140, 80 70 S 230 20, 280 20" />
-        {[[40, 340], [262, 222], [96, 128], [280, 20]].map(([x, y], i) => (
-          <g key={i} className={`s-road-stop ${i < 2 ? 'is-done' : ''}`} style={{ '--i': i }}>
-            <circle cx={x} cy={y} r="13" />
-            {i < 2 && <path d={`M${x - 5} ${y}l3.500 3.500 6.500-7`} />}
-          </g>
-        ))}
-      </svg>
-      <div className="s-float s-float-score">
-        <b>9</b><span>/ 10</span>
-        <i className="s-float-meter">{Array.from({ length: 10 }, (_, k) => <em key={k} className={k < 9 ? 'is-on' : ''} />)}</i>
+      <div className="s-stage">
+        <div className="s-mock">
+          <div className="s-mock-bar"><i /><i /><i /><span>Кабінет учня</span></div>
+          <div className="s-mock-body">
+            <div className="s-mock-course">
+              <span className="s-mock-ico">Py</span>
+              <span><b>Python. Старт</b><small>Тема 3 з 5</small></span>
+              <em>48%</em>
+            </div>
+            <div className="s-mock-progress"><i /></div>
+            <ol className="s-mock-steps">
+              {MOCK_TOPICS.map(([t, st], i) => (
+                <li key={t} className={st ? `is-${st}` : ''} style={{ '--i': i }}>
+                  <span className="s-mock-dot">{st === 'done'
+                    ? <svg viewBox="0 0 16 16" fill="none"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    : i + 1}</span>
+                  <span>{t}</span>
+                  {st === 'now' && <small>Зараз</small>}
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+        <div className="s-tile s-tile-score">
+          <small>Тест · Цикли</small>
+          <b>9<span>/10</span></b>
+          <i className="s-tile-meter">{Array.from({ length: 10 }, (_, k) => <em key={k} className={k < 9 ? 'is-on' : ''} />)}</i>
+        </div>
+        <div className="s-tile s-code">
+          <span className="s-code-line"><span>1</span><span><u className="k">for</u> i <u className="k">in</u> <u className="f">range</u>(<u className="n">3</u>):</span></span>
+          <span className="s-code-line"><span>2</span><span>    <u className="f">print</u>(<u className="s">"Привіт!"</u>, i)</span></span>
+          <span className="s-code-line"><span>3</span><span><i className="s-caret" /></span></span>
+        </div>
       </div>
-      <div className="s-float s-float-hw"><span className="s-float-tick">✓</span><span><b>Домашнє</b><small>Перевірено · 11/12</small></span></div>
-      <div className="s-float s-float-code"><code><i>print</i>(<s>"Привіт"</s>)</code></div>
     </div>
   );
 }
