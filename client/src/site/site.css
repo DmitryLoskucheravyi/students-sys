@@ -431,8 +431,11 @@
   .s-hero-text, .s-mock-progress i, .s-caret, .s-roadmap *, .s-bits span, .s-menu, .lead-done-mark { animation: none !important; }
 }
 
-/* Макети кабінету (хіро й секції): живіший округлий Rubik замість широкого Unbounded */
-.s-art-card { --display: 'Rubik Variable', var(--body); --body: 'Rubik Variable', system-ui, sans-serif; font-family: var(--body); }
+/* Картки-макети (секції й роадмап у хіро): округлий Nunito замість широкого Unbounded */
+.s-art-card, .s-road-card, .s-road-finish, .s-road-you { --display: 'Nunito Variable', var(--body); --body: 'Nunito Variable', system-ui, sans-serif; font-family: var(--body); }
+.s-art-card :is(b, small, span, p, li, em), .s-road-card, .s-road-finish :is(b, small) { font-weight: 700; }
+.s-art-card .s-art-q, .s-art-row b, .s-road-finish b { font-weight: 800; }
+.s-art-card small, .s-art-label { font-weight: 700; }
 .s-art-card :is(b, em, small, span, p, li) { letter-spacing: -0.005em; }
 .s-art-lessons span { display: grid; gap: 1px; }
 .s-art-lessons em { color: var(--muted); font-style: normal; font-size: 12.5px; font-weight: 500; }

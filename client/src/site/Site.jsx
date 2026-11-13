@@ -10,7 +10,7 @@ import { Button, IconButton, Input, Modal, Textarea } from '../ui.jsx';
 import { IconFacebook, IconInstagram, IconTelegram, IconTiktok, IconSpark, IconClose, IconMenu, IconPhone, IconSend, IconTick, IconUser } from '../icons.jsx';
 import { CoursePage, CoursesPage, Home, NotFound, PricesPage, ProjectsPage, ReviewsPage } from './pages.jsx';
 import { socialLinks, LeadCtx, SiteCtx, prettyPhone, telHref, useSite } from './ctx.js';
-import '@fontsource-variable/rubik';
+import '@fontsource-variable/nunito';
 import './site.css';
 
 /* ───────── Дані сайту: один запит на все, кешується на час відвідування ───────── */
