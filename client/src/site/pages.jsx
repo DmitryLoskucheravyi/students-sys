@@ -95,13 +95,75 @@ function ProjectCard({ p }) {
   );
 }
 
+function useMedia(query) {
+  const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setMatch(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [query]);
+  return match;
+}
+const prefersCalm = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * Ціни на головній. Абонементів завжди 5.
+ * Телефон: слайдер із 1-го, 3-го й 5-го — по одному, сам перескакує, гортається пальцем, без кнопок.
+ * Компʼютер: три в ряд, 3-й завжди посередині, а по боках 1-й і 5-й міняються на 2-й і 4-й.
+ */
+function HomePlans({ plans }) {
+  const wide = useMedia('(min-width: 900px)');
+  const five = plans.length >= 5;
+  const [alt, setAlt] = useState(false);
+  useEffect(() => {
+    if (!wide || !five || prefersCalm()) return undefined;
+    const t = setInterval(() => setAlt((a) => !a), 4200);
+    return () => clearInterval(t);
+  }, [wide, five]);
+
+  if (wide) {
+    const row = five ? (alt ? [plans[1], plans[2], plans[3]] : [plans[0], plans[2], plans[4]]) : plans.slice(0, 3);
+    return (
+      <div className={`s-tickets s-plans-row ${five ? 'is-five' : ''}`}>
+        {row.map((pl, k) => <div key={k === 1 ? 'mid' : pl.id} className={`s-plan-slot ${k === 1 && five ? 'is-mid' : ''}`}><PlanTicket p={pl} /></div>)}
+      </div>
+    );
+  }
+  return <PlanSlider plans={five ? [plans[0], plans[2], plans[4]] : plans.slice(0, 3)} />;
+}
+
+function PlanSlider({ plans }) {
+  const ref = useRef(null);
+  const pausedUntil = useRef(0);
+  useEffect(() => {
+    if (plans.length < 2 || prefersCalm()) return undefined;
+    const t = setInterval(() => {
+      const el = ref.current;
+      if (!el || Date.now() < pausedUntil.current) return;
+      const w = el.clientWidth;
+      const next = (Math.round(el.scrollLeft / w) + 1) % plans.length;
+      el.scrollTo({ left: next * w, behavior: 'smooth' });
+    }, 3200);
+    return () => clearInterval(t);
+  }, [plans.length]);
+  // Гортає пальцем — автоперемикання чекає
+  const hold = () => { pausedUntil.current = Date.now() + 6000; };
+  return (
+    <div className="s-plan-slider" ref={ref} onTouchStart={hold} onPointerDown={hold} onWheel={hold}>
+      {plans.map((pl) => <div key={pl.id} className="s-plan-slide"><PlanTicket p={pl} /></div>)}
+    </div>
+  );
+}
+
 function PlanTicket({ p }) {
   const lead = useLead();
   return (
     <article className={`ticket s-ticket ${tk(p.color)}`}>
       <div className="ticket-main">
         <h3>{p.name}</h3>
-        <p className="ticket-count">{lessonsWord(p.lessons_count)}, {p.valid_days} днів</p>
+        <p className="ticket-count">{lessonsWord(p.lessons_count)}</p>
         <p className="s-ticket-per">{money(p.price_per_lesson)} за заняття</p>
       </div>
       <div className="ticket-stub">
@@ -533,7 +595,7 @@ export function Home() {
       {data?.plans.length > 0 && (
         <section className="s-wrap s-sec">
           <SectionHead title="Ціни" to="/prices" more="Усі ціни" />
-          <div className="s-tickets">{data.plans.slice(0, 3).map((p) => <PlanTicket key={p.id} p={p} />)}</div>
+          <HomePlans plans={data.plans} />
         </section>
       )}
 
