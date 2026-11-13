@@ -23,9 +23,9 @@ check('глибоке посилання віддає застосунок', dee
 const cabinet = await get('/cabinet/homework');
 check('кабінет на /cabinet віддає застосунок', cabinet.status === 200 && (await cabinet.text()).includes('id="root"'));
 
-const site = await get('/api/site');
-const siteData = await site.json().catch(() => null);
-check('дані сайту школи доступні без входу', site.status === 200 && Array.isArray(siteData?.courses) && Array.isArray(siteData?.plans), String(site.status));
+const siteApi = await get('/api/site');
+const siteData = await siteApi.json().catch(() => null);
+check('дані сайту школи доступні без входу', siteApi.status === 200 && Array.isArray(siteData?.courses) && Array.isArray(siteData?.plans), String(siteApi.status));
 
 const health = await get('/api/health');
 check('проксі доходить до API і бази', health.status === 200 && (await health.json().catch(() => null))?.ok === true, String(health.status));
