@@ -111,7 +111,9 @@ function Header({ onLead }) {
     return () => { document.removeEventListener('keydown', key); document.body.classList.remove('no-scroll'); };
   }, [menu]);
 
+  // Меню — поза шапкою: її backdrop-filter робить fixed-нащадків прив'язаними до шапки (Safari)
   return (
+    <>
     <header className={`s-head ${scrolled ? 'is-scrolled' : ''} ${menu ? 'is-open' : ''}`}>
       <div className="s-wrap s-head-in">
         <Link to="/" className="s-logo" aria-label="Be Smart School — на головну"><BsLogo className="is-site" /></Link>
@@ -124,6 +126,7 @@ function Header({ onLead }) {
           {menu ? <IconClose /> : <IconMenu />}
         </IconButton>
       </div>
+    </header>
       {menu && (
         <div className="s-menu" id="s-menu">
           <nav aria-label="Меню">
@@ -134,7 +137,7 @@ function Header({ onLead }) {
           <Button className="btn-wide" onClick={() => { setMenu(false); onLead(); }}>Записатись</Button>
         </div>
       )}
-    </header>
+    </>
   );
 }
 

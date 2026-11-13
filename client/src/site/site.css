@@ -147,9 +147,9 @@
 .s-chapter-title.s-reveal { transform: translateY(60px); transition-duration: 0.9s; }
 .s-chapter-title.s-reveal.is-in { transform: none; }
 .s-chapter-lead { color: var(--muted); font-size: clamp(17px, 2.2vw, 22px); line-height: 1.45; max-width: 30ch; }
-.s-chapter-points { display: grid; gap: 10px; margin: 8px 0 0; padding: 0; list-style: none; }
-.s-chapter-points li { display: flex; align-items: center; gap: 12px; font-size: 17px; font-weight: 600; }
-.s-chapter-points svg { flex: none; width: 26px; height: 26px; padding: 5px; border-radius: 9px; background: var(--red-soft); color: var(--red); }
+.s-chapter-points { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 6px 0 0; padding: 0; list-style: none; }
+.s-chapter-points li { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 600; }
+.s-chapter-points svg { flex: none; width: 22px; height: 22px; padding: 4px; border-radius: 7px; background: var(--red-soft); color: var(--red); }
 .s-chapter-art {
   position: relative; display: grid; place-items: center; min-height: 340px; padding: 32px 18px; overflow: hidden; border-radius: 28px; background-color: var(--red-soft);
   background-image: linear-gradient(rgb(214 17 43 / 0.07) 1px, transparent 1px), linear-gradient(90deg, rgb(214 17 43 / 0.07) 1px, transparent 1px); background-size: 30px 30px;
@@ -391,7 +391,7 @@
   .s-chapter-art { min-height: 520px; }
   .s-chapter-title { font-size: clamp(44px, 5.4vw, 104px); }
   .s-art-card { zoom: 1.12; }
-  .s-chapter-points li { font-size: 19px; }
+  .s-chapter-points li { font-size: 16px; }
   .s-course-hero-in { padding-top: 36px; padding-bottom: 72px; }
   .s-course-hero-mark { right: 4%; bottom: -120px; }
   .s-program-wrap { grid-template-columns: minmax(220px, 0.32fr) minmax(0, 1fr); gap: 48px; align-items: start; }
