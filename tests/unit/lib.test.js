@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { addDays, addMinutes, dateTime, hhmm, id, idList, int, isoDate, money, str, weekdayOf } from '../../server/lib.js';
+import { addDays, addMinutes, dateTime, hhmm, id, idList, int, isoDate, money, normalizePhone, str, weekdayOf } from '../../server/lib.js';
 
 const rejects = (fn) => assert.throws(fn, (e) => e.status === 400);
 
@@ -53,4 +53,16 @@ test('гроші округлюються до копійок і не буваю
   assert.equal(money('10.005', 'x'), 10.01);
   assert.equal(money(0, 'x'), 0);
   for (const bad of [-1, 'abc', Infinity, 1e9]) rejects(() => money(bad, 'x'));
+});
+
+test('normalizePhone: український номер без коду, міжнародний, сміття', () => {
+  assert.equal(normalizePhone('067 123 45 67'), '+380671234567');
+  assert.equal(normalizePhone('(067) 765-43-21'), '+380677654321');
+  assert.equal(normalizePhone('+380 67 123 45 67'), '+380671234567');
+  assert.equal(normalizePhone('+48 512 345 678'), '+48512345678');
+  rejects(() => normalizePhone('12345'));
+  rejects(() => normalizePhone(''));
+  rejects(() => normalizePhone('067 123 45 67 ext'));
+  rejects(() => normalizePhone('+1234567890123456'));
+  rejects(() => normalizePhone(380671234567));
 });

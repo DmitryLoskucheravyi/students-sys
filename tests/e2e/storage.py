@@ -7,6 +7,7 @@ if os.environ.get("FILE_STORAGE") != "db":
     sys.exit(0)
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 results, console = [], []
 MB = 1024 * 1024
@@ -91,10 +92,10 @@ with sync_playwright() as pw:
     png = noisy_png(1800, 1100)
     ctx = b.new_context(viewport={"width": 1360, "height": 860}, locale="uk-UA"); p = ctx.new_page()
     p.on("console", lambda m_: console.append(m_.text) if m_.type == "error" and "status of 4" not in m_.text else None)
-    p.goto(BASE); p.get_by_label("Логін").fill("filestud"); p.locator("input[type=password]").fill("filepass12")
+    p.goto(APP); p.get_by_label("Логін").fill("filestud"); p.locator("input[type=password]").fill("filepass12")
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail")
     hw5 = new_hw("Скріни")
-    p.goto(f"{BASE}/homework/{hw5}"); p.wait_for_selector(".uploader")
+    p.goto(f"{APP}/homework/{hw5}"); p.wait_for_selector(".uploader")
     check("ліміт показаний учню", p.locator(".drop", has_text="До 10 МБ").count() == 1)
     p.locator(".uploader input[accept]").set_input_files([{"name": "екран.png", "mimeType": "image/png", "buffer": png}])
     expect(p.locator(".queue .file-name", has_text="екран.webp")).to_be_visible(timeout=15000); check("великий скрін перетворено на WebP", True)

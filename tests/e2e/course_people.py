@@ -3,6 +3,7 @@ import os, pathlib, sys
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 results, console = [], []
 
@@ -18,7 +19,7 @@ def new(b, w=1360, h=860, theme="light", touch=False):
     return ctx, p
 
 def login(p, u, pw):
-    p.goto(BASE); p.wait_for_load_state("networkidle")
+    p.goto(APP); p.wait_for_load_state("networkidle")
     p.get_by_label("Логін").fill(u); p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail"); p.wait_for_load_state("networkidle")
 
@@ -41,7 +42,7 @@ with sync_playwright() as pw:
     # 1. Менеджер додає учня на курс напряму, із закріпленим вчителем
     sc, sp = new(b); login(sp, "boiko", "student123")
     check("учень не бачить чужий курс", api(sc, "GET", f"/courses/{py['id']}").status == 403)
-    m.goto(f"{BASE}/courses/{py['id']}"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/courses/{py['id']}"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Учні курсу: 1").click(); modal = m.locator(".modal"); expect(modal).to_be_visible()
     modal.get_by_label("Учень").click(); m.get_by_role("option", name="Дарина Бойко").click()
     modal.get_by_label("Вчитель", exact=True).first.click(); m.get_by_role("option", name="Олена Коваль").click()
@@ -58,9 +59,9 @@ with sync_playwright() as pw:
     check("лічильник учнів курсу врахував нового", py_now["students_count"] == 2, str(py_now["students_count"]))
 
     # 2. Учень бачить курс і власний прогрес
-    sp.goto(f"{BASE}/courses"); sp.wait_for_load_state("networkidle")
+    sp.goto(f"{APP}/courses"); sp.wait_for_load_state("networkidle")
     check("курс з'явився в учня", sp.locator(".course-list .course", has_text="Python").count() == 1)
-    sp.goto(f"{BASE}/courses/{py['id']}"); sp.wait_for_selector(".course-progress")
+    sp.goto(f"{APP}/courses/{py['id']}"); sp.wait_for_selector(".course-progress")
     expect(sp.locator(".cp-pct")).to_have_text("0%"); check("учень бачить свій прогрес: 0%", True)
     expect(sp.locator(".course-progress")).to_contain_text("Зараз: 1. Синтаксис"); check("показано поточний етап", True)
 
@@ -78,7 +79,7 @@ with sync_playwright() as pw:
     shot(sp, "cp2-student-progress")
 
     # 4. Домашнє з темами: цілий етап і окрема підтема
-    tp.goto(f"{BASE}/homework"); tp.wait_for_load_state("networkidle")
+    tp.goto(f"{APP}/homework"); tp.wait_for_load_state("networkidle")
     tp.get_by_role("button", name="Задати домашнє").click(); hm = tp.locator(".modal")
     hm.get_by_role("combobox", name="Урок").click(); tp.get_by_role("option", name="Веб: група А").first.click()
     expect(hm.locator(".topics")).to_be_visible(); check("після вибору уроку з'явились теми курсу", True)
@@ -96,7 +97,7 @@ with sync_playwright() as pw:
 
     # 5. Домашнє на роадмапі учня
     mk, mp = new(b); login(mp, "student", "student123")
-    mp.goto(f"{BASE}/courses/{web['id']}"); mp.wait_for_selector(".road-row")
+    mp.goto(f"{APP}/courses/{web['id']}"); mp.wait_for_selector(".road-row")
     rows = mp.locator(".road-row")
     expect(rows.nth(1).locator(".road-hw-item", has_text="Сторінка з подіями")).to_be_visible()
     check("домашнє видно під етапом «CSS і верстка»", True)
@@ -146,7 +147,7 @@ with sync_playwright() as pw:
     check("видалений етап зник із тем", len(api(tc, "GET", f"/homework/{hw_id}").json()["topics"]) == 1)
 
     # 8. Учня прибирають з курсу: курс зникає, прогрес лишається
-    m.goto(f"{BASE}/courses/{py['id']}"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/courses/{py['id']}"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Учні курсу: 2").click(); modal = m.locator(".modal")
     modal.locator(".course-people .row", has_text="Дарина Бойко").get_by_role("button", name="Прибрати Дарина Бойко з курсу").click()
     m.locator(".modal").get_by_role("button", name="Прибрати").last.click()
@@ -162,12 +163,12 @@ with sync_playwright() as pw:
     # 9. Телефон: без горизонтальної прокрутки
     for w in [320, 390]:
         c, p = new(b, w, 760, touch=True); login(p, "student", "student123")
-        p.goto(f"{BASE}/courses/{web['id']}"); p.wait_for_selector(".course-progress")
+        p.goto(f"{APP}/courses/{web['id']}"); p.wait_for_selector(".course-progress")
         check(f"{w}px: роадмап учня з домашніми без прокрутки вбік", overflow(p) <= 0, str(overflow(p)))
         if w == 320: shot(p, "cp5-mobile-road", full=True)
         c.close()
         c, p = new(b, w, 760, touch=True); login(p, "teacher", "teacher123")
-        p.goto(f"{BASE}/homework"); p.wait_for_load_state("networkidle")
+        p.goto(f"{APP}/homework"); p.wait_for_load_state("networkidle")
         p.get_by_role("button", name="Задати домашнє").click(); hm = p.locator(".modal")
         hm.get_by_role("combobox", name="Урок").click(); p.get_by_role("option", name="Веб: група А").first.click(); expect(hm.locator(".topics")).to_be_visible()
         wide = p.evaluate("(() => { const m = document.querySelector('.modal'); return m.scrollWidth - m.clientWidth; })()")
@@ -175,13 +176,13 @@ with sync_playwright() as pw:
         if w == 320: shot(p, "cp6-mobile-topics", full=True)
         c.close()
         c, p = new(b, w, 760, touch=True); login(p, "manager", "manager123")
-        p.goto(f"{BASE}/courses/{py['id']}"); p.wait_for_load_state("networkidle")
+        p.goto(f"{APP}/courses/{py['id']}"); p.wait_for_load_state("networkidle")
         p.get_by_role("button", name="Учні курсу").click(); expect(p.locator(".modal")).to_be_visible()
         check(f"{w}px: менеджер бачить учнів курсу без прокрутки вбік", overflow(p) <= 0, str(overflow(p)))
         c.close()
 
     c, p = new(b, 1360, 860, theme="dark"); login(p, "student", "student123")
-    p.goto(f"{BASE}/courses/{web['id']}"); p.wait_for_selector(".road-hw-item"); shot(p, "cp7-dark")
+    p.goto(f"{APP}/courses/{web['id']}"); p.wait_for_selector(".road-hw-item"); shot(p, "cp7-dark")
     c.close()
     b.close()
 

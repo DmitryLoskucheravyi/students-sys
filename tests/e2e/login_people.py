@@ -3,6 +3,7 @@ import os, pathlib
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 results, console = [], []
 
@@ -28,7 +29,7 @@ with sync_playwright() as pw:
 
     # 1. Широкий екран: заливка росте й огинає форму
     c, p = new(b)
-    p.goto(BASE); p.wait_for_selector(".login-form")
+    p.goto(APP); p.wait_for_selector(".login-form")
     check("на сторінці входу немає перемикача теми", p.locator(".login .theme-btn, .login-theme").count() == 0)
     check("заливка видна на широкому екрані", p.locator(".login-flow").is_visible())
     check("заливка доросла", wait_for(p, "document.querySelector('.login-flow').dataset.grown === '1'"))
@@ -48,7 +49,7 @@ with sync_playwright() as pw:
     check("поля форми доступні поверх заливки", True)
 
     # 2. Пошук людей
-    p.goto(f"{BASE}/people"); p.wait_for_load_state("networkidle")
+    p.goto(f"{APP}/people"); p.wait_for_load_state("networkidle")
     search = p.get_by_label("Пошук за ім’ям і прізвищем")
     names = lambda: [x.inner_text() for x in p.locator(".person-row h3").all()]
     total = len(names())
@@ -65,14 +66,14 @@ with sync_playwright() as pw:
 
     # 3. Телефон: заливки немає, прокрутки вбік теж
     c, p = new(b, 390, 800, touch=True)
-    p.goto(BASE); p.wait_for_selector(".login-form")
+    p.goto(APP); p.wait_for_selector(".login-form")
     check("на телефоні заливка прихована", not p.locator(".login-flow").is_visible())
     check("на телефоні без прокрутки вбік", p.evaluate("document.documentElement.scrollWidth - innerWidth") <= 0)
     c.close()
 
     # 4. Без анімацій: заливка одразу в кінцевій формі
     c, p = new(b, motion="reduce")
-    p.goto(BASE); p.wait_for_selector(".login-form"); p.wait_for_timeout(300)
+    p.goto(APP); p.wait_for_selector(".login-form"); p.wait_for_timeout(300)
     check("без анімацій заливка одразу на місці", p.evaluate("getComputedStyle(document.querySelector('.login-flow')).clipPath").startswith("path("))
     c.close()
     b.close()

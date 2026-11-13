@@ -3,6 +3,7 @@ import datetime as dt, os, pathlib, re, sys
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 results, console = [], []
 
@@ -18,7 +19,7 @@ def new(b, w=1360, h=860, theme="light"):
     return ctx, p
 
 def login(p, u, pw):
-    p.goto(BASE); p.wait_for_load_state("networkidle")
+    p.goto(APP); p.wait_for_load_state("networkidle")
     p.get_by_label("Логін").fill(u); p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail"); p.wait_for_load_state("networkidle")
 
@@ -39,7 +40,7 @@ with sync_playwright() as pw:
     ann = mk("student", "Аня Перша", "annstud"); bob = mk("student", "Богдан Другий", "bobstud")
 
     # 1. Урок — шаблон: без людей і без плашок
-    m.goto(f"{BASE}/lessons"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/lessons"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Новий урок").click()
     modal = m.locator(".modal")
     check("у формі уроку немає учнів, є лише вчитель за замовчуванням", modal.get_by_label("Учні").count() == 0 and modal.get_by_label("Вчитель", exact=True).count() == 0 and modal.get_by_label("Вчитель за замовчуванням").count() == 1)
@@ -90,7 +91,7 @@ with sync_playwright() as pw:
     check("вчитель іншої групи не бачить домашнє", api(t2c, "GET", f"/homework/{hw_id}").status == 403)
     staff_view = api(tc, "GET", f"/homework/{hw_id}").json()
     check("у домашньому список учнів групи", [s["student_id"] for s in staff_view["students"]] == [ann])
-    m.goto(f"{BASE}/homework"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/homework"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Задати домашнє").click()
     m.get_by_label("Урок", exact=True).click()
     opts = m.get_by_role("option").all_inner_texts()
@@ -99,7 +100,7 @@ with sync_playwright() as pw:
 
     # 5. Склад постановки з картки заняття
     sess = next(s for s in wk(mc) if s["schedule_id"] == pA)
-    m.goto(BASE); m.wait_for_load_state("networkidle")
+    m.goto(APP); m.wait_for_load_state("networkidle")
     if next_week.isocalendar()[1] != today.isocalendar()[1]:
         m.get_by_label("Наступний тиждень").click(); m.wait_for_load_state("networkidle")
     m.locator(".block", has_text="Шаблон-урок").first.click(); m.wait_for_selector(".sheet")
@@ -115,7 +116,7 @@ with sync_playwright() as pw:
     # 5б. Посилання змінюється прямо в картці і лише для цього заняття
     group = sorted((s for s in wk(mc) if s["schedule_id"] == pA), key=lambda s: s["starts_at"])
     first, second = group[0], group[1]
-    m.goto(BASE); m.wait_for_load_state("networkidle")
+    m.goto(APP); m.wait_for_load_state("networkidle")
     if next_week.isocalendar()[1] != today.isocalendar()[1]:
         m.get_by_label("Наступний тиждень").click(); m.wait_for_load_state("networkidle")
     m.locator(".week-col").nth(0).locator(".block", has_text="Шаблон-урок").first.scroll_into_view_if_needed()
@@ -161,7 +162,7 @@ with sync_playwright() as pw:
     bb = blk.bounding_box(); check("картка на годину вміщує 4 рядки", bb["height"] >= 80, str(bb))
     blk.screenshot(path=str(OUT / "block-card.png"))
     m.screenshot(path=str(OUT / "week-big-blocks.png"))
-    ap.goto(BASE); ap.wait_for_load_state("networkidle")
+    ap.goto(APP); ap.wait_for_load_state("networkidle")
     if next_week.isocalendar()[1] != today.isocalendar()[1]:
         ap.get_by_label("Наступний тиждень").click(); ap.wait_for_load_state("networkidle")
     sblk = ap.locator(".block", has_text="Шаблон-урок").first
@@ -198,7 +199,7 @@ with sync_playwright() as pw:
     check("зміна уроку не чіпає склад", sorted(s["id"] for s in api(mc, "GET", f"/schedules/{pA}").json()["students"]) == sorted([ann, bob]))
 
     # 8. Прибрати з розкладу з картки
-    m.goto(BASE); m.wait_for_load_state("networkidle")
+    m.goto(APP); m.wait_for_load_state("networkidle")
     if next_week.isocalendar()[1] != today.isocalendar()[1]:
         m.get_by_label("Наступний тиждень").click(); m.wait_for_load_state("networkidle")
     m.locator(".block", has_text="Шаблон-урок").filter(has_text="10:00").first.click(); m.wait_for_selector(".sheet")
@@ -215,7 +216,7 @@ with sync_playwright() as pw:
 
     # 10. Посилання: лише http(s), без виконання коду
     api(mc, "PATCH", f"/lessons/{lesson['id']}", data={"location": "javascript:alert(1) www.example.com, і текст"})
-    m.goto(f"{BASE}/lessons"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/lessons"); m.wait_for_load_state("networkidle")
     hrefs = m.locator(".lesson-row", has_text="Шаблон-урок").locator("a").evaluate_all("as => as.map(a => a.getAttribute('href'))")
     check("javascript: не стає посиланням, www стає https без коми", hrefs == ["https://www.example.com"], str(hrefs))
 
@@ -257,7 +258,7 @@ with sync_playwright() as pw:
     api(mc, "POST", f"/sessions/{back['session_id']}/reopen", data={})
     # через UI: форма сама підставляє абонемент і пояснює
     old_week = old_day - dt.timedelta(days=old_day.weekday())
-    m.goto(BASE); m.wait_for_load_state("networkidle")
+    m.goto(APP); m.wait_for_load_state("networkidle")
     if old_week < today - dt.timedelta(days=today.weekday()):
         m.get_by_label("Попередній тиждень").click(); m.wait_for_load_state("networkidle")
     m.evaluate("document.querySelector('.week').scrollTop = 0")
@@ -284,7 +285,7 @@ with sync_playwright() as pw:
     # 11в. Ручне списання з абонемента без розкладу й проведення
     subs_of = lambda: next(s for s in api(mc, "GET", f"/subscriptions?student_id={cara}").json() if s["id"] == late_sub["id"])
     stats_before = api(mc, "GET", f"/stats?from={today}&to={today}").json()["earned"]
-    m.goto(f"{BASE}/subscriptions"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/subscriptions"); m.wait_for_load_state("networkidle")
     srow = m.locator(".sub-row", has_text="Кіра Минула")
     srow.get_by_role("button", name="Списати").click()
     form = m.locator(".modal")
@@ -344,7 +345,7 @@ with sync_playwright() as pw:
 
     for w, theme in ((1360, "light"), (390, "dark"), (320, "light")):
         c, p = new(b, w, 860, theme); login(p, "manager", "manager123")
-        p.goto(f"{BASE}/stats"); p.wait_for_selector(".stat-tile")
+        p.goto(f"{APP}/stats"); p.wait_for_selector(".stat-tile")
         check(f"{w}px: статистика без прокрутки вбік", over(p) <= 0, str(over(p)))
         check(f"{w}px: 6 плиток і 6 стовпчиків", p.locator(".stat-tile").count() == 6 and p.locator(".bar").count() == 6)
         if w < 900:
@@ -369,11 +370,11 @@ with sync_playwright() as pw:
         c.close()
     sc_, sp_ = new(b); login(sp_, "annstud", "staffpass1")
     check("учень не бачить пункт «Статистика»", sp_.get_by_role("link", name="Статистика").count() == 0)
-    sp_.goto(f"{BASE}/stats"); sp_.wait_for_load_state("networkidle")
+    sp_.goto(f"{APP}/stats"); sp_.wait_for_load_state("networkidle")
     check("учень не відкриває сторінку статистики", sp_.locator(".stat-tile").count() == 0)
 
     # 13. Кабінети вчителя й значення за замовчуванням
-    m.goto(f"{BASE}/people"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/people"); m.wait_for_load_state("networkidle")
     m.locator(".segmented label", has_text="Вчителі").click()
     m.get_by_role("button", name="Новий вчитель").click()
     md = m.locator(".modal")
@@ -400,7 +401,7 @@ with sync_playwright() as pw:
     check("у учня кабінетів немає", api(mc, "PATCH", f"/users/{ann}", data={"rooms": []}).status == 400)
 
     # Урок із вчителем за замовчуванням: форма постановки підставляє вчителя й основний кабінет
-    m.goto(f"{BASE}/lessons"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/lessons"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Новий урок").click()
     m.get_by_label("Назва").fill("Кабінетний урок")
     choose(m, "Вчитель за замовчуванням", "Кабінетна Вчителька")
@@ -497,7 +498,7 @@ with sync_playwright() as pw:
     web = next(c for c in api(mc, "GET", "/courses").json() if c["title"] == "Веброзробка")
     for w, theme in ((1440, "light"), (390, "light")):
         c, p = new(b, w, 900, theme); login(p, "manager", "manager123")
-        p.goto(f"{BASE}/courses/{web['id']}"); p.wait_for_selector(".road-row"); p.wait_for_timeout(500)
+        p.goto(f"{APP}/courses/{web['id']}"); p.wait_for_selector(".road-row"); p.wait_for_timeout(500)
         page_w = p.locator(".page").bounding_box()["width"]; road_w = p.locator(".road").bounding_box()["width"]
         path_box = p.locator(".road-bed path").first.bounding_box()
         stop = p.locator(".road-row").first.locator(".stop").bounding_box(); text_x = p.locator(".road-text").first.bounding_box()["x"]

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 results, console = [], []
 
@@ -19,7 +20,7 @@ def new(b, w=1360, h=860):
     return ctx, p
 
 def login(p, u, pw):
-    p.goto(BASE); p.wait_for_load_state("networkidle")
+    p.goto(APP); p.wait_for_load_state("networkidle")
     p.get_by_label("Логін").fill(u); p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail"); p.wait_for_load_state("networkidle")
 
@@ -44,7 +45,7 @@ with sync_playwright() as pw:
     check("учня додано на курс напряму", api(mc, "POST", f"/courses/{py['id']}/students", data={"student_id": uid["tkachenko"], "teacher_id": uid["teacher"]}).ok)
 
     # 1. Менеджер задає домашнє до теми роадмапу через форму
-    m.goto(f"{BASE}/homework"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/homework"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Задати домашнє").click(); hm = m.locator(".modal")
     hm.get_by_role("radio", name="До теми роадмапу").check()
     check("у режимі теми немає вибору уроку", hm.get_by_role("combobox", name="Урок").count() == 0)
@@ -65,13 +66,13 @@ with sync_playwright() as pw:
 
     # 2. Учень без розкладу бачить і здає
     kc, kp = new(b); login(kp, "tkachenko", "student123")
-    kp.goto(f"{BASE}/homework"); kp.wait_for_load_state("networkidle")
+    kp.goto(f"{APP}/homework"); kp.wait_for_load_state("networkidle")
     check("учень курсу без розкладу бачить домашнє", kp.locator(".row", has_text="Розібрати синтаксис").count() == 1)
     check("учень здає роботу", upload(kc, hw_id).ok)
     road = api(kc, "GET", f"/courses/{py['id']}").json()
     mine = [h for h in road["homework"] if h["id"] == hw_id]
     check("домашнє на роадмапі учня", mine and uid["tkachenko"] in mine[0]["student_ids"], str(mine))
-    kp.goto(f"{BASE}/"); kp.wait_for_load_state("networkidle")
+    kp.goto(f"{APP}/"); kp.wait_for_load_state("networkidle")
 
     # 3. Чужий учень не бачить
     bc, bp = new(b); login(bp, "boiko", "student123")
@@ -85,7 +86,7 @@ with sync_playwright() as pw:
     t_row = next(h for h in api(tc, "GET", "/homework").json() if h["id"] == hw_id)
     check("у списку вчителя рахуються лише його учні", (t_row["students_count"], t_row["submitted_count"]) == (1, 1), str(t_row))
     check("вчитель не змінює домашнє менеджера", api(tc, "PATCH", f"/homework/{hw_id}", data={"title": "x", "due_at": future}).status == 403)
-    tp.goto(f"{BASE}/homework/{hw_id}"); tp.wait_for_load_state("networkidle")
+    tp.goto(f"{APP}/homework/{hw_id}"); tp.wait_for_load_state("networkidle")
     check("кнопок редагування немає", tp.get_by_role("button", name="Редагувати").count() == 0)
     sub_id = t_hw["students"][0]["submission"]["id"]
     check("вчитель перевіряє роботу свого учня", api(tc, "POST", f"/homework/submissions/{sub_id}/review", data={"status": "accepted", "grade": 11}).ok)
@@ -114,14 +115,14 @@ with sync_playwright() as pw:
     # 6. Позначка запізнення
     late = api(mc, "POST", "/homework", data={"course_id": py["id"], "title": "Прострочене", "due_at": past, "topics": [{"step_id": py_steps[0]["id"]}]}).json()["id"]
     check("здати після дедлайну можна", upload(kc, late).ok)
-    kp.goto(f"{BASE}/homework"); kp.wait_for_load_state("networkidle")
+    kp.goto(f"{APP}/homework"); kp.wait_for_load_state("networkidle")
     expect(kp.locator(".row", has_text="Прострочене").locator(".late-tag")).to_be_visible()
     check("учень бачить позначку запізнення в списку", True)
     check("вчасна робота без позначки", kp.locator(".row", has_text="Розібрати синтаксис").locator(".late-tag").count() == 0)
-    m.goto(f"{BASE}/homework/{late}"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/homework/{late}"); m.wait_for_load_state("networkidle")
     expect(m.locator(".work .row", has_text="Ілля Ткаченко").locator(".late-tag")).to_be_visible()
     check("менеджер бачить позначку в роботах", True)
-    m.goto(f"{BASE}/homework"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/homework"); m.wait_for_load_state("networkidle")
     expect(m.locator(".row", has_text="Прострочене")).to_contain_text("із запізненням: 1")
     check("у списку домашніх видно кількість запізнень", True)
     shot(kp, "hr3-late")

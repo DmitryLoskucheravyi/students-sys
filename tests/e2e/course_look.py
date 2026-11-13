@@ -3,6 +3,7 @@ import os, pathlib, sys
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 results, console = [], []
 
@@ -18,7 +19,7 @@ def new(b, w=1360, h=860, theme="light", touch=False):
     return ctx, p
 
 def login(p, u, pw):
-    p.goto(BASE); p.wait_for_load_state("networkidle")
+    p.goto(APP); p.wait_for_load_state("networkidle")
     p.get_by_label("Логін").fill(u); p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail"); p.wait_for_load_state("networkidle")
 
@@ -32,7 +33,7 @@ with sync_playwright() as pw:
     mc, m = new(b); login(m, "manager", "manager123")
 
     # 1. Новий курс із іконкою та темою
-    m.goto(f"{BASE}/courses"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/courses"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Новий курс").click(); form = m.locator(".modal")
     form.get_by_label("Назва").fill("TypeScript з нуля")
     check("за замовчуванням шкільна тема й іконка роадмапу",
@@ -52,7 +53,7 @@ with sync_playwright() as pw:
 
     # 2. Сторінка курсу в темі: дорога, кружки, кнопки
     web = next(c for c in api(mc, "GET", "/courses").json() if c["title"] == "Веброзробка")
-    m.goto(f"{BASE}/courses/{web['id']}"); m.wait_for_selector(".road-row")
+    m.goto(f"{APP}/courses/{web['id']}"); m.wait_for_selector(".road-row")
     check("сторінка курсу в темі", "ct-web" in m.locator(".course-page").get_attribute("class"))
     m.get_by_label("Прогрес учня").click(); m.get_by_role("option", name="Марко Шевчук").click(); m.wait_for_timeout(300)
     done_stop = m.locator(".stop.is-done").first
@@ -87,14 +88,14 @@ with sync_playwright() as pw:
     # 5. Учень бачить тему, темний режим, телефон
     for theme in ["light", "dark"]:
         c, p = new(b, 1360, 860, theme=theme); login(p, "student", "student123")
-        p.goto(f"{BASE}/courses"); p.wait_for_load_state("networkidle")
+        p.goto(f"{APP}/courses"); p.wait_for_load_state("networkidle")
         check(f"{theme}: учень бачить курси в темах", p.locator(".course.ct-web").count() == 1 and p.locator(".course.ct-snake").count() == 1)
-        p.goto(f"{BASE}/courses/{web['id']}"); p.wait_for_selector(".road-row")
+        p.goto(f"{APP}/courses/{web['id']}"); p.wait_for_selector(".road-row")
         p.screenshot(path=str(OUT / f"look5-student-{theme}.png"))
         c.close()
     for w in [320, 390]:
         c, p = new(b, w, 760, touch=True); login(p, "manager", "manager123")
-        p.goto(f"{BASE}/courses"); p.wait_for_load_state("networkidle")
+        p.goto(f"{APP}/courses"); p.wait_for_load_state("networkidle")
         check(f"{w}px: список курсів без прокрутки вбік", overflow(p) <= 0, str(overflow(p)))
         p.get_by_role("button", name="Новий курс").click(); p.wait_for_selector(".look")
         wide = p.evaluate("(() => { const m = document.querySelector('.modal'); return m.scrollWidth - m.clientWidth; })()")

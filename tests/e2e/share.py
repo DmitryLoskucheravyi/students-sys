@@ -3,6 +3,7 @@ import os, pathlib
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 results, console = [], []
 
@@ -19,7 +20,7 @@ def new(b, w=1280, h=900, theme="light"):
     return ctx, p
 
 def login(p, u, pw):
-    p.goto(BASE); p.wait_for_load_state("networkidle")
+    p.goto(APP); p.wait_for_load_state("networkidle")
     p.get_by_label("Логін").fill(u); p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail"); p.wait_for_load_state("networkidle")
 
@@ -43,7 +44,7 @@ with sync_playwright() as pw:
     qid = api(mc, "POST", "/quizzes", data=QUIZ).json()["id"]
 
     # 1. Менеджер вмикає посилання на сторінці тесту
-    m.goto(f"{BASE}/quizzes/{qid}"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/quizzes/{qid}"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Поділитися посиланням").click()
     m.locator(".modal").get_by_role("button", name="Створити посилання").click()
     url_in = m.locator(".modal").get_by_label("Посилання на тест"); expect(url_in).to_be_visible()

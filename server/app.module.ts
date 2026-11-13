@@ -9,6 +9,7 @@ import { LessonsModule } from './modules/lessons/lessons.module.js';
 import { PlansModule } from './modules/plans/plans.module.js';
 import { QuizzesModule } from './modules/quizzes/quizzes.module.js';
 import { SessionsModule } from './modules/sessions/sessions.module.js';
+import { SiteModule } from './modules/site/site.module.js';
 import { StatsModule } from './modules/stats/stats.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -25,6 +26,7 @@ import { UsersModule } from './modules/users/users.module.js';
     HomeworkModule,
     StatsModule,
     QuizzesModule,
+    SiteModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: AccessGuard }],
 })

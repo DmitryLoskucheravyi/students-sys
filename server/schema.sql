@@ -412,3 +412,55 @@ CREATE TABLE IF NOT EXISTS quiz_answers (
   FOREIGN KEY (question_id) REFERENCES quiz_questions(id) ON DELETE CASCADE,
   FOREIGN KEY (option_id) REFERENCES quiz_options(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Сайт школи. Заявка з форми «Записатись»: менеджер бачить її в кабінеті, а якщо задано бота — і в Telegram.
+CREATE TABLE IF NOT EXISTS leads (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(80) NOT NULL,
+  phone VARCHAR(32) NOT NULL,
+  note VARCHAR(500) NULL,
+  status ENUM('new','done') NOT NULL DEFAULT 'new',
+  telegram_sent TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_leads_status (status, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Відгуки на сайті. Додає менеджер; на сайті лише опубліковані.
+CREATE TABLE IF NOT EXISTS reviews (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  author VARCHAR(80) NOT NULL,
+  author_role VARCHAR(60) NULL,
+  text VARCHAR(1200) NOT NULL,
+  course_id INT NULL,
+  is_published TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Контакти школи на сайті: телефон, Telegram, Instagram, адреса, email. Ключ — значення.
+CREATE TABLE IF NOT EXISTS site_settings (
+  name VARCHAR(40) PRIMARY KEY,
+  value VARCHAR(300) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Картинки сайту (скріни проєктів учнів). Самі байти — у сховищі файлів, як картинки тестів.
+CREATE TABLE IF NOT EXISTS site_images (
+  stored_name VARCHAR(48) PRIMARY KEY,
+  mime VARCHAR(40) NOT NULL,
+  size INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Проєкти учнів на сайті. Додає менеджер; автор — як підписати (ім'я чи «учень 12 років»), не акаунт.
+CREATE TABLE IF NOT EXISTS projects (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(120) NOT NULL,
+  author VARCHAR(80) NULL,
+  description VARCHAR(600) NULL,
+  course_id INT NULL,
+  url VARCHAR(300) NULL,
+  image VARCHAR(48) NULL,
+  is_published TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

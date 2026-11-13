@@ -102,6 +102,13 @@ async function migrate(conn: Connection, { hadRoster, hadSchedules }: { hadRoste
     await conn.query('ALTER TABLE submissions ADD COLUMN first_submitted_at DATETIME NULL');
     await conn.query('UPDATE submissions SET first_submitted_at = submitted_at');
   }
+  // Сайт школи: які курси й види абонементів показувати відвідувачам.
+  if (!(await columnInfo(conn, 'courses', 'on_site'))) {
+    await conn.query('ALTER TABLE courses ADD COLUMN on_site TINYINT(1) NOT NULL DEFAULT 0');
+  }
+  if (!(await columnInfo(conn, 'plans', 'on_site'))) {
+    await conn.query('ALTER TABLE plans ADD COLUMN on_site TINYINT(1) NOT NULL DEFAULT 0');
+  }
   if (hadSchedules && !hadRoster) {
     await conn.query(
       `INSERT IGNORE INTO schedule_students (schedule_id, student_id)

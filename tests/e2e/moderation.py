@@ -3,6 +3,7 @@ import os, pathlib
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 results, console = [], []
 
@@ -19,7 +20,7 @@ def new(b, w=1440, h=900, theme="light", motion="no-preference"):
     return ctx, p
 
 def login(p, u, pw):
-    p.goto(BASE); p.wait_for_load_state("networkidle")
+    p.goto(APP); p.wait_for_load_state("networkidle")
     p.get_by_label("Логін").fill(u); p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail"); p.wait_for_load_state("networkidle")
 
@@ -48,7 +49,7 @@ with sync_playwright() as pw:
 
     # 1. Вчитель створює тест: він іде на модерацію
     tc, t = new(b); login(t, "teacher", "teacher123")
-    t.goto(f"{BASE}/homework?tab=quizzes"); t.wait_for_load_state("networkidle")
+    t.goto(f"{APP}/homework?tab=quizzes"); t.wait_for_load_state("networkidle")
     t.get_by_role("button", name="Новий тест").click(); t.wait_for_url("**/quizzes/new")
     check("тест вчителя на модерації", api(tc, "POST", "/quizzes", data={**QUIZ, "title": "JS від вчителя"}).json()["status"] == "pending")
     tq = api(tc, "GET", "/quizzes").json()
@@ -57,12 +58,12 @@ with sync_playwright() as pw:
     check("вчитель не схвалює сам", api(tc, "POST", f"/quizzes/{jsq}/approve").status == 403)
     check("вчитель не бачить чужий тест", api(tc, "GET", f"/quizzes/{quizzes[0]['id']}").status == 404)
     check("неперевірений тест не відкрити учневі", api(mc, "POST", f"/quizzes/{jsq}/assignments", data={"student_id": my[0]["student_id"]}).status == 400)
-    t.goto(f"{BASE}/homework?tab=quizzes"); t.wait_for_load_state("networkidle")
+    t.goto(f"{APP}/homework?tab=quizzes"); t.wait_for_load_state("networkidle")
     expect(t.locator("main")).to_contain_text("На модерації"); check("вкладка тестів у вчителя зі статусом", True)
     shot(t, "is3-teacher-tests")
 
     # 2. Менеджер: розділ модерації, бейдж, відхилення з причиною, повторне надсилання, схвалення
-    m.goto(f"{BASE}/homework?tab=quizzes"); m.wait_for_load_state("networkidle"); m.wait_for_timeout(300)
+    m.goto(f"{APP}/homework?tab=quizzes"); m.wait_for_load_state("networkidle"); m.wait_for_timeout(300)
     check("розділ «На модерації»", m.locator(".moderation").count() == 1 and "JS від вчителя" in m.locator(".moderation").inner_text())
     check("бейдж модерації в навігації", m.locator(".rail .nav-badge").first.inner_text() == "1")
     gen = m.locator("section[aria-label='Усі тести']").inner_text()
@@ -86,7 +87,7 @@ with sync_playwright() as pw:
     base = next(x for x in plans if x["name"] == "Базовий")
     check("колір за замовчуванням червоний", base["color"] == "red")
     check("невідомий колір відхилено", api(mc, "PATCH", f"/plans/{base['id']}", data={"color": "gold"}).status == 400)
-    m.goto(f"{BASE}/subscriptions"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/subscriptions"); m.wait_for_load_state("networkidle")
     m.get_by_role("radio", name="Види").click()
     m.locator(".ticket").filter(has_text="Базовий").get_by_role("button", name="Змінити").click()
     m.locator(".modal").get_by_role("radio", name="Фіолетовий").click()
@@ -94,7 +95,7 @@ with sync_playwright() as pw:
     check("прев'ю квитка перефарбовано", stub == "rgb(116, 72, 208)", stub)
     m.locator(".modal").get_by_role("button", name="Зберегти").click(); expect(m.locator(".modal")).to_have_count(0)
     check("колір збережено", next(x for x in api(mc, "GET", "/plans").json() if x["id"] == base["id"])["color"] == "violet")
-    s.goto(f"{BASE}/subscription"); s.wait_for_load_state("networkidle"); s.wait_for_selector(".ticket")
+    s.goto(f"{APP}/subscription"); s.wait_for_load_state("networkidle"); s.wait_for_selector(".ticket")
     stub = s.locator(".ticket-stub").first.evaluate("e => getComputedStyle(e).backgroundColor")
     check("квиток учня у кольорі виду", stub == "rgb(116, 72, 208)", stub)
     shot(s, "is6-ticket")
@@ -102,9 +103,9 @@ with sync_playwright() as pw:
     # 4. Аватарки учнів: розклад, абонементи, домашні
     api(sc, "PATCH", "/auth/avatar", data={"avatar": "cool"})
     me = api(sc, "GET", "/auth/me").json()
-    m.goto(f"{BASE}/subscriptions"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/subscriptions"); m.wait_for_load_state("networkidle")
     check("абонементи: аватарки поруч з іменами", m.locator(".sub-row .who .avatar").count() >= 3)
-    m.goto(BASE); m.wait_for_load_state("networkidle")
+    m.goto(APP); m.wait_for_load_state("networkidle")
     check("розклад: аватарки учнів у блоках", m.locator(".block .faces .avatar").count() >= 1)
     m.locator(".block-open").first.click(); m.wait_for_timeout(500)
     check("заняття: аватарки в списку учнів", m.locator(".roster .who .avatar").count() >= 1)
@@ -116,7 +117,7 @@ with sync_playwright() as pw:
         r = api(mc, "PATCH", f"/courses/{web['id']}", data={"title": "Веброзробка", "theme": theme, "icon": icon})
         got = next(c for c in api(mc, "GET", "/courses").json() if c["id"] == web["id"])
         check(f"тема {theme} з іконкою приймається", r.ok and got["theme"] == theme and got["icon"] == icon, r.text()[:80])
-    m.goto(f"{BASE}/courses/{web['id']}"); m.wait_for_selector(".road-row")
+    m.goto(f"{APP}/courses/{web['id']}"); m.wait_for_selector(".road-row")
     check("сторінка курсу в монохромній темі", "ct-next" in m.locator(".course-page").get_attribute("class"))
     m.get_by_role("button", name="Редагувати курс").click()
     md = m.locator(".modal"); expect(md.locator(".look-themes")).to_be_visible()

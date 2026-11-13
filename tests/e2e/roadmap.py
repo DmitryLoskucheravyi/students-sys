@@ -3,6 +3,7 @@ import os, pathlib, sys
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 results, console = [], []
 
@@ -18,7 +19,7 @@ def new(b, w=1360, h=860, theme="light", touch=False):
     return ctx, p
 
 def login(p, u, pw):
-    p.goto(BASE); p.wait_for_load_state("networkidle")
+    p.goto(APP); p.wait_for_load_state("networkidle")
     p.get_by_label("Логін").fill(u); p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail"); p.wait_for_load_state("networkidle")
 
@@ -34,7 +35,7 @@ with sync_playwright() as pw:
     mc, m = new(b); login(m, "manager", "manager123")
     courses = api(mc, "GET", "/courses").json()
     py = next(c for c in courses if c["title"] == "Python"); web = next(c for c in courses if c["title"] == "Веброзробка")
-    m.goto(f"{BASE}/courses/{py['id']}"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/courses/{py['id']}"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Редагувати роадмап").click()
     first = m.locator(".step-edit").first
     first.get_by_role("button", name="Підпункти: 0").click(); m.wait_for_timeout(450)
@@ -51,7 +52,7 @@ with sync_playwright() as pw:
     m.get_by_role("button", name="Готово").click()
 
     # Анімація розгортання: висота змінюється поступово
-    m.goto(f"{BASE}/courses/{web['id']}"); m.wait_for_selector(".road-row"); m.wait_for_timeout(300)
+    m.goto(f"{APP}/courses/{web['id']}"); m.wait_for_selector(".road-row"); m.wait_for_timeout(300)
     m.get_by_label("Прогрес учня").click(); m.get_by_role("option", name="Марко Шевчук").click(); m.wait_for_timeout(400)
     m.locator(".road-row").nth(0).locator(".sub-toggle").click(); m.wait_for_timeout(100)
     m.locator(".road-row").nth(0).locator(".sub-toggle").click(); m.wait_for_timeout(400)
@@ -119,7 +120,7 @@ with sync_playwright() as pw:
     tc, tp = new(b); login(tp, "melnyk", "teacher123")
     check("чужий вчитель не редагує курс", api(tc, "POST", f"/courses/{web['id']}/steps/{s1['id']}/substeps", data={"title": "x"}).status == 403)
     check("підпункт із чужого курсу не приймається", api(tc, "PATCH", f"/courses/{py['id']}/substeps/{new_id}", data={"title": "x"}).status == 404)
-    sp.goto(f"{BASE}/courses/{web['id']}"); sp.wait_for_selector(".road-row")
+    sp.goto(f"{APP}/courses/{web['id']}"); sp.wait_for_selector(".road-row")
     check("учень бачить підпункти лише для читання", sp.locator(".sub input").count() == 0 and sp.locator(".sub .check.is-readonly").count() > 0)
 
     # Адаптив на всіх сторінках і ширинах
@@ -134,7 +135,7 @@ with sync_playwright() as pw:
         for role, (u, pwd, paths) in cases.items():
             c, p = sessions[role]; p.set_viewport_size({"width": w, "height": 800}); bad = []
             for path in paths:
-                p.goto(BASE + path); p.wait_for_load_state("networkidle"); p.wait_for_timeout(60)
+                p.goto(APP + path); p.wait_for_load_state("networkidle"); p.wait_for_timeout(60)
                 over = p.evaluate("document.documentElement.scrollWidth - window.innerWidth")
                 if over > 0:
                     who = p.evaluate("""() => [...document.querySelectorAll('.page *, .rail *')].filter(e => e.getBoundingClientRect().right > innerWidth + 1 && !e.closest('.rail-nav')).slice(0,2).map(e => e.className || e.tagName)""")
@@ -153,19 +154,19 @@ with sync_playwright() as pw:
     act = p.locator(".modal .form-actions").bounding_box()
     check("кнопки шторки видно без прокрутки", act["y"] + act["height"] <= 720.5, str(act))
     p.get_by_label("Закрити").click()
-    p.goto(f"{BASE}/courses/{web['id']}"); p.wait_for_selector(".road-row"); shot(p, "s5-mob-road", full=True)
+    p.goto(f"{APP}/courses/{web['id']}"); p.wait_for_selector(".road-row"); shot(p, "s5-mob-road", full=True)
     p.get_by_role("button", name="Редагувати роадмап").click(); p.locator(".step-edit").first.locator(".sub-toggle").click(); shot(p, "s6-mob-editor", full=True)
-    p.goto(f"{BASE}/subscriptions"); p.wait_for_load_state("networkidle"); shot(p, "s7-mob-subs")
-    p.goto(f"{BASE}/people"); p.wait_for_load_state("networkidle"); shot(p, "s8-mob-people")
-    p.goto(f"{BASE}/lessons"); p.wait_for_load_state("networkidle"); shot(p, "s9-mob-lessons")
+    p.goto(f"{APP}/subscriptions"); p.wait_for_load_state("networkidle"); shot(p, "s7-mob-subs")
+    p.goto(f"{APP}/people"); p.wait_for_load_state("networkidle"); shot(p, "s8-mob-people")
+    p.goto(f"{APP}/lessons"); p.wait_for_load_state("networkidle"); shot(p, "s9-mob-lessons")
     c.close()
     c, p = new(b, 320, 640, touch=True, theme="dark"); login(p, "student", "student123"); shot(p, "s10-320-student-dark", full=True)
-    p.goto(f"{BASE}/subscription"); p.wait_for_load_state("networkidle"); shot(p, "s11-320-ticket-dark")
-    p.goto(f"{BASE}/homework"); p.wait_for_load_state("networkidle"); p.locator("a.row-link[href^='/homework/']").first.click(); p.wait_for_selector(".uploader"); shot(p, "s12-320-hw-dark", full=True)
+    p.goto(f"{APP}/subscription"); p.wait_for_load_state("networkidle"); shot(p, "s11-320-ticket-dark")
+    p.goto(f"{APP}/homework"); p.wait_for_load_state("networkidle"); p.locator("a.row-link[href^='/cabinet/homework/']").first.click(); p.wait_for_selector(".uploader"); shot(p, "s12-320-hw-dark", full=True)
     c.close()
     c, p = new(b, 768, 900, touch=True); login(p, "manager", "manager123"); shot(p, "s13-768")
     c.close()
-    c, p = new(b, 1360, 860, theme="dark"); login(p, "student", "student123"); p.goto(f"{BASE}/courses/{web['id']}"); p.wait_for_selector(".road-row"); shot(p, "s14-road-dark-desktop")
+    c, p = new(b, 1360, 860, theme="dark"); login(p, "student", "student123"); p.goto(f"{APP}/courses/{web['id']}"); p.wait_for_selector(".road-row"); shot(p, "s14-road-dark-desktop")
     c.close()
     b.close()
 

@@ -93,3 +93,15 @@ export function addMinutes(dt: string, minutes: number): string {
 export function humanDT(dt: string): string {
   return `${dt.slice(8, 10)}.${dt.slice(5, 7)} о ${dt.slice(11, 16)}`;
 }
+
+/**
+ * Телефон із форми: лише цифри, пробіли, дужки, дефіси, крапки й «+»; від 9 до 15 цифр.
+ * Український номер без коду країни (0XXXXXXXXX) стає +380XXXXXXXXX.
+ */
+export function normalizePhone(v: unknown): string {
+  const raw = typeof v === 'string' ? v.trim() : '';
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length < 9 || digits.length > 15 || /[^\d\s()+\-.]/.test(raw)) throw bad('Перевірте номер телефону');
+  if (digits.length === 10 && digits.startsWith('0')) return `+38${digits}`;
+  return `+${digits}`;
+}

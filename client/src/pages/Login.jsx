@@ -106,6 +106,7 @@ export default function Login({ onLogin }) {
         {error && <p className="form-error" role="alert">{error}</p>}
         <Button type="submit" busy={busy} className="btn-wide">Увійти</Button>
         <p className="muted small">Немає акаунта або забули пароль? Зверніться до менеджера.</p>
+        <a className="login-site" href="/">← На сайт школи</a>
       </form>
     </div>
   );

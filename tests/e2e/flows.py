@@ -3,6 +3,7 @@ import datetime as dt, io, os, pathlib, sys, zipfile
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 PNG = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63fccfc0f01f0005010201a7f3b5a80000000049454e44ae426082")
 results, console = [], []
@@ -19,7 +20,7 @@ def new(browser, width=1360, height=860, theme=None):
     return ctx, p
 
 def login(p, user, pw):
-    p.goto(BASE); p.wait_for_load_state("networkidle")
+    p.goto(APP); p.wait_for_load_state("networkidle")
     p.get_by_label("Логін").fill(user)
     p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click()
@@ -45,7 +46,7 @@ with sync_playwright() as pw:
 
     # --- Вхід
     ctx, p = new(b)
-    p.goto(BASE); p.wait_for_load_state("networkidle"); p.wait_for_timeout(900); shot(p, "01-login")
+    p.goto(APP); p.wait_for_load_state("networkidle"); p.wait_for_timeout(900); shot(p, "01-login")
     p.get_by_label("Логін").fill("manager"); p.locator("input[type=password]").fill("wrongpass1")
     p.get_by_role("button", name="Увійти").click()
     expect(p.locator(".form-error")).to_contain_text("Неправильний"); check("неправильний пароль відхилено", True)
@@ -193,7 +194,7 @@ with sync_playwright() as pw:
 
     # Проведення: списання за скоригованою ціною
     subs_before = None
-    p.goto(f"{BASE}/"); p.wait_for_load_state("networkidle")
+    p.goto(f"{APP}/"); p.wait_for_load_state("networkidle")
     r = api(t, "POST", f"/sessions/{past_id}/complete", data={"attended_ids": [sonia_id]})
     check("вчитель провів заняття", r.ok, r.text()[:150])
     r2 = api(t, "GET", f"/sessions/{past_id}").json()
@@ -230,7 +231,7 @@ with sync_playwright() as pw:
     p.get_by_label("Закрити").click()
 
     # Здача ДЗ: файл, ZIP, скрін
-    p.goto(f"{BASE}/homework/{hw_id}"); p.wait_for_selector(".uploader")
+    p.goto(f"{APP}/homework/{hw_id}"); p.wait_for_selector(".uploader")
     p.locator(".uploader input[type=file]").nth(0).set_input_files([{"name": "звіт №1.txt", "mimeType": "text/plain", "buffer": "Привіт".encode()}])
     tmp = OUT / "proj"; (tmp / "src").mkdir(parents=True, exist_ok=True); (tmp / "src/index.js").write_text("console.log(1)"); (tmp / "node_modules").mkdir(exist_ok=True); (tmp / "node_modules/x.js").write_text("skip")
     p.locator(".uploader input[webkitdirectory]").set_input_files(str(tmp))
@@ -281,7 +282,7 @@ with sync_playwright() as pw:
     tp.get_by_role("button", name="Повернути", exact=True).click(); toast(tp, "Роботу повернуто"); tp.wait_for_load_state("networkidle")
 
     sp = student_page
-    sp.goto(f"{BASE}/homework/{hw_id}"); sp.wait_for_selector(".feedback"); check("учень бачить коментар вчителя", "адаптив" in sp.locator(".feedback").inner_text())
+    sp.goto(f"{APP}/homework/{hw_id}"); sp.wait_for_selector(".feedback"); check("учень бачить коментар вчителя", "адаптив" in sp.locator(".feedback").inner_text())
     sp.get_by_role("button", name="Здати знову").click(); toast(sp, "Роботу здано"); check("учень здав повторно", True)
 
     tp.reload(); tp.wait_for_selector(".work"); tp.wait_for_load_state("networkidle")
@@ -291,7 +292,7 @@ with sync_playwright() as pw:
     shot(sp, "23-graded")
 
     # Запит учня бачить менеджер; вчитель схвалює
-    tp.goto(BASE); tp.wait_for_selector(".requests"); check("вчитель бачить запит учня", "Соня" in tp.locator(".requests").inner_text()); shot(tp, "24-requests-dark")
+    tp.goto(APP); tp.wait_for_selector(".requests"); check("вчитель бачить запит учня", "Соня" in tp.locator(".requests").inner_text()); shot(tp, "24-requests-dark")
     tp.locator(".request").get_by_role("button", name="Схвалити").click(); toast(tp, "Запит схвалено"); tp.wait_for_selector(".requests", state="detached")
     check("запит схвалено, панель зникла", True)
 
@@ -302,7 +303,7 @@ with sync_playwright() as pw:
 
     # Прогрес роадмапу вчителем
     courses = api(t, "GET", "/courses").json(); c = next(x for x in courses if x["title"] == "Тест-курс")
-    tp.goto(f"{BASE}/courses/{c['id']}"); tp.wait_for_selector(".road"); tp.locator(".stop").first.click(); tp.wait_for_load_state("networkidle"); tp.wait_for_timeout(300)
+    tp.goto(f"{APP}/courses/{c['id']}"); tp.wait_for_selector(".road"); tp.locator(".stop").first.click(); tp.wait_for_load_state("networkidle"); tp.wait_for_timeout(300)
     expect(tp.locator(".stop.is-done")).to_have_count(1); check("вчитель позначив етап", True); shot(tp, "25-roadmap-teacher-dark")
 
     # Зміна пароля
@@ -317,11 +318,11 @@ with sync_playwright() as pw:
 
     # --- Адаптив і темна тема менеджера
     for path, name in [("/", "26-mob-schedule"), ("/lessons", "27-mob-lessons"), ("/subscriptions", "28-mob-subs")]:
-        cm, pm = new(b, 390, 800); login(pm, "manager", "manager123"); pm.goto(BASE + path); pm.wait_for_load_state("networkidle"); pm.wait_for_timeout(200)
+        cm, pm = new(b, 390, 800); login(pm, "manager", "manager123"); pm.goto(APP + path); pm.wait_for_load_state("networkidle"); pm.wait_for_timeout(200)
         over = pm.evaluate("document.documentElement.scrollWidth - window.innerWidth")
         check(f"без гориз. прокрутки {path}", over <= 0, str(over)); shot(pm, name); cm.close()
     cm, pm = new(b, 390, 800); login(pm, "student", "student123"); pm.wait_for_selector(".week.is-single"); shot(pm, "29-mob-student"); print("mob over", pm.evaluate("document.documentElement.scrollWidth - window.innerWidth"))
-    pm.goto(BASE + "/subscription"); pm.wait_for_load_state("networkidle"); shot(pm, "30-mob-ticket"); cm.close()
+    pm.goto(APP + "/subscription"); pm.wait_for_load_state("networkidle"); shot(pm, "30-mob-ticket"); cm.close()
     b.close()
 
 fails = [n for n, ok in results if not ok]

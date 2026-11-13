@@ -3,6 +3,7 @@ import datetime as dt, json, os, pathlib, sys
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 PNG = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63fccfc0f01f0005010201a7f3b5a80000000049454e44ae426082")
 results, console = [], []
@@ -19,7 +20,7 @@ def new(b, w=1360, h=860, theme="light", touch=False):
     return ctx, p
 
 def login(p, u, pw):
-    p.goto(BASE); p.wait_for_load_state("networkidle")
+    p.goto(APP); p.wait_for_load_state("networkidle")
     p.get_by_label("Логін").fill(u); p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail"); p.wait_for_load_state("networkidle")
 
@@ -71,7 +72,7 @@ with sync_playwright() as pw:
         def y(hours):
             h = min(23, int(hours)); return tops[h] + (hours - h) * rows[h]
         return rows, y
-    m.goto(BASE); m.wait_for_selector(".week"); m.wait_for_load_state("networkidle")
+    m.goto(APP); m.wait_for_selector(".week"); m.wait_for_load_state("networkidle")
     rows, y = scale()
     week_sess = api(mc, "GET", f"/sessions?from={monday}&to={monday + dt.timedelta(days=6)}").json()
     busy = busy_hours(week_sess)
@@ -218,7 +219,7 @@ with sync_playwright() as pw:
     step = next(s for s in full["steps"] if len(s["substeps"]) >= 3)
     for x in step["substeps"]:
         api(mc, "PUT", f"/courses/{web['id']}/substep-progress", data={"student_id": marko["id"], "substep_id": x["id"], "done": True})
-    m.goto(f"{BASE}/courses/{web['id']}"); m.wait_for_selector(".road-row")
+    m.goto(f"{APP}/courses/{web['id']}"); m.wait_for_selector(".road-row")
     m.get_by_label("Прогрес учня").click(); m.get_by_role("option", name="Марко Шевчук").click(); m.wait_for_timeout(400)
     row = m.locator(".road-row", has_text=step["title"])
     if row.locator(".collapse.is-open").count() == 0: row.locator(".sub-toggle").click()
@@ -266,7 +267,7 @@ with sync_playwright() as pw:
     api(mc, "PATCH", f"/users/{s2_id}", data={"is_active": False})
     r = api(mc, "PATCH", f"/schedules/{fut_sched}", data={"teacher_id": t_id, "student_ids": [s_id, s2_id]})
     check("постановка з вимкненим учнем редагується", r.ok, text_of(r))
-    m.goto(f"{BASE}/"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/"); m.wait_for_load_state("networkidle")
     if fut_day.isocalendar()[1] != today.isocalendar()[1]:
         m.get_by_label("Наступний тиждень").click(); m.wait_for_load_state("networkidle")
     m.locator(".block", has_text="Нічний урок").filter(has_text="13:00").first.click(); m.wait_for_selector(".sheet")
@@ -356,7 +357,7 @@ with sync_playwright() as pw:
     # XSS у назвах показується як текст
     x = "<img src=x onerror=window.__xss=1>"
     xl = post(mc, "/lessons", {"title": x, "teacher_id": t_id, "duration_min": 30}).json()
-    m.goto(f"{BASE}/lessons"); m.wait_for_load_state("networkidle"); m.wait_for_timeout(300)
+    m.goto(f"{APP}/lessons"); m.wait_for_load_state("networkidle"); m.wait_for_timeout(300)
     check("XSS у назві не спрацьовує", m.evaluate("window.__xss") is None and m.locator(".lesson-row", has_text="onerror").count() == 1)
     post(mc, f"/lessons/{xl['id']}/archive")
     # Межі ролей
@@ -411,7 +412,7 @@ with sync_playwright() as pw:
             c, p = new(b, w, 800, theme=theme); login(p, login_name, pwd)
             for path in paths:
                 before = len(console)
-                p.goto(BASE + path); p.wait_for_load_state("networkidle"); p.wait_for_timeout(120)
+                p.goto(APP + path); p.wait_for_load_state("networkidle"); p.wait_for_timeout(120)
                 problems = []
                 if over(p) > 0: problems.append(f"over={over(p)}")
                 if p.locator(".error-note, .form-error").count(): problems.append("error-note")
@@ -421,22 +422,22 @@ with sync_playwright() as pw:
             c.close()
     check("усі сторінки всіх ролей: без помилок і прокрутки вбік", not walk_fail, str(walk_fail))
     # Глибоке посилання і оновлення сторінки
-    c, p = new(b); login(p, "manager", "manager123"); p.goto(f"{BASE}/courses/{web['id']}"); p.reload(); p.wait_for_selector(".road-row"); check("оновлення глибокого посилання", True)
-    p.goto(f"{BASE}/nonexistent/page"); p.wait_for_load_state("networkidle")
+    c, p = new(b); login(p, "manager", "manager123"); p.goto(f"{APP}/courses/{web['id']}"); p.reload(); p.wait_for_selector(".road-row"); check("оновлення глибокого посилання", True)
+    p.goto(f"{APP}/nonexistent/page"); p.wait_for_load_state("networkidle")
     check("невідома адреса не дає білий екран", p.locator("body").inner_text().strip() != "")
-    p.goto(f"{BASE}/courses/999999"); p.wait_for_load_state("networkidle"); p.wait_for_timeout(200)
+    p.goto(f"{APP}/courses/999999"); p.wait_for_load_state("networkidle"); p.wait_for_timeout(200)
     check("неіснуючий курс показує повідомлення", p.locator("body").inner_text().strip() != "" and "Курс не знайдено" in p.locator("body").inner_text())
-    p.goto(f"{BASE}/homework/999999"); p.wait_for_load_state("networkidle"); p.wait_for_timeout(200)
+    p.goto(f"{APP}/homework/999999"); p.wait_for_load_state("networkidle"); p.wait_for_timeout(200)
     check("неіснуюче ДЗ показує повідомлення", "не знайдено" in p.locator("body").inner_text())
     # Вихід
-    api(c, "POST", "/auth/logout", data={}); p.goto(BASE); p.wait_for_load_state("networkidle")
+    api(c, "POST", "/auth/logout", data={}); p.goto(APP); p.wait_for_load_state("networkidle")
     check("після виходу лише форма входу", p.get_by_role("button", name="Увійти").count() == 1)
     # Сесія зникла посеред роботи: перекидає на вхід
     c2, p2 = new(b)
     login(p2, "nightstd", "nightpass1"); p2.context.clear_cookies()
     p2.wait_for_timeout(300)
     # Сповіщення теж ходять на сервер, тож вихід міг уже статися сам; інакше його спричинить перехід.
-    if p2.locator(".rail-nav a[href='/homework']").count(): p2.locator(".rail-nav a[href='/homework']").first.click()
+    if p2.locator(".rail-nav a[href='/cabinet/homework']").count(): p2.locator(".rail-nav a[href='/cabinet/homework']").first.click()
     p2.wait_for_timeout(600)
     check("протухла сесія веде на вхід", p2.get_by_role("button", name="Увійти").count() == 1)
     b.close()

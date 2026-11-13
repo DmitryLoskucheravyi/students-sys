@@ -3,6 +3,7 @@ import os, pathlib, sys
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 results, console = [], []
 
@@ -18,7 +19,7 @@ def new(b, w=1360, h=860, theme="light", touch=False):
     return ctx, p
 
 def login(p, u, pw):
-    p.goto(BASE); p.wait_for_load_state("networkidle")
+    p.goto(APP); p.wait_for_load_state("networkidle")
     p.get_by_label("Логін").fill(u); p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail"); p.wait_for_load_state("networkidle")
 
@@ -32,7 +33,7 @@ with sync_playwright() as pw:
     # 1. Учень обирає аватарку в профілі
     sc, s = new(b); login(s, "student", "student123")
     check("без аватарки в меню ініціали", s.locator(".rail-user .avatar").inner_text() == "МШ")
-    s.goto(f"{BASE}/profile"); s.wait_for_selector(".avatar-pick")
+    s.goto(f"{APP}/profile"); s.wait_for_selector(".avatar-pick")
     check("у наборі 20 аватарок і варіант без неї", s.locator(".avatar-opt").count() == 21)
     s.get_by_role("radio", name="Дебаг-качка").click(); toast(s, "Аватарку змінено")
     expect(s.locator(".rail-user .avatar.has-art")).to_be_visible(); check("меню одразу показує нову аватарку", True)
@@ -49,9 +50,9 @@ with sync_playwright() as pw:
 
     # 3. Менеджер: своя аватарка й аватарка учня
     mc, m = new(b); login(m, "manager", "manager123")
-    m.goto(f"{BASE}/profile"); m.get_by_role("radio", name="Галактичний мозок").click(); toast(m, "Аватарку змінено")
+    m.goto(f"{APP}/profile"); m.get_by_role("radio", name="Галактичний мозок").click(); toast(m, "Аватарку змінено")
     check("менеджер змінив свою аватарку", api(mc, "GET", "/auth/me").json()["avatar"] == "galaxy")
-    m.goto(f"{BASE}/people"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/people"); m.wait_for_load_state("networkidle")
     row = m.locator(".person-row", has_text="Дарина Бойко")
     row.get_by_role("button", name="Редагувати").click(); form = m.locator(".modal")
     form.get_by_role("radio", name="Котик").click()
@@ -68,7 +69,7 @@ with sync_playwright() as pw:
     # 4. Телефон і темна тема
     for w, theme in [(320, "light"), (390, "dark")]:
         c, p = new(b, w, 760, theme=theme, touch=True); login(p, "student", "student123")
-        p.goto(f"{BASE}/profile"); p.wait_for_selector(".avatar-pick")
+        p.goto(f"{APP}/profile"); p.wait_for_selector(".avatar-pick")
         check(f"{w}px {theme}: без прокрутки вбік", overflow(p) <= 0, str(overflow(p)))
         p.screenshot(path=str(OUT / f"avatar-{w}-{theme}.png"), full_page=True)
         c.close()

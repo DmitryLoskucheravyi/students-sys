@@ -46,6 +46,29 @@ function startFakeGemini() {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server)));
 }
 
+/**
+ * Підставний Telegram: приймає sendMessage для бота test-bot і складає повідомлення.
+ * GET /_messages віддає зібране тесту; DELETE /_messages очищає.
+ */
+function startFakeTelegram() {
+  const messages = [];
+  const server = createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => {
+      const reply = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(data)); };
+      if (req.url === '/_messages') {
+        if (req.method === 'DELETE') messages.length = 0;
+        return reply(200, messages);
+      }
+      if (req.url !== '/bottest-bot/sendMessage') return reply(401, { ok: false, description: 'Unauthorized' });
+      messages.push(JSON.parse(body));
+      return reply(200, { ok: true, result: { message_id: messages.length } });
+    });
+  });
+  return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server)));
+}
+
 async function dropTestDb(env) {
   const conn = await mysql.createConnection({ host: env.DB_HOST || '127.0.0.1', port: Number(env.DB_PORT || 3306), user: env.DB_USER || 'root', password: env.DB_PASSWORD ?? '', ...(env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: true } } : {}) });
   await conn.query(`DROP DATABASE IF EXISTS \`${TEST_DB}\``);
@@ -104,6 +127,7 @@ async function runSuite(file, env) {
 }
 
 const gemini = await startFakeGemini();
+const telegram = await startFakeTelegram();
 const uploads = mkdtempSync(path.join(tmpdir(), 'bs-uploads-'));
 const env = {
   ...process.env,
@@ -120,6 +144,9 @@ const env = {
   GEMINI_API_KEY: 'test-key',
   GEMINI_BASE_URL: `http://127.0.0.1:${gemini.address().port}`,
   GEMINI_MODELS: 'gemini-flash-latest,gemini-flash-lite-latest',
+  TELEGRAM_BOT_TOKEN: 'test-bot',
+  TELEGRAM_CHAT_ID: '42',
+  TELEGRAM_API_BASE: `http://127.0.0.1:${telegram.address().port}`,
   SHOTS: process.env.SHOTS || path.join(root, 'tests', 'e2e', 'shots'),
 };
 
@@ -139,6 +166,7 @@ try {
   await dropTestDb(env);
   rmSync(uploads, { recursive: true, force: true });
   gemini.close();
+  telegram.close();
 }
 console.log(failed.length ? `\nНе пройшли: ${failed.join(', ')}` : `\nУсі набори пройшли: ${suites.join(', ')}`);
 process.exit(failed.length ? 1 : 0);

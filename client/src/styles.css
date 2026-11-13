@@ -1252,6 +1252,8 @@ button.stop:active { transform: scale(0.94); }
   animation: badge-pop 0.3s var(--ease);
 }
 .rail-nav a.active .nav-badge { background: var(--red-fill); color: var(--on-red); box-shadow: 0 0 0 2px var(--paper); }
+.top-link { position: relative; }
+.top-link .nav-badge { top: -4px; right: -4px; }
 @keyframes badge-pop { from { transform: scale(0.4); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .nav-badge { animation: none; } }
 .new-dot { display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--red); vertical-align: 2px; }
@@ -1576,3 +1578,26 @@ button.stop:active { transform: scale(0.94); }
 .profile-head { display: flex; align-items: center; gap: 16px; }
 .profile-head .page-head { margin-bottom: 4px; }
 .profile-avatar { margin: 18px 0; }
+
+/* Сайт школи в кабінеті: заявки, відгуки, вибір того, що показувати */
+.login-site { align-self: center; color: var(--muted); font-size: 14px; font-weight: 600; }
+.login-site:hover { color: var(--red); }
+.lead-phone { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--red); }
+.lead-note { white-space: pre-line; overflow-wrap: anywhere; }
+.lead-row.is-done .row-main { opacity: 0.7; }
+.review-text { margin-top: 6px; white-space: pre-line; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.showcase { display: grid; gap: 28px; }
+.showcase h2 { font: 600 17px/1.25 var(--display); letter-spacing: -0.02em; margin-bottom: 10px; }
+.showcase-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.showcase-list li { padding: 8px 4px; border-bottom: 1px solid var(--line); }
+.showcase-item { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.showcase-item .tk-dot { flex: none; }
+.contacts-form { max-width: 760px; }
+@media (min-width: 900px) { .showcase { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; } }
+
+.project-thumb { flex: none; display: grid; place-items: center; width: 72px; height: 46px; overflow: hidden; border-radius: 10px; background: var(--wash); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.project-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.project-image { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.project-image-box { display: grid; place-items: center; width: 100%; max-width: 280px; aspect-ratio: 16 / 10; overflow: hidden; border-radius: 14px; background: var(--wash); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.project-image-box img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.project-image-tools { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -4,6 +4,7 @@ from PIL import Image
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 results, console = [], []
 
@@ -19,7 +20,7 @@ def new(b, w=1360, h=860, touch=False, motion="no-preference"):
     return ctx, p
 
 def login(p, u, pw):
-    p.goto(BASE); p.wait_for_load_state("networkidle")
+    p.goto(APP); p.wait_for_load_state("networkidle")
     p.get_by_label("Логін").fill(u); p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail"); p.wait_for_load_state("networkidle")
 
@@ -32,8 +33,11 @@ with sync_playwright() as pw:
 
     # --- Заставка входу: кроки анімації лого, книга, цифри
     c, p = new(b)
-    p.goto(BASE, wait_until="commit"); p.wait_for_selector(".bs-logo")
-    p.wait_for_timeout(350)
+    p.goto(APP, wait_until="commit"); p.wait_for_selector(".bs-logo")
+    # Кабінет вантажиться окремим шматком, і поки браузер зайнятий, таймер тесту відстає від анімації.
+    # Тож не чекаємо, а ставимо всі анімації лого в одну мить від їхнього старту.
+    seek = lambda t: p.evaluate("t => document.getAnimations().filter(a => a.effect?.target?.closest?.('.bs-logo')).forEach(a => { a.pause(); a.currentTime = t; })", t)
+    seek(350)
     tail_early = p.locator(".bs-tail").first.bounding_box()["width"]
     school_y = p.evaluate("new DOMMatrix(getComputedStyle(document.querySelector('.bs-under > span')).transform).m42")
     visible = p.evaluate("[...document.querySelectorAll('.bs-tail > span')].map(s => s.getBoundingClientRect().width)")
@@ -41,10 +45,10 @@ with sync_playwright() as pw:
     check("у згорнутому стані немає смужок від прихованих букв", all(v < 1 for v in visible), str(visible))
     p.locator(".bs-logo").screenshot(path=str(OUT / "logo-start.png"))
     check("School спершу схований під Smart", school_y < -10, str(school_y))
-    p.wait_for_timeout(700)
+    seek(1050)
     tail_mid = p.locator(".bs-tail").first.bounding_box()["width"]
     check("букви виїжджають убік", tail_mid > tail_early + 10, str(tail_mid))
-    p.wait_for_timeout(1700)
+    seek(4000)
     school_after = p.evaluate("new DOMMatrix(getComputedStyle(document.querySelector('.bs-under > span')).transform).m42")
     check("School виїхав на своє місце", abs(school_after) < 1, str(school_after))
     smart = p.locator(".bs-stack .bs-word").bounding_box(); school = p.locator(".bs-under").bounding_box()
@@ -73,7 +77,7 @@ with sync_playwright() as pw:
     ys = p.evaluate("[...document.querySelectorAll('.bits span')].map(s => new DOMMatrix(getComputedStyle(s).transform).m42)")
     check("цифри рухаються лише по горизонталі", all(abs(y) < 0.01 for y in ys), str(ys))
     c.close()
-    c, p = new(b); p.goto(BASE); p.wait_for_selector(".bs-logo")
+    c, p = new(b); p.goto(APP); p.wait_for_selector(".bs-logo")
     for _ in range(60):
         if p.evaluate("!!document.querySelector('.book3d')?.bookSeek"): break
         p.wait_for_timeout(100)
@@ -96,7 +100,7 @@ with sync_playwright() as pw:
     check("старої назви немає на екрані входу", "Зошит" not in p.locator("body").inner_text())
     check("логотип доступний скрінрідеру", p.get_by_role("img", name="Be Smart School").count() == 1)
     c.close()
-    c, p = new(b, motion="reduce"); p.goto(BASE); p.wait_for_selector(".bs-logo"); p.wait_for_timeout(100)
+    c, p = new(b, motion="reduce"); p.goto(APP); p.wait_for_selector(".bs-logo"); p.wait_for_timeout(100)
     check("без анімацій лого одразу повне", p.locator(".bs-tail").first.bounding_box()["width"] > 10)
     p.wait_for_timeout(1500)
     art = p.locator(".login-art").bounding_box()
@@ -107,7 +111,7 @@ with sync_playwright() as pw:
     check("без анімацій цифри у фоні не бігають", p.locator(".bits span").count() == 0)
     c.close()
     for w in (320, 360, 390, 768, 900, 1920):
-        c, p = new(b, w, 700); p.goto(BASE); p.wait_for_selector(".bs-logo"); p.wait_for_timeout(1900)
+        c, p = new(b, w, 700); p.goto(APP); p.wait_for_selector(".bs-logo"); p.wait_for_timeout(1900)
         logo = p.locator(".bs-logo").bounding_box(); art = p.locator(".login-art").bounding_box()
         check(f"{w} px: лого влізає в панель, прокрутки вбік немає", logo["x"] + logo["width"] <= art["x"] + art["width"] and logo["y"] >= art["y"] and over(p) <= 0, f"{logo} art={art}")
         c.close()
@@ -118,7 +122,7 @@ with sync_playwright() as pw:
     courses = api(mc, "GET", "/courses").json()
     py = next(x for x in courses if x["title"] == "Python"); web = next(x for x in courses if x["title"] == "Веброзробка")
     before = api(mc, "GET", f"/courses/{py['id']}").json()
-    m.goto(f"{BASE}/courses/{py['id']}"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/courses/{py['id']}"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Роадмап зі ШІ").click()
     src = m.get_by_label("Текст програми")
     expect(src).to_be_focused(); check("поле тексту у фокусі", True)
@@ -204,7 +208,7 @@ with sync_playwright() as pw:
         check("вчитель свого курсу може розкласти", api(tc, "POST", f"/courses/{next(iter(mine))}/roadmap/draft", data={"text": "x"}).ok)
     check("учню чернетка заборонена", api(sc, "POST", f"/courses/{web['id']}/roadmap/draft", data={"text": "x"}).status == 403)
     check("учню запис заборонено", api(sc, "POST", f"/courses/{web['id']}/roadmap/import", data={"steps": [{"title": "x", "substeps": []}]}).status == 403)
-    s.goto(f"{BASE}/courses/{web['id']}"); s.wait_for_selector(".road-row")
+    s.goto(f"{APP}/courses/{web['id']}"); s.wait_for_selector(".road-row")
     check("учень не бачить кнопку ШІ", s.get_by_role("button", name="Роадмап зі ШІ").count() == 0)
     anon = b.new_context()
     check("аноніму закрито", anon.request.post(f"{BASE}/api/courses/{web['id']}/roadmap/draft", data={"text": "x"}).status == 401); anon.close()
@@ -223,7 +227,7 @@ with sync_playwright() as pw:
     cm, pm = new(b, 390, 800, touch=True); login(pm, "manager", "manager123")
     check("телефон: назва школи вміщується в шапці", pm.evaluate("(()=>{const w=document.querySelector('.wordmark');return w.scrollWidth<=w.clientWidth+1})()") and over(pm) <= 0)
     pm.screenshot(path=str(OUT / "brand-mobile.png"))
-    pm.goto(f"{BASE}/courses/{web['id']}"); pm.wait_for_load_state("networkidle")
+    pm.goto(f"{APP}/courses/{web['id']}"); pm.wait_for_load_state("networkidle")
     check("телефон: сторінка курсу без прокрутки вбік", over(pm) <= 0, str(over(pm)))
     pm.screenshot(path=str(OUT / "ai-mobile-course.png"))
     pm.get_by_role("button", name="Роадмап зі ШІ").tap()

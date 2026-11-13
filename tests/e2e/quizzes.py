@@ -3,6 +3,7 @@ import base64, os, pathlib, sys
 from playwright.sync_api import sync_playwright, expect
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 OUT = pathlib.Path(os.environ["SHOTS"]); OUT.mkdir(parents=True, exist_ok=True)
 results, console = [], []
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
@@ -20,7 +21,7 @@ def new(b, w=1360, h=860, theme="light", touch=False):
     return ctx, p
 
 def login(p, u, pw):
-    p.goto(BASE); p.wait_for_load_state("networkidle")
+    p.goto(APP); p.wait_for_load_state("networkidle")
     p.get_by_label("Логін").fill(u); p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail"); p.wait_for_load_state("networkidle")
 
@@ -40,7 +41,7 @@ with sync_playwright() as pw:
 
     # 1. Сторінка «Завдання» і вкладка тестів
     check("у навігації «Завдання»", m.locator(".rail-nav a", has_text="Завдання").count() == 1 and m.locator(".rail-nav a", has_text="Домашні").count() == 0)
-    m.goto(f"{BASE}/homework"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/homework"); m.wait_for_load_state("networkidle")
     expect(m.locator("h1")).to_have_text("Завдання"); check("сторінка називається «Завдання»", True)
     m.get_by_role("radio", name="Тести").click(); m.wait_for_load_state("networkidle")
     expect(m.locator(".quiz-row", has_text="React: основи")).to_be_visible(); check("вкладка «Тести» показує тести", "tab=quizzes" in m.url)
@@ -51,7 +52,7 @@ with sync_playwright() as pw:
     ai.get_by_label("Відповідь ШІ").fill("Назва: Швидкий\n\n? Два плюс два?\n+ 4\n- 3\n- 5")
     ai.get_by_role("button", name="Розставити питання").click()
     check("назва з відповіді ШІ підставилась", m.get_by_label("Назва тесту").input_value() == "Швидкий" and m.locator(".q-card").count() == 1)
-    m.goto(f"{BASE}/homework?tab=quizzes"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/homework?tab=quizzes"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Новий тест").click(); m.wait_for_url("**/quizzes/new")
     m.get_by_label("Назва тесту").fill("JS: типи даних")
     c1 = m.locator(".q-card").nth(0)
@@ -157,9 +158,9 @@ with sync_playwright() as pw:
     check("до здачі учень не бачить правильних відповідей", all("correct" not in o for x in before["questions"] for o in x["options"]))
     other, otherp = new(b); login(otherp, "tkachenko", "student123")
     check("чужий учень не відкриє тест", api(other, "GET", f"/quizzes/assignments/{aid}").status == 403)
-    bp.goto(f"{BASE}/courses/{web['id']}"); bp.wait_for_selector(".road-row")
+    bp.goto(f"{APP}/courses/{web['id']}"); bp.wait_for_selector(".road-row")
     check("тестів на роадмапі немає", bp.locator(".road-hw-item.is-quiz, .road-island").count() == 0)
-    bp.goto(f"{BASE}/homework"); bp.locator(".quiz-row", has_text="JS: типи даних").click(); bp.wait_for_url(f"**/tests/{aid}"); bp.wait_for_selector(".q-img"); bp.wait_for_function("document.querySelector('.q-img').complete")
+    bp.goto(f"{APP}/homework"); bp.locator(".quiz-row", has_text="JS: типи даних").click(); bp.wait_for_url(f"**/tests/{aid}"); bp.wait_for_selector(".q-img"); bp.wait_for_function("document.querySelector('.q-img').complete")
     check("картинка показується учневі", bp.evaluate("document.querySelector('.q-img').naturalWidth") > 0)
     # Одне питання на екрані: одиночний вибір сам іде далі, «Назад» повертає, «Пропустити» для порожнього
     cur = lambda: bp.locator(".qr-count b").inner_text()
@@ -227,7 +228,7 @@ with sync_playwright() as pw:
     api(tk, "POST", f"/homework/submissions/{sub['id']}/review", data={"status": "accepted", "grade": 11, "feedback": "Чудово"})
     n1 = api(mk, "GET", "/notifications").json()
     check("оцінка вчителя дає сповіщення", n1["reviews"] == n0["reviews"] + 1 and n1["count"] == n0["count"] + 1, f"{n0} → {n1}")
-    mp.goto(f"{BASE}/homework"); mp.wait_for_load_state("networkidle")
+    mp.goto(f"{APP}/homework"); mp.wait_for_load_state("networkidle")
     expect(mp.locator(".nav-badge")).to_have_text(str(n1["count"]))
     expect(mp.locator(".row-link", has_text="Адаптивна картка профілю").locator(".new-dot")).to_be_visible(); check("нова оцінка позначена в списку", True)
     expect(mp.locator(".hw-group", has_text="Тести").locator(".quiz-row", has_text="React: основи")).to_contain_text("Треба пройти"); check("учень бачить тести на сторінці завдань", True)
@@ -248,26 +249,26 @@ with sync_playwright() as pw:
     for w in [320, 390]:
         c, p = new(b, w, 760, touch=True); login(p, "student", "student123")
         expect(p.locator(".rail-nav .nav-badge")).to_be_visible()
-        p.goto(f"{BASE}/tests/{seed_a['id']}"); p.wait_for_selector(".qr-card")
+        p.goto(f"{APP}/tests/{seed_a['id']}"); p.wait_for_selector(".qr-card")
         check(f"{w}px: проходження тесту без прокрутки вбік", overflow(p) <= 0, str(overflow(p)))
         sub_box = p.locator(".quiz-submit").bounding_box(); nav_box = p.locator(".rail-nav").bounding_box()
         check(f"{w}px: кнопка здачі над нижньою панеллю", sub_box["y"] + sub_box["height"] <= nav_box["y"] + 1, f"{sub_box} {nav_box}")
         if w == 320: shot(p, "q7-mobile-take")
         c.close()
         c, p = new(b, w, 760, touch=True); login(p, "manager", "manager123")
-        p.goto(f"{BASE}/quizzes/{quiz_id}/edit"); p.wait_for_selector(".q-card")
+        p.goto(f"{APP}/quizzes/{quiz_id}/edit"); p.wait_for_selector(".q-card")
         check(f"{w}px: редактор тесту без прокрутки вбік", overflow(p) <= 0, str(overflow(p)))
         if w == 320: shot(p, "q8-mobile-editor", full=True)
-        p.goto(f"{BASE}/quizzes/{quiz_id}"); p.wait_for_load_state("networkidle")
+        p.goto(f"{APP}/quizzes/{quiz_id}"); p.wait_for_load_state("networkidle")
         check(f"{w}px: сторінка тесту без прокрутки вбік", overflow(p) <= 0, str(overflow(p)))
         c.close()
 
     c, p = new(b, 1360, 860, theme="dark"); login(p, "boiko", "student123")
-    p.goto(f"{BASE}/tests/{aid}"); p.wait_for_selector(".qr-card, .q-take"); shot(p, "q9-dark")
+    p.goto(f"{APP}/tests/{aid}"); p.wait_for_selector(".qr-card, .q-take"); shot(p, "q9-dark")
     c.close()
 
     # 9. Видалення тесту
-    m.goto(f"{BASE}/quizzes/{quiz_id}"); m.wait_for_load_state("networkidle")
+    m.goto(f"{APP}/quizzes/{quiz_id}"); m.wait_for_load_state("networkidle")
     m.get_by_role("button", name="Видалити тест").click(); m.locator(".modal").get_by_role("button", name="Видалити").click()
     toast(m, "Тест видалено")
     check("видалення тесту закриває його в учня", api(bc, "GET", f"/quizzes/assignments/{aid}").status == 404 and api(bc, "GET", "/notifications").json()["quizzes"] == 0)

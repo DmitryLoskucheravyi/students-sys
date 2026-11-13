@@ -3,6 +3,7 @@ import datetime as dt, sys, time
 from playwright.sync_api import sync_playwright
 
 BASE = "http://127.0.0.1:3101"
+APP = BASE + "/cabinet"  # кабінет; на / тепер сайт школи
 ROUNDS = 12
 results = []
 
