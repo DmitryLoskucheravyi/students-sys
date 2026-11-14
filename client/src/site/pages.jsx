@@ -225,81 +225,52 @@ function CtaBand({ title = CTA.title, text = CTA.text, note }) {
 }
 
 /*
- * Перший екран: роадмап згори вниз, від новачка до сертифіката. Шлях пунктирний; яскравий пунктир прогресу
- * заповнюється, поки сторінку гортають, і відкочується назад, коли гортають угору. «Ви» їде по шляху,
- * кроки загоряються, на фініші — конфеті. Усе рахується з прокрутки, без React-рендеру на кожен кадр.
+ * Перший екран: роадмап без дороги — картки кроків, що зʼявляються по черзі з прокруткою.
+ * «Старт» видно одразу. Далі кроки, картка «Фініш», і до неї по одному підкріплюються пункти,
+ * кожен зі своїм смайликом. Гортаєте вгору — картки ховаються у зворотному порядку.
  */
-const ROAD_W = 500;
-const ROAD_H = 660;
-const ROAD_PATH = 'M100 52 C 290 40, 420 90, 400 162 S 110 222, 100 290 S 390 356, 400 418 S 300 500, 250 520';
 const ROAD = [
-  { x: 100, y: 52, label: 'Старт', title: 'Новачок у програмуванні', side: 'r' },
-  { x: 400, y: 162, label: 'Крок 1', title: 'Перша програма', side: 'l' },
-  { x: 100, y: 290, label: 'Крок 2', title: 'Свій сайт або гра', side: 'r' },
-  { x: 400, y: 418, label: 'Крок 3', title: 'Проєкт у команді', side: 'l' },
+  { label: 'Старт', title: 'Новачок у програмуванні' },
+  { label: 'Крок 1', title: 'Перша програма' },
+  { label: 'Крок 2', title: 'Свій сайт або гра' },
+  { label: 'Крок 3', title: 'Проєкт у команді' },
 ];
-/** Фініш: картка під кінцем шляху, пункти зʼявляються по черзі, коли до неї дійшли. */
-const ROAD_END = { x: 250, y: 528 };
-const FINISH = ['Впевнено володію навичками', 'Опанував найновіші технології', 'Маю портфоліо та сертифікат'];
-const CONFETTI = [[-110, -70, '#ffd479'], [96, -84, '#fff'], [-150, 6, '#a3e6b0'], [150, -6, '#ffd479'], [-70, -110, '#fff'], [70, -112, '#a7d4ff'], [0, -128, '#ff9aa7'], [-170, -48, '#fff'], [172, -52, '#a3e6b0'], [30, -100, '#ffd479'], [-30, -140, '#a7d4ff'], [124, -120, '#ff9aa7']];
-
-/** Скільки шляху пройдено: на компʼютері — від прокрутки самого хіро, на телефоні — від того, де роадмап на екрані. */
-function roadTarget(el) {
-  const vh = window.innerHeight;
-  if (window.matchMedia('(min-width: 900px)').matches) {
-    const hero = el.closest('.s-hero');
-    const span = (hero?.offsetHeight ?? vh) * 0.6;
-    return window.scrollY / span;
-  }
-  const r = el.getBoundingClientRect();
-  return (vh * 0.5 - r.top) / r.height;
-}
+const FINISH = [
+  { face: ':)', text: 'Впевнено володію навичками' },
+  { face: ':D', text: 'Опанував найновіші технології' },
+  { face: 'B)', text: 'Маю портфоліо та сертифікат' },
+];
+const CONFETTI = [[-110, -60, '#ffd479'], [96, -74, '#fff'], [-150, 6, '#a3e6b0'], [150, -6, '#ffd479'], [-70, -100, '#fff'], [70, -102, '#a7d4ff'], [0, -118, '#ff9aa7'], [-170, -38, '#fff'], [172, -42, '#a3e6b0'], [30, -90, '#ffd479'], [-30, -130, '#a7d4ff'], [124, -110, '#ff9aa7']];
 
 function HeroArt() {
   const ref = useRef(null);
   useEffect(() => {
     const root = ref.current;
     if (!root) return undefined;
-    const path = root.querySelector('.s-road-measure');
-    const total = path.getTotalLength();
-    // Де на шляху стоїть кожна зупинка: найближча точка
-    const stops = ROAD.map((st) => {
-      let best = 0;
-      let dist = Infinity;
-      for (let i = 0; i <= 400; i += 1) {
-        const pt = path.getPointAtLength((total * i) / 400);
-        const d = (pt.x - st.x) ** 2 + (pt.y - st.y) ** 2;
-        if (d < dist) { dist = d; best = i / 400; }
-      }
-      return best;
-    });
-    const nodes = [...root.querySelectorAll('[data-stop]')];
-    const fill = root.querySelectorAll('.s-road-fill');
-    const you = root.querySelector('.s-road-you');
-    const calm = prefersCalm();
-    let shown = calm ? 1 : 0;
-    let target = shown;
+    const items = [...root.querySelectorAll('[data-at]')];
+    const finish = root.querySelector('.s-rm-finish');
+    if (prefersCalm()) {
+      items.forEach((el) => el.classList.add('is-on'));
+      finish.classList.add('is-done');
+      return undefined;
+    }
     let raf = 0;
-    const paint = () => {
-      for (const f of fill) f.style.strokeDasharray = `${shown} 1`;
-      const pt = path.getPointAtLength(total * Math.min(shown, 0.999));
-      you.setAttribute('transform', `translate(${pt.x.toFixed(1)} ${pt.y.toFixed(1)})`);
-      for (const n of nodes) n.classList.toggle('is-on', shown >= (n.dataset.stop === 'end' ? 0.985 : stops[n.dataset.stop] - 0.01));
-      root.classList.toggle('is-done', shown >= 0.985);
+    const update = () => {
+      raf = 0;
+      const vh = window.innerHeight;
+      // Компʼютер: усе хіро на екрані, тож рахуємо від прокрутки. Телефон: картка зʼявляється, коли доїхала до низу екрана.
+      const wide = window.matchMedia('(min-width: 900px)').matches;
+      const span = (root.closest('.s-hero')?.offsetHeight ?? vh) * 0.5;
+      const p = window.scrollY / span;
+      for (const el of items) {
+        const at = Number(el.dataset.at);
+        const on = at === 0 || (wide ? p >= at : el.getBoundingClientRect().top < vh * 0.82);
+        el.classList.toggle('is-on', on);
+      }
+      finish.classList.toggle('is-done', items.every((el) => el.classList.contains('is-on')));
     };
-    const tick = () => {
-      shown += (target - shown) * 0.14;
-      if (Math.abs(target - shown) < 0.0005) shown = target;
-      paint();
-      raf = shown === target ? 0 : requestAnimationFrame(tick);
-    };
-    const onScroll = () => {
-      target = Math.min(1, Math.max(0, roadTarget(root)));
-      if (!raf) raf = requestAnimationFrame(tick);
-    };
-    paint();
-    if (calm) return undefined;
-    onScroll();
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
     return () => {
@@ -309,55 +280,36 @@ function HeroArt() {
     };
   }, []);
 
+  const total = ROAD.length + 1 + FINISH.length;
+  const at = (k) => (k / (total - 1)).toFixed(3);
   return (
     <div className="s-hero-art" aria-hidden="true">
       <div className="s-roadmap" ref={ref}>
-        <svg viewBox={`0 0 ${ROAD_W} ${ROAD_H}`}>
-          <defs>
-            <mask id="s-road-mask" maskUnits="userSpaceOnUse" x="-50" y="-50" width={ROAD_W + 100} height={ROAD_H + 100}>
-              <path className="s-road-fill" d={ROAD_PATH} pathLength="1" stroke="#fff" strokeWidth="40" fill="none" strokeLinecap="round" />
-            </mask>
-          </defs>
-          <path className="s-road-measure" d={ROAD_PATH} fill="none" stroke="none" />
-          <path className="s-road-dash" d={ROAD_PATH} />
-          <path className="s-road-glow s-road-fill" d={ROAD_PATH} pathLength="1" />
-          <path className="s-road-line" d={ROAD_PATH} mask="url(#s-road-mask)" />
+        <ol className="s-rm-steps">
           {ROAD.map((st, k) => (
-            <g key={st.title} className="s-road-node" data-stop={k} transform={`translate(${st.x} ${st.y})`}>
-              <circle className="s-road-halo" r="26" />
-              <circle className="s-road-dot" r="15" />
-              <path d="M-6 0l4 4 8-8.500" />
-            </g>
+            <li key={st.title} data-at={at(k)} className={`s-rm-card ${k % 2 ? 'is-r' : 'is-l'}`}>
+              <span className="s-rm-n">{k === 0 ? <IconRight size={16} /> : k}</span>
+              <span><small>{st.label}</small>{st.title}</span>
+            </li>
           ))}
-          <g className="s-road-you" transform={`translate(${ROAD[0].x} ${ROAD[0].y})`}>
-            <circle className="s-road-ring" r="20" />
-            <circle r="20" />
-            <text>Ви</text>
-          </g>
-        </svg>
-        {ROAD.map((st, k) => (
-          <div key={st.title} data-stop={k} className={`s-road-card is-${st.side}`} style={{ left: `${(st.x / ROAD_W) * 100}%`, top: `${(st.y / ROAD_H) * 100}%` }}>
-            <small>{st.label}</small>{st.title}
-          </div>
-        ))}
-        <div className="s-road-finish" data-stop="end" style={{ left: `${(ROAD_END.x / ROAD_W) * 100}%`, top: `${(ROAD_END.y / ROAD_H) * 100}%` }}>
+        </ol>
+        <div className="s-rm-finish" data-at={at(ROAD.length)}>
           <span className="s-confetti">{CONFETTI.map(([x, y, c], k) => <i key={k} style={{ '--x': `${x}px`, '--y': `${y}px`, '--c': c, '--r': `${k * 47}deg`, '--k': k }} />)}</span>
-          <svg className="s-medal" viewBox="0 0 48 48">
-            <path d="M15 26 10 44l7-4 4 6 3-14zM33 26l5 18-7-4-4 6-3-14z" fill="#d6112b" />
-            <circle cx="24" cy="20" r="15" fill="#ffd479" stroke="#e5a91a" strokeWidth="3" />
-            <path d="M24 11.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="#fff" />
-          </svg>
-          <span className="s-finish-body">
-            <small>Фініш</small>
-            <ul className="s-finish-list">
-              {FINISH.map((t, k) => (
-                <li key={t} style={{ '--k': k }}>
-                  <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" /><path d="M6 10.2l2.7 2.7L14 7.600" /></svg>{t}
-                </li>
-              ))}
-            </ul>
-          </span>
-          <span className="s-smile">:)</span>
+          <div className="s-rm-finish-head">
+            <svg className="s-medal" viewBox="0 0 48 48">
+              <path d="M15 26 10 44l7-4 4 6 3-14zM33 26l5 18-7-4-4 6-3-14z" fill="#d6112b" />
+              <circle cx="24" cy="20" r="15" fill="#ffd479" stroke="#e5a91a" strokeWidth="3" />
+              <path d="M24 11.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="#fff" />
+            </svg>
+            <span><small>Фініш</small><b>Ви — програміст</b></span>
+          </div>
+          <ul className="s-rm-points">
+            {FINISH.map((f, k) => (
+              <li key={f.text} data-at={at(ROAD.length + 1 + k)} className="s-rm-point">
+                <span className="s-rm-face">{f.face}</span>{f.text}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>

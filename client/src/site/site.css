@@ -63,76 +63,50 @@
 @keyframes s-rise { from { opacity: 0; transform: translateY(16px); } }
 
 /* Живий редактор у хіро */
-.s-hero-art { position: relative; z-index: 2; width: min(100%, 520px); margin: 22px auto 64px; }
-.s-roadmap { position: relative; aspect-ratio: 500 / 660; }
-.s-roadmap > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-/* Шлях: тьмяний пунктир — уся дорога; яскравий пунктир і мʼяке світло під ним — пройдене */
-.s-road-dash, .s-road-line, .s-road-glow { fill: none; stroke-linecap: round; }
-.s-road-dash { stroke: rgb(255 255 255 / 0.32); stroke-width: 3; stroke-dasharray: 0.1 13; }
-.s-road-line { stroke: #fff; stroke-width: 5; stroke-dasharray: 0.1 13; }
-.s-road-glow { stroke: rgb(255 255 255 / 0.1); stroke-width: 30; stroke-dasharray: 0 1; }
-/* Зупинка: до проходу — порожнє коло з пунктиром, після — біле з галочкою і хвилею */
-.s-road-dot { fill: #c40f26; stroke: rgb(255 255 255 / 0.6); stroke-width: 2.5; stroke-dasharray: 3 4; transition: fill 0.3s, stroke 0.3s, stroke-width 0.3s; }
-.s-road-node path { fill: none; stroke: var(--red-fill); stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 20; stroke-dashoffset: 20; transition: stroke-dashoffset 0.35s 0.1s var(--ease); }
-.s-road-halo { fill: rgb(255 255 255 / 0.18); opacity: 0; transform: scale(0.4); transform-box: fill-box; transform-origin: center; }
-.s-road-node.is-on .s-road-dot { fill: #fff; stroke: #fff; stroke-width: 4; stroke-dasharray: none; }
-.s-road-node.is-on path { stroke-dashoffset: 0; }
-.s-road-node.is-on .s-road-halo { animation: s-halo 0.7s ease-out; }
-@keyframes s-halo { 0% { opacity: 1; transform: scale(0.5); } 100% { opacity: 0; transform: scale(1.6); } }
-/* «Ви» — жовта мітка, що їде шляхом */
-.s-road-you circle { fill: #ffd479; stroke: #fff; stroke-width: 4; }
-.s-road-you .s-road-ring { fill: none; stroke: #ffd479; stroke-width: 3; transform-box: fill-box; transform-origin: center; animation: s-ring 1.8s ease-out infinite; }
-@keyframes s-ring { from { transform: scale(1); opacity: 0.9; } to { transform: scale(2.1); opacity: 0; } }
-.s-road-you text { fill: #1f1114; font: 800 15px var(--body); text-anchor: middle; dominant-baseline: central; }
-.s-roadmap.is-done .s-road-you { opacity: 0; transition: opacity 0.3s; }
-/* Картки кроків: до проходу притушені, на проході — виїжджають і світлішають */
-.s-road-card {
-  position: absolute; z-index: 2; width: max-content; max-width: 46%; padding: 10px 14px 11px; border-radius: 16px;
-  font-size: 14px; line-height: 1.3; color: rgb(255 255 255 / 0.78); background: rgb(255 255 255 / 0.06); border: 1.5px dashed rgb(255 255 255 / 0.4);
-  translate: 0 6px; transition: background-color 0.35s, color 0.35s, border-color 0.35s, box-shadow 0.35s, translate 0.5s var(--ease);
+.s-hero-art { position: relative; z-index: 2; width: min(100%, 520px); margin: 26px auto 34px; }
+.s-roadmap { display: grid; gap: 12px; }
+/* Кроки: картки зигзагом, без дороги. Доки не дійшли — невидимі, але місце тримають */
+.s-rm-steps { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.s-rm-card {
+  display: flex; align-items: center; gap: 12px; width: 78%; padding: 12px 16px 12px 12px; border-radius: 18px;
+  background: #fff; color: var(--ink); font-size: 15px; line-height: 1.25; box-shadow: 0 18px 40px -20px rgb(40 0 8 / 0.75);
+  opacity: 0; transition: opacity 0.45s, translate 0.55s cubic-bezier(0.2, 1.3, 0.4, 1), scale 0.55s cubic-bezier(0.2, 1.3, 0.4, 1);
 }
-.s-road-card small { display: block; margin-bottom: 3px; color: rgb(255 255 255 / 0.6); font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; transition: color 0.35s; }
-.s-road-card.is-on { translate: 0 0; background: #fff; color: var(--ink); border-color: #fff; box-shadow: 0 18px 40px -18px rgb(40 0 8 / 0.75); }
-.s-road-card.is-on small { color: var(--red); }
-.s-road-card.is-r { transform: translate(38px, -50%); }
-.s-road-card.is-l { transform: translate(calc(-100% - 38px), -50%); }
-/* Фініш: унизу; коли дійшли — підскакує, вилітає конфеті, усміхається */
-.s-road-finish {
-  position: absolute; z-index: 3; display: flex; align-items: flex-start; gap: 14px; width: 84%; padding: 16px 18px 16px 16px; border-radius: 22px;
-  color: rgb(255 255 255 / 0.8); background: rgb(255 255 255 / 0.06); border: 1.5px dashed rgb(255 255 255 / 0.4); transform: translate(-50%, 0);
-  scale: 0.96; transition: background-color 0.35s, color 0.35s, border-color 0.35s, box-shadow 0.35s, scale 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+.s-rm-card.is-l { justify-self: start; translate: -24px 10px; }
+.s-rm-card.is-r { justify-self: end; translate: 24px 10px; }
+.s-rm-card { scale: 0.94; }
+.s-rm-card.is-on { opacity: 1; translate: 0 0; scale: 1; }
+.s-rm-card small { display: block; margin-bottom: 2px; color: var(--red); font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; }
+.s-rm-n { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: var(--red-soft); color: var(--red); font-size: 15px; font-weight: 800; }
+.s-rm-card:first-child .s-rm-n { background: var(--red-fill); color: #fff; }
+/* Фініш: велика картка, до неї по черзі підкріплюються пункти зі смайликами */
+.s-rm-finish {
+  position: relative; display: grid; gap: 10px; margin-top: 6px; padding: 14px; border-radius: 24px; background: rgb(255 255 255 / 0.12);
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.28); opacity: 0; scale: 0.92; transition: opacity 0.45s, scale 0.55s cubic-bezier(0.2, 1.5, 0.4, 1);
 }
-.s-road-finish .s-medal { filter: grayscale(1) brightness(1.6); opacity: 0.55; transition: filter 0.4s, opacity 0.4s; }
-.s-road-finish.is-on { scale: 1; background: #fff; color: var(--ink); border-color: #fff; box-shadow: 0 30px 60px -24px rgb(40 0 8 / 0.8); }
-.s-road-finish.is-on .s-medal { filter: none; opacity: 1; }
-.s-medal { flex: none; width: 46px; height: 46px; }
-.s-road-finish small { display: block; color: rgb(255 255 255 / 0.6); transition: color 0.35s; }
-.s-road-finish.is-on small { color: #1d7a42; }
-.s-road-finish small { font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; }
-/* Пункти фінішу: до фінішу — бліді заготовки, на фініші проявляються по черзі з галочкою */
-.s-finish-body { display: grid; gap: 8px; min-width: 0; }
-.s-finish-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
-.s-finish-list li { display: flex; align-items: center; gap: 9px; font-size: 14.5px; font-weight: 800; line-height: 1.25; opacity: 0.32; translate: -6px 0;
-  transition: opacity 0.45s calc(0.25s + var(--k) * 0.45s), translate 0.5s calc(0.25s + var(--k) * 0.45s) var(--ease); }
-.s-finish-list svg { flex: none; width: 20px; height: 20px; }
-.s-finish-list circle { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-dasharray: 2.4 2.6; transition: fill 0.3s calc(0.25s + var(--k) * 0.45s), stroke 0.3s calc(0.25s + var(--k) * 0.45s); }
-.s-finish-list path { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 14; stroke-dashoffset: 14;
-  transition: stroke-dashoffset 0.35s calc(0.4s + var(--k) * 0.45s) var(--ease); }
-.s-road-finish.is-on .s-finish-list li { opacity: 1; translate: 0 0; }
-.s-road-finish.is-on .s-finish-list circle { fill: #1fae5b; stroke: #1fae5b; stroke-dasharray: none; }
-.s-road-finish.is-on .s-finish-list path { stroke-dashoffset: 0; }
-/* Назад угору — гаснуть одразу, без черги */
-.s-road-finish:not(.is-on) :is(.s-finish-list li, .s-finish-list circle, .s-finish-list path) { transition-delay: 0s; }
-.s-smile {
-  position: absolute; right: -14px; top: -20px; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%;
-  background: #ffd479; color: #1f1114; font: 800 20px/1 var(--body); box-shadow: 0 10px 24px -10px rgb(0 0 0 / 0.5); rotate: 90deg;
-  scale: 0; transition: scale 0.5s 0.15s cubic-bezier(0.2, 1.6, 0.4, 1);
+.s-rm-finish.is-on { opacity: 1; scale: 1; }
+.s-rm-finish-head { display: flex; align-items: center; gap: 12px; padding: 4px 6px 2px; color: #fff; }
+.s-rm-finish-head small { display: block; color: rgb(255 255 255 / 0.7); font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; }
+.s-rm-finish-head b { display: block; font-size: 18px; line-height: 1.2; }
+.s-medal { flex: none; width: 44px; height: 44px; transition: rotate 0.6s cubic-bezier(0.2, 1.6, 0.4, 1); }
+.s-rm-finish.is-done .s-medal { rotate: -12deg; }
+.s-rm-points { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.s-rm-point {
+  display: flex; align-items: center; gap: 12px; padding: 9px 14px 9px 9px; border-radius: 14px; background: #fff; color: var(--ink);
+  font-size: 14.5px; line-height: 1.25; box-shadow: 0 12px 26px -16px rgb(40 0 8 / 0.7);
+  opacity: 0; translate: 0 -14px; scale: 0.9; transition: opacity 0.35s, translate 0.5s cubic-bezier(0.2, 1.6, 0.4, 1), scale 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
 }
-.s-road-finish.is-on .s-smile { scale: 1; animation: s-smile 2.6s 0.8s ease-in-out infinite; }
-@keyframes s-smile { 50% { transform: rotate(-12deg) scale(1.12); } }
+.s-rm-point.is-on { opacity: 1; translate: 0 0; scale: 1; }
+.s-rm-face {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #ffd479; color: #1f1114;
+  font-size: 14px; font-weight: 800; rotate: 90deg; scale: 0.4; transition: scale 0.45s 0.15s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+.s-rm-point:nth-child(2) .s-rm-face { background: #a3e6b0; }
+.s-rm-point:nth-child(3) .s-rm-face { background: #a7d4ff; }
+.s-rm-point.is-on .s-rm-face { scale: 1; }
 .s-confetti { position: absolute; inset: 0; pointer-events: none; }
-.s-confetti i { position: absolute; left: 50%; top: 50%; width: 8px; height: 12px; border-radius: 2px; background: var(--c); opacity: 0; }
-.s-road-finish.is-on .s-confetti i { animation: s-burst 1.3s calc(var(--k) * 0.02s) ease-out forwards; }
+.s-confetti i { position: absolute; left: 50%; top: 30%; width: 8px; height: 12px; border-radius: 2px; background: var(--c); opacity: 0; }
+.s-rm-finish.is-done .s-confetti i { animation: s-burst 1.3s calc(var(--k) * 0.02s) ease-out forwards; }
 @keyframes s-burst { 0% { opacity: 1; transform: translate(-50%, -50%) rotate(0); } 100% { opacity: 0; transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) rotate(var(--r)); } }
 
 /* Двійкові цифри у фоні, як на сторінці входу */
@@ -368,11 +342,10 @@
   .site { --gut: 20px; }
   .bs-logo.is-site { font-size: 19px; }
   .s-hero-panel { padding: 44px var(--gut) 64px; }
-  .s-road-card { font-size: 16px; padding: 13px 18px 14px; }
-  .s-road-card small { font-size: 11.5px; }
-  .s-finish-list li { font-size: 16.5px; }
-  .s-finish-list svg { width: 22px; height: 22px; }
-  .s-medal { width: 54px; height: 54px; }
+  .s-rm-card { font-size: 16px; }
+  .s-rm-point { font-size: 15.5px; }
+  .s-rm-finish-head b { font-size: 20px; }
+  .s-medal { width: 50px; height: 50px; }
   .s-sec { padding-top: 72px; }
   .s-chapter { padding-top: 96px; }
   .s-chapter-art { min-height: 420px; }
@@ -408,7 +381,7 @@
   .s-hero-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: 1fr auto; column-gap: 48px; row-gap: 32px; align-content: stretch; padding: 64px var(--gut) 72px; }
   .s-hero-text { grid-column: 1; grid-row: 1; align-self: start; }
   .s-hero-actions { grid-column: 1; grid-row: 2; align-self: end; margin: 0; }
-  .s-hero-art { grid-column: 2; grid-row: 1 / 3; align-self: center; width: min(100%, 560px, calc((100svh - var(--head) - 150px) * 500 / 660)); margin: 0 auto; }
+  .s-hero-art { grid-column: 2; grid-row: 1 / 3; align-self: center; width: min(100%, 520px); margin: 0 auto; }
 }
 @media (min-width: 1400px) {
   .s-hero h1 { font-size: 64px; }
@@ -472,9 +445,9 @@
 }
 
 /* Картки-макети (секції й роадмап у хіро): округлий Nunito замість широкого Unbounded */
-.s-art-card, .s-road-card, .s-road-finish, .s-road-you { --display: 'Nunito Variable', var(--body); --body: 'Nunito Variable', system-ui, sans-serif; font-family: var(--body); }
-.s-art-card :is(b, small, span, p, li, em), .s-road-card, .s-road-finish :is(b, small) { font-weight: 700; }
-.s-art-card .s-art-q, .s-art-row b, .s-road-finish b { font-weight: 800; }
+.s-art-card, .s-roadmap { --display: 'Nunito Variable', var(--body); --body: 'Nunito Variable', system-ui, sans-serif; font-family: var(--body); }
+.s-art-card :is(b, small, span, p, li, em), .s-roadmap :is(li, small, b) { font-weight: 700; }
+.s-art-card .s-art-q, .s-art-row b, .s-rm-finish-head b { font-weight: 800; }
 .s-art-card small, .s-art-label { font-weight: 700; }
 .s-art-card :is(b, em, small, span, p, li) { letter-spacing: -0.005em; }
 .s-art-lessons span { display: grid; gap: 1px; }
