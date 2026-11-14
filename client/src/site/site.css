@@ -63,7 +63,7 @@
 @keyframes s-rise { from { opacity: 0; transform: translateY(16px); } }
 
 /* Живий редактор у хіро */
-.s-hero-art { position: relative; z-index: 2; width: min(100%, 520px); margin: 22px auto 40px; }
+.s-hero-art { position: relative; z-index: 2; width: min(100%, 520px); margin: 22px auto 64px; }
 .s-roadmap { position: relative; aspect-ratio: 500 / 660; }
 .s-roadmap > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 /* Шлях: тьмяний пунктир — уся дорога; яскравий пунктир і мʼяке світло під ним — пройдене */
@@ -98,8 +98,8 @@
 .s-road-card.is-l { transform: translate(calc(-100% - 38px), -50%); }
 /* Фініш: унизу; коли дійшли — підскакує, вилітає конфеті, усміхається */
 .s-road-finish {
-  position: absolute; z-index: 3; display: flex; align-items: center; gap: 12px; width: 78%; padding: 13px 18px 13px 13px; border-radius: 20px;
-  color: rgb(255 255 255 / 0.8); background: rgb(255 255 255 / 0.06); border: 1.5px dashed rgb(255 255 255 / 0.4); transform: translate(-50%, -30%);
+  position: absolute; z-index: 3; display: flex; align-items: flex-start; gap: 14px; width: 84%; padding: 16px 18px 16px 16px; border-radius: 22px;
+  color: rgb(255 255 255 / 0.8); background: rgb(255 255 255 / 0.06); border: 1.5px dashed rgb(255 255 255 / 0.4); transform: translate(-50%, 0);
   scale: 0.96; transition: background-color 0.35s, color 0.35s, border-color 0.35s, box-shadow 0.35s, scale 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
 }
 .s-road-finish .s-medal { filter: grayscale(1) brightness(1.6); opacity: 0.55; transition: filter 0.4s, opacity 0.4s; }
@@ -109,7 +109,20 @@
 .s-road-finish small { display: block; color: rgb(255 255 255 / 0.6); transition: color 0.35s; }
 .s-road-finish.is-on small { color: #1d7a42; }
 .s-road-finish small { font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; }
-.s-road-finish b { display: block; font-size: 15px; line-height: 1.25; }
+/* Пункти фінішу: до фінішу — бліді заготовки, на фініші проявляються по черзі з галочкою */
+.s-finish-body { display: grid; gap: 8px; min-width: 0; }
+.s-finish-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.s-finish-list li { display: flex; align-items: center; gap: 9px; font-size: 14.5px; font-weight: 800; line-height: 1.25; opacity: 0.32; translate: -6px 0;
+  transition: opacity 0.45s calc(0.25s + var(--k) * 0.45s), translate 0.5s calc(0.25s + var(--k) * 0.45s) var(--ease); }
+.s-finish-list svg { flex: none; width: 20px; height: 20px; }
+.s-finish-list circle { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-dasharray: 2.4 2.6; transition: fill 0.3s calc(0.25s + var(--k) * 0.45s), stroke 0.3s calc(0.25s + var(--k) * 0.45s); }
+.s-finish-list path { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 14; stroke-dashoffset: 14;
+  transition: stroke-dashoffset 0.35s calc(0.4s + var(--k) * 0.45s) var(--ease); }
+.s-road-finish.is-on .s-finish-list li { opacity: 1; translate: 0 0; }
+.s-road-finish.is-on .s-finish-list circle { fill: #1fae5b; stroke: #1fae5b; stroke-dasharray: none; }
+.s-road-finish.is-on .s-finish-list path { stroke-dashoffset: 0; }
+/* Назад угору — гаснуть одразу, без черги */
+.s-road-finish:not(.is-on) :is(.s-finish-list li, .s-finish-list circle, .s-finish-list path) { transition-delay: 0s; }
 .s-smile {
   position: absolute; right: -14px; top: -20px; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%;
   background: #ffd479; color: #1f1114; font: 800 20px/1 var(--body); box-shadow: 0 10px 24px -10px rgb(0 0 0 / 0.5); rotate: 90deg;
@@ -357,7 +370,8 @@
   .s-hero-panel { padding: 44px var(--gut) 64px; }
   .s-road-card { font-size: 16px; padding: 13px 18px 14px; }
   .s-road-card small { font-size: 11.5px; }
-  .s-road-finish b { font-size: 17px; }
+  .s-finish-list li { font-size: 16.5px; }
+  .s-finish-list svg { width: 22px; height: 22px; }
   .s-medal { width: 54px; height: 54px; }
   .s-sec { padding-top: 72px; }
   .s-chapter { padding-top: 96px; }

@@ -231,14 +231,16 @@ function CtaBand({ title = CTA.title, text = CTA.text, note }) {
  */
 const ROAD_W = 500;
 const ROAD_H = 660;
-const ROAD_PATH = 'M100 52 C 290 40, 420 100, 400 180 S 110 250, 100 340 S 390 420, 400 500 S 300 590, 250 592';
+const ROAD_PATH = 'M100 52 C 290 40, 420 90, 400 162 S 110 222, 100 290 S 390 356, 400 418 S 300 500, 250 520';
 const ROAD = [
   { x: 100, y: 52, label: 'Старт', title: 'Новачок у програмуванні', side: 'r' },
-  { x: 400, y: 180, label: 'Крок 1', title: 'Перша програма', side: 'l' },
-  { x: 100, y: 340, label: 'Крок 2', title: 'Свій сайт або гра', side: 'r' },
-  { x: 400, y: 500, label: 'Крок 3', title: 'Проєкт у команді', side: 'l' },
+  { x: 400, y: 162, label: 'Крок 1', title: 'Перша програма', side: 'l' },
+  { x: 100, y: 290, label: 'Крок 2', title: 'Свій сайт або гра', side: 'r' },
+  { x: 400, y: 418, label: 'Крок 3', title: 'Проєкт у команді', side: 'l' },
 ];
-const ROAD_END = { x: 250, y: 612 };
+/** Фініш: картка під кінцем шляху, пункти зʼявляються по черзі, коли до неї дійшли. */
+const ROAD_END = { x: 250, y: 528 };
+const FINISH = ['Впевнено володію навичками', 'Опанував найновіші технології', 'Маю портфоліо та сертифікат'];
 const CONFETTI = [[-110, -70, '#ffd479'], [96, -84, '#fff'], [-150, 6, '#a3e6b0'], [150, -6, '#ffd479'], [-70, -110, '#fff'], [70, -112, '#a7d4ff'], [0, -128, '#ff9aa7'], [-170, -48, '#fff'], [172, -52, '#a3e6b0'], [30, -100, '#ffd479'], [-30, -140, '#a7d4ff'], [124, -120, '#ff9aa7']];
 
 /** Скільки шляху пройдено: на компʼютері — від прокрутки самого хіро, на телефоні — від того, де роадмап на екрані. */
@@ -345,7 +347,16 @@ function HeroArt() {
             <circle cx="24" cy="20" r="15" fill="#ffd479" stroke="#e5a91a" strokeWidth="3" />
             <path d="M24 11.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="#fff" />
           </svg>
-          <span><small>Фініш</small><b>Маю сертифікат від крутої школи</b></span>
+          <span className="s-finish-body">
+            <small>Фініш</small>
+            <ul className="s-finish-list">
+              {FINISH.map((t, k) => (
+                <li key={t} style={{ '--k': k }}>
+                  <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" /><path d="M6 10.2l2.7 2.7L14 7.600" /></svg>{t}
+                </li>
+              ))}
+            </ul>
+          </span>
           <span className="s-smile">:)</span>
         </div>
       </div>
