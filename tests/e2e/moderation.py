@@ -92,12 +92,12 @@ with sync_playwright() as pw:
     m.locator(".ticket").filter(has_text="Базовий").get_by_role("button", name="Змінити").click()
     m.locator(".modal").get_by_role("radio", name="Фіолетовий").click()
     stub = m.locator(".modal .tk-preview .ticket-stub").evaluate("e => getComputedStyle(e).backgroundColor")
-    check("прев'ю квитка перефарбовано", stub == "rgb(144, 97, 255)", stub)
+    check("прев'ю квитка перефарбовано", stub == "rgb(163, 124, 255)", stub)
     m.locator(".modal").get_by_role("button", name="Зберегти").click(); expect(m.locator(".modal")).to_have_count(0)
     check("колір збережено", next(x for x in api(mc, "GET", "/plans").json() if x["id"] == base["id"])["color"] == "violet")
     s.goto(f"{APP}/subscription"); s.wait_for_load_state("networkidle"); s.wait_for_selector(".ticket")
     stub = s.locator(".ticket-stub").first.evaluate("e => getComputedStyle(e).backgroundColor")
-    check("квиток учня у кольорі виду", stub == "rgb(144, 97, 255)", stub)
+    check("квиток учня у кольорі виду", stub == "rgb(163, 124, 255)", stub)
     shot(s, "is6-ticket")
 
     # 4. Аватарки учнів: розклад, абонементи, домашні
