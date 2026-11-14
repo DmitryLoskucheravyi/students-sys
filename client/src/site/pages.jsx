@@ -657,7 +657,7 @@ export function Home() {
         {FEATURES.map((f, i) => {
           const cards = FEATURE_ART[f.icon] ?? FEATURE_ART.solo;
           return (
-            <section key={f.title} className="s-wrap s-chapter">
+            <section key={f.title} className={`s-wrap s-chapter ${f.align === 'right' ? 'is-right' : ''}`}>
               <div className="s-chapter-text">
                 <Reveal as="p" className="s-chapter-n">{String(i + 1).padStart(2, '0')}</Reveal>
                 <Reveal as="h2" className="s-chapter-title">{f.title}</Reveal>

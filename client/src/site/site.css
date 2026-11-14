@@ -163,6 +163,10 @@
 .s-chapter-text { display: grid; gap: 12px; }
 .s-chapter-n { color: var(--red); font: 800 15px/1 var(--display); letter-spacing: 0.04em; }
 .s-chapter-title { font: 800 clamp(34px, 10vw, 104px)/0.98 var(--display); letter-spacing: -0.055em; text-wrap: balance; }
+/* Заголовок можна розбити на рядки (
+ у тексті) і притиснути праворуч */
+.s-chapter-title { white-space: pre-line; }
+.s-chapter.is-right :is(.s-chapter-n, .s-chapter-title) { text-align: right; }
 .s-chapter-title.s-reveal { transform: translateY(60px); transition-duration: 0.9s; }
 .s-chapter-title.s-reveal.is-in { transform: none; }
 .s-chapter-lead { color: var(--muted); font-size: clamp(17px, 2.2vw, 22px); line-height: 1.45; max-width: 30ch; }
