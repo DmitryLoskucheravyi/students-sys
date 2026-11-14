@@ -745,12 +745,19 @@
     transition: translate 0.5s var(--ease), opacity 0.4s var(--ease), scale 0.5s var(--ease);
   }
   .s-float span {
-    display: grid; place-items: center; width: var(--s); height: var(--s); border-radius: 28%; background: #fff; color: var(--red); --ia: #1f1114;
-    box-shadow: 0 26px 40px -22px rgb(40 0 8 / 0.75), inset 0 -4px 0 rgb(214 17 43 / 0.08);
+    position: relative; display: grid; place-content: center; justify-items: center; gap: 6px; width: var(--s); height: var(--s); border-radius: 28%;
+    background: linear-gradient(160deg, #fff 40%, #ffeef1); color: var(--red); --ia: #1f1114;
+    box-shadow: 0 28px 44px -22px rgb(40 0 8 / 0.8), inset 0 -5px 0 rgb(214 17 43 / 0.1), inset 0 1px 0 #fff;
     animation: s-float calc(5s + var(--k) * 0.45s) calc(var(--k) * -0.8s) ease-in-out infinite;
   }
-  .s-float li:nth-child(3n + 2) span { background: #ffe1e6; }
-  .s-float li:nth-child(4n) span { --ia: #ffd479; background: var(--red-fill); color: #fff; box-shadow: 0 26px 40px -22px rgb(40 0 8 / 0.75), inset 0 0 0 2px rgb(255 255 255 / 0.85); }
+  .s-float svg { stroke-width: 2.3; filter: drop-shadow(0 2px 0 rgb(214 17 43 / 0.12)); }
+  .s-float small { color: var(--ink); font: 800 12.5px/1 var(--body); letter-spacing: -0.01em; }
+  /* три вигляди плиток по черзі: біла, жовта, червона */
+  .s-float li.is-t1 span { background: linear-gradient(160deg, #fff6d8 30%, #ffe08a); color: #b4480a; --ia: #1f1114; box-shadow: 0 28px 44px -22px rgb(40 0 8 / 0.8), inset 0 -5px 0 rgb(180 72 10 / 0.14), inset 0 1px 0 #fffbea; }
+  .s-float li.is-t1 small { color: #6b2a05; }
+  .s-float li.is-t2 span { background: linear-gradient(160deg, #e3122f 30%, #a80a1f); color: #fff; --ia: #ffd479; box-shadow: 0 28px 44px -22px rgb(40 0 8 / 0.85), inset 0 0 0 2px rgb(255 255 255 / 0.9), inset 0 -6px 0 rgb(0 0 0 / 0.12); }
+  .s-float li.is-t2 small { color: #fff; }
+  .s-float li.is-t2 svg { filter: none; }
   .s-hero-art.is-started .s-float li { opacity: 0; scale: 0.6; translate: calc((var(--k) - 4) * 14px) -60px; }
   .s-rm-intro-hint { display: flex; align-items: center; justify-content: center; gap: 12px; color: rgb(255 255 255 / 0.92); font-size: 15px; font-weight: 600; animation: s-intro-in 0.6s 0.8s var(--ease) both; transition: opacity 0.3s; }
   .s-hero-art.is-started .s-rm-intro-hint { opacity: 0; }

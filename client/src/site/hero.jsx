@@ -113,10 +113,10 @@ export function HeroArt() {
   );
 }
 
-/** Плаваючі іконки: [іконка з набору курсів, ліво %, верх %, розмір px, нахил°]. */
+/** Плаваючі іконки: [іконка з набору курсів, підпис (на великих), ліво %, верх %, розмір px, нахил°]. */
 const FLOAT = [
-  ['py', 6, 4, 92, -8], ['web', 60, 0, 78, 6], ['game', 33, 22, 112, -4], ['code', 78, 26, 72, 10],
-  ['ai', 2, 42, 74, 8], ['react', 62, 50, 98, -6], ['js', 30, 60, 70, -10], ['terminal', 6, 76, 82, 4], ['mobile', 80, 78, 66, -8],
+  ['py', 'Python', 4, 3, 104, -8], ['web', 'Сайти', 60, 0, 92, 6], ['game', 'Ігри', 31, 22, 124, -4], ['code', '', 80, 27, 70, 10],
+  ['ai', '', 1, 44, 70, 8], ['react', 'React', 60, 50, 108, -6], ['js', '', 31, 62, 70, -10], ['terminal', 'Термінал', 4, 74, 96, 4], ['mobile', '', 81, 79, 66, -8],
 ];
 
 /**
@@ -127,9 +127,12 @@ function HeroIntro() {
   return (
     <div className="s-rm-intro" aria-hidden="true">
       <ul className="s-float">
-        {FLOAT.map(([id, x, y, size, r], k) => (
-          <li key={id} style={{ '--x': `${x}%`, '--y': `${y}%`, '--s': `${size}px`, '--r': `${r}deg`, '--k': k }}>
-            <span>{COURSE_ICONS.find((i) => i.id === id)?.render(Math.round(size * 0.46))}</span>
+        {FLOAT.map(([id, label, x, y, size, r], k) => (
+          <li key={id} className={`is-t${k % 3}`} style={{ '--x': `${x}%`, '--y': `${y}%`, '--s': `${size}px`, '--r': `${r}deg`, '--k': k }}>
+            <span>
+              {COURSE_ICONS.find((i) => i.id === id)?.render(Math.round(size * (label ? 0.42 : 0.5)))}
+              {label && <small>{label}</small>}
+            </span>
           </li>
         ))}
       </ul>
