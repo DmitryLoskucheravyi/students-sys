@@ -152,9 +152,6 @@
 .s-chapter-title.s-reveal { transform: translateY(60px); transition-duration: 0.9s; }
 .s-chapter-title.s-reveal.is-in { transform: none; }
 .s-chapter-lead { color: var(--muted); font-size: clamp(17px, 2.2vw, 22px); line-height: 1.45; max-width: 30ch; }
-.s-chapter-points { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 6px 0 0; padding: 0; list-style: none; }
-.s-chapter-points li { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 600; }
-.s-chapter-points svg { flex: none; width: 22px; height: 22px; padding: 4px; border-radius: 7px; background: var(--red-soft); color: var(--red); }
 .s-chapter-art {
   position: relative; display: grid; place-items: center; min-height: 340px; padding: 32px 18px; overflow: hidden; border-radius: 28px; background-color: var(--red-soft);
   background-image: linear-gradient(rgb(214 17 43 / 0.07) 1px, transparent 1px), linear-gradient(90deg, rgb(214 17 43 / 0.07) 1px, transparent 1px); background-size: 30px 30px;
@@ -384,13 +381,12 @@
   .s-hero .s-lead { font-size: 16px; }
   .s-sec { padding-top: 96px; }
   /* Заголовок секції — одним рядком на всю ширину, під ним текст і картки */
-  .s-chapter { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto 1fr 1fr; grid-template-areas: 'n n' 't t' 'l a' 'p a'; align-content: center; column-gap: 56px; row-gap: 14px; min-height: 88svh; padding-top: 48px; padding-bottom: 48px; }
-  .s-chapter:nth-child(even) { grid-template-areas: 'n n' 't t' 'a l' 'a p'; }
+  .s-chapter { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto 1fr; grid-template-areas: 'n n' 't t' 'l a'; align-content: center; column-gap: 56px; row-gap: 14px; min-height: 88svh; padding-top: 48px; padding-bottom: 48px; }
+  .s-chapter:nth-child(even) { grid-template-areas: 'n n' 't t' 'a l'; }
   .s-chapter-text { display: contents; }
   .s-chapter-n { grid-area: n; }
   .s-chapter-title { grid-area: t; margin-bottom: 18px; text-wrap: wrap; }
-  .s-chapter-lead { grid-area: l; align-self: end; }
-  .s-chapter-points { grid-area: p; align-self: start; }
+  .s-chapter-lead { grid-area: l; align-self: start; }
   .s-chapter-art { grid-area: a; }
   /* Кожна секція — на весь екран і зі своїм кольором; макет стоїть просто на фоні */
   .s-story { margin-top: 0; }
@@ -402,12 +398,10 @@
   .s-chapter:nth-child(4n) { --ch-bg: #1f1114; --ch-line: rgb(255 255 255 / 0.06); --ch-ink: #fff; --ch-muted: rgb(255 255 255 / 0.7); --ch-chip: rgb(255 255 255 / 0.1); --ch-tick: #ff8a99; --ch-n: #ff8a99; }
   .s-chapter-n { color: var(--ch-n); }
   .s-chapter-lead { color: var(--ch-muted); }
-  .s-chapter-points svg { background: var(--ch-chip); color: var(--ch-tick); }
   .s-chapter-art { min-height: 520px; background: none; overflow: visible; }
   .s-art-card { box-shadow: 0 40px 80px -30px rgb(30 0 6 / 0.55), 0 0 0 1px rgb(84 14 26 / 0.06); }
   .s-chapter-title { font-size: clamp(44px, 4.3vw, 96px); }
   .s-art-card { zoom: 1.12; }
-  .s-chapter-points li { font-size: 16px; }
   .s-course-hero-in { padding-top: 36px; padding-bottom: 72px; }
   .s-course-hero-mark { right: 4%; bottom: -120px; }
   .s-program-wrap { grid-template-columns: minmax(220px, 0.32fr) minmax(0, 1fr); gap: 48px; align-items: start; }

@@ -584,9 +584,6 @@ export function Home() {
                 <Reveal as="p" className="s-chapter-n">{String(i + 1).padStart(2, '0')}</Reveal>
                 <Reveal as="h2" className="s-chapter-title">{f.title}</Reveal>
                 <Reveal as="p" className="s-chapter-lead" delay={120}>{f.text}</Reveal>
-                <ul className="s-chapter-points">
-                  {f.points.map((pt, k) => <Reveal as="li" key={pt} delay={200 + k * 140}><Tick />{pt}</Reveal>)}
-                </ul>
               </div>
               <Reveal className="s-chapter-art" delay={150}><CardStack cards={cards} /></Reveal>
             </section>
