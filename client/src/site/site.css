@@ -161,7 +161,7 @@
 /* Заголовок-композиція: два рядки й вертикальне слово праворуч на їхню висоту */
 .s-title-art { display: inline-grid; grid-template-columns: auto auto; column-gap: 0.06em; align-items: stretch; white-space: nowrap; }
 .s-title-art > span:first-child { display: grid; justify-items: end; }
-.s-title-art .is-up { position: relative; top: -0.05em; align-self: center; writing-mode: vertical-rl; font-size: 0.4375em; line-height: 0.9; letter-spacing: -0.02em; }
+.s-title-art .is-up { position: relative; top: -0.05em; align-self: center; writing-mode: vertical-rl; font-size: 0.41em; line-height: 0.9; letter-spacing: -0.02em; }
 .s-chapter.is-right :is(.s-chapter-n, .s-chapter-title) { text-align: right; }
 .s-chapter-title.s-reveal { transform: translateY(60px); transition-duration: 0.9s; }
 .s-chapter-title.s-reveal.is-in { transform: none; }
@@ -415,24 +415,28 @@
   .s-chapter-art { padding: 0; border-radius: 0; background-color: transparent; overflow: visible; }
   .s-chapter-art::before, .s-chapter-art::after { display: none; }
 }
-@media (min-width: 1400px) {
-  .s-hero h1 { font-size: 64px; }
-  .s-hero .s-lead { font-size: 16px; }
-  .s-sec { padding-top: 96px; }
-  /* Заголовок секції — одним рядком на всю ширину, під ним текст і картки */
+/* Від планшета: заголовок секції з одного боку, опис — з другого, під ними картки */
+@media (min-width: 600px) {
   /* Заголовок ліворуч, опис праворуч в одному рядку (вирівняні по низу), під ними — ряд карток на всю ширину */
-  .s-chapter { grid-template-columns: max-content minmax(0, 1fr); grid-template-areas: 'n n' 't l' 'a a'; align-content: center; column-gap: 64px; row-gap: 14px; min-height: 88svh; padding-top: 48px; padding-bottom: 48px; }
+  .s-chapter { grid-template-columns: max-content minmax(0, 1fr); grid-template-areas: 'n n' 't l' 'a a'; align-content: center; column-gap: 40px; row-gap: 14px; min-height: 88svh; padding-top: 48px; padding-bottom: 48px; }
   .s-chapter.is-right { grid-template-columns: minmax(0, 1fr) max-content; grid-template-areas: 'n n' 'l t' 'a a'; }
   .s-chapter-text { display: contents; }
   .s-chapter-n { grid-area: n; }
   .s-chapter-title { grid-area: t; text-wrap: wrap; }
   /* Опис притиснутий до краю, протилежного заголовку; риска — з боку краю */
-  .s-chapter-lead { grid-area: l; align-self: end; justify-self: end; max-width: 30ch; padding: 4px 22px 10px 0; border-right: 3px solid var(--ch-n); text-align: right; font-size: 24px; line-height: 1.4; }
+  .s-chapter-lead { grid-area: l; align-self: end; justify-self: end; max-width: 30ch; padding: 4px 22px 10px 0; border-right: 3px solid var(--ch-n); text-align: right; font-size: clamp(17px, 1.8vw, 24px); line-height: 1.4; }
   .s-chapter.is-right .s-chapter-lead { justify-self: start; padding: 4px 0 10px 22px; border-right: 0; border-left: 3px solid var(--ch-n); text-align: left; }
   .s-chapter-art { margin-top: 28px; }
   .s-chapter-art { grid-area: a; }
+  .s-chapter-title { font-size: clamp(40px, 6vw, 80px); }
+}
+@media (min-width: 1400px) {
+  .s-hero h1 { font-size: 64px; }
+  .s-hero .s-lead { font-size: 16px; }
+  .s-sec { padding-top: 96px; }
   .s-art-card { box-shadow: 0 40px 80px -30px rgb(30 0 6 / 0.55), 0 0 0 1px rgb(84 14 26 / 0.06); }
   /* На компʼютері заголовок секції — одним рядком (перенос із тексту теж прибирається) */
+  .s-chapter { column-gap: 64px; }
   .s-chapter-title { font-size: clamp(40px, 3.2vw, 72px); white-space: nowrap; }
   .s-chapter-title:has(.s-title-art) { font-size: clamp(56px, 6vw, 112px); }
   .s-art-card, .s-card-row .s-art-card { zoom: 1; }
@@ -677,7 +681,7 @@
 .s-art-term b { color: #ffd479; font-weight: 700; }
 .s-art-term .is-win { color: #86efac; font-weight: 700; }
 /* Гра «друкується» рядок за рядком, коли ряд карток зʼявився */
-.s-card-row.is-in .s-art-term span, .s-stack-item[data-pos='0'] .s-art-term span { animation: s-term-line 0.3s calc(0.9s + var(--k) * 0.45s) both; }
+.s-card-row.is-in .s-art-term span, .s-stack-item[data-pos='0'] .s-art-term span, .s-chapter-art.is-in .s-flow .s-art-term span { animation: s-term-line 0.3s calc(0.9s + var(--k) * 0.45s) both; }
 @keyframes s-term-line { from { opacity: 0; transform: translateX(-6px); } }
 @media (prefers-reduced-motion: reduce) { .s-art-term span { animation: none !important; } }
 .s-art-done { display: flex; align-items: center; gap: 8px; margin: 0; color: #1d6b37; font-size: 13.5px; font-weight: 700; }
@@ -701,18 +705,42 @@
 .s-art-path li { isolation: isolate; }
 .s-art-path li::before { z-index: -1; }
 
+/* «Програмування легше»: ланцюжок кроків без карток, прямо на фоні секції */
+.s-flow { display: grid; gap: 28px; margin: 0; padding: 0; list-style: none; color: var(--ch-ink, var(--ink)); }
+.s-flow > li { display: grid; align-content: start; gap: 12px; min-width: 0; }
+.s-flow-n { display: flex; align-items: baseline; gap: 10px; color: var(--ch-n, var(--red)); font: 800 15px/1 var(--display); letter-spacing: 0.04em; }
+.s-flow-n b { font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.8; }
+.s-flow-quote { margin: 0; font: 800 clamp(22px, 5.6vw, 34px)/1.15 var(--display); letter-spacing: -0.03em; text-wrap: balance; }
+.s-flow small { color: var(--ch-ink, var(--ink)); font-size: 14px; font-weight: 700; opacity: 0.75; }
+.s-flow .s-art-code, .s-flow .s-art-term { min-width: 0; overflow: hidden; border-radius: 18px; box-shadow: 0 30px 60px -30px rgb(30 0 6 / 0.7); font-size: clamp(10.5px, 3.2vw, 13.5px); }
+.s-flow .s-art-term { min-height: 100%; }
+.s-chapter-art.is-open .s-flow > li { opacity: 0; transform: translateY(28px); transition: opacity 0.6s calc(var(--i, 0) * 0.18s), transform 0.8s calc(var(--i, 0) * 0.18s) var(--ease); }
+.s-chapter-art.is-open.is-in .s-flow > li { opacity: 1; transform: none; }
+.s-flow > li:nth-child(2) { --i: 1; } .s-flow > li:nth-child(3) { --i: 2; }
+@media (prefers-reduced-motion: reduce) { .s-chapter-art.is-open .s-flow > li { opacity: 1; transform: none; transition: none; } }
+@media (min-width: 900px) {
+  .s-flow { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 40px; }
+  .s-flow > li { grid-template-rows: auto 1fr auto; }
+  .s-flow > li + li::before { content: '→'; position: absolute; margin: 0 0 0 -32px; font: 800 26px/1 var(--display); color: var(--ch-n, var(--red)); }
+  .s-flow > li { position: relative; }
+  .s-flow-quote { align-self: center; }
+}
+
 /* Секція без карток («Наші викладачі»): вміст прямо на фоні секції */
 .s-chapter-art.is-open { display: block; min-height: 0; padding: 0; border-radius: 0; background: none; overflow: visible; }
 .s-chapter-art.is-open::before, .s-chapter-art.is-open::after { display: none; }
-.s-team { display: grid; gap: 18px; width: 100%; color: var(--ch-ink, var(--ink)); }
-.s-team p { max-width: 24em; }
-.s-team p { margin: 0; font: 800 clamp(24px, 6.4vw, 52px)/1.12 var(--display); letter-spacing: -0.035em; text-wrap: balance; }
+.s-team { display: grid; gap: 6px; width: 100%; color: var(--ch-ink, var(--ink)); }
+.s-team p { max-width: none; }
+@media (min-width: 600px) { .s-team p > span { display: block; } }
+.s-team mark { white-space: nowrap; }
+.s-team .is-end { justify-self: end; text-align: right; }
+.s-team p { margin: 0; font: 800 clamp(22px, 4.6vw, 52px)/1.18 var(--display); letter-spacing: -0.035em; }
 .s-team mark { padding: 0 0.12em; border-radius: 0.18em; background: var(--red-fill); color: #fff; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
-.s-team .s-team-sub { max-width: none; color: var(--red); font-size: clamp(20px, 4.4vw, 36px); line-height: 1.2; }
+.s-team .s-team-sub { margin-top: 22px; max-width: none; color: var(--red); font-size: clamp(20px, 4.4vw, 36px); line-height: 1.2; }
 .s-chapter-art.is-open.is-in .s-team > :nth-child(2) { transition-delay: 0.2s; }
+.s-chapter-art.is-open.is-in .s-team > :nth-child(3) { transition-delay: 0.4s; }
 .s-chapter-art.is-open .s-team > * { opacity: 0; transform: translateY(28px); transition: opacity 0.6s, transform 0.8s var(--ease); }
 .s-chapter-art.is-open.is-in .s-team > * { opacity: 1; transform: none; }
-.s-chapter-art.is-open.is-in .s-team > :nth-child(2) { transition-delay: 0.15s; }
 @media (prefers-reduced-motion: reduce) { .s-chapter-art.is-open .s-team > * { opacity: 1; transform: none; transition: none; } }
 
 

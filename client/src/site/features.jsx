@@ -14,55 +14,45 @@ const Tick = () => <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path
 function TeamArt() {
   return (
     <div className="s-team">
-      <p>За спиною наших викладачів <mark>понад&nbsp;3&nbsp;роки</mark> викладання, <mark>більше&nbsp;сотні</mark> випускників і задоволених родин!</p>
+      <p><span>За спиною наших викладачів</span> <span><mark>понад 3 роки</mark> викладання,</span></p>
+      <p className="is-end"><span><mark>більше сотні</mark> випускників</span> <span>і задоволених родин!</span></p>
       <p className="s-team-sub">Ми точно знаємо, як пояснити те, що Вас цікавить.</p>
     </div>
   );
 }
 
-/* «Програмування легше, ніж здається»: від ідеї до власної гри — вісім рядків коду */
-function IdeaArt() {
-  return (
-    <div className="s-art-card">
-      <div className="s-art-row"><b>Крок 1</b><span className="s-art-pill is-live">Ідея</span></div>
-      <div className="s-art-easy is-idea">
-        <div className="s-art-note"><span className="s-art-ava is-you">Ви</span><p>Хочу свою гру: компʼютер загадує число, а я вгадую</p></div>
-        <div className="s-art-note is-reply"><p>Легко! Зробимо за одне заняття</p><span className="s-art-ava">ОК</span></div>
-      </div>
-      <div className="s-art-row"><small>Звучить складно?</small></div>
-    </div>
-  );
-}
-
-function LineArt() {
-  return (
-    <div className="s-art-card">
-      <div className="s-art-row"><b>Крок 2</b><span className="s-art-pill is-code">Код</span></div>
-      <div className="s-art-code s-art-easy">
-        <span><u className="k">from</u> random <u className="k">import</u> randint</span>
-        <span>secret = <u className="f">randint</u>(<u className="n">1</u>, <u className="n">10</u>)</span>
-        <span>guess = <u className="n">0</u></span>
-        <span><u className="k">while</u> guess != secret:</span>
-        <span>  guess = <u className="f">int</u>(<u className="f">input</u>(<u className="s">"Число? "</u>))</span>
-        <span>  <u className="k">if</u> guess &lt; secret: <u className="f">print</u>(<u className="s">"Більше!"</u>)</span>
-        <span>  <u className="k">if</u> guess &gt; secret: <u className="f">print</u>(<u className="s">"Менше!"</u>)</span>
-        <span><u className="f">print</u>(<u className="s">"Вгадав! 🎉"</u>)</span>
-      </div>
-      <div className="s-art-row"><small>Вісім рядків, і все</small></div>
-    </div>
-  );
-}
-
+/* «Програмування легше, ніж здається»: без карток — ланцюжок «ідея → код → гра» прямо на секції */
 const PLAY = [['Число? ', '5'], ['Більше!'], ['Число? ', '8'], ['Менше!'], ['Число? ', '7'], ['Вгадав! 🎉']];
-function RunArt() {
+function EasyFlow() {
   return (
-    <div className="s-art-card">
-      <div className="s-art-row"><b>Крок 3</b><span className="s-art-pill is-ok">Граємо</span></div>
-      <div className="s-art-term s-art-easy">
-        {PLAY.map(([t, you], k) => <span key={k} style={{ '--k': k }} className={k === PLAY.length - 1 ? 'is-win' : ''}>{t}{you && <b>{you}</b>}</span>)}
-      </div>
-      <p className="s-art-done"><Tick />Працює! Це Ваша перша гра</p>
-    </div>
+    <ol className="s-flow">
+      <li>
+        <span className="s-flow-n">1<b>Ідея</b></span>
+        <p className="s-flow-quote">«Хочу свою гру: компʼютер загадує число, а я вгадую»</p>
+        <small>Звучить складно?</small>
+      </li>
+      <li>
+        <span className="s-flow-n">2<b>Код</b></span>
+        <div className="s-art-code">
+          <span><u className="k">from</u> random <u className="k">import</u> randint</span>
+          <span>secret = <u className="f">randint</u>(<u className="n">1</u>, <u className="n">10</u>)</span>
+          <span>guess = <u className="n">0</u></span>
+          <span><u className="k">while</u> guess != secret:</span>
+          <span>  guess = <u className="f">int</u>(<u className="f">input</u>(<u className="s">"Число? "</u>))</span>
+          <span>  <u className="k">if</u> guess &lt; secret: <u className="f">print</u>(<u className="s">"Більше!"</u>)</span>
+          <span>  <u className="k">if</u> guess &gt; secret: <u className="f">print</u>(<u className="s">"Менше!"</u>)</span>
+          <span><u className="f">print</u>(<u className="s">"Вгадав! 🎉"</u>)</span>
+        </div>
+        <small>Вісім рядків, і все</small>
+      </li>
+      <li>
+        <span className="s-flow-n">3<b>Гра</b></span>
+        <div className="s-art-term">
+          {PLAY.map(([t, you], k) => <span key={k} style={{ '--k': k }} className={k === PLAY.length - 1 ? 'is-win' : ''}>{t}{you && <b>{you}</b>}</span>)}
+        </div>
+        <small>Працює! Це Ваша перша гра</small>
+      </li>
+    </ol>
   );
 }
 
@@ -161,7 +151,7 @@ function PathArt() {
 /** Які макети показувати в секції (ключ — FEATURES[].icon з content.js). */
 const FEATURE_ART = {
   solo: [TeamArt],
-  check: [IdeaArt, LineArt, RunArt],
+  check: [EasyFlow],
   quiz: [QuizArt, HintArt, PassArt],
   cabinet: [TodayArt, CheckedArt, PathArt],
 };
