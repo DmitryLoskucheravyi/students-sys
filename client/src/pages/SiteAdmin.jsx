@@ -1,6 +1,7 @@
 /*
- * Сайт школи в кабінеті менеджера: заявки з форми «Записатись», відгуки, що показувати на сайті, контакти.
- * Курси й види абонементів беруться з системи; тут лише вибір, які з них бачить відвідувач.
+ * Сайт школи в кабінеті менеджера: заявки з форми «Записатись», напрямки, відгуки, проєкти, абонементи на сайті, контакти.
+ * Напрямок — те, що відвідувач бачить як «курс»: менеджер складає його з курсів системи.
+ * Види абонементів беруться з системи; тут лише вибір, які з них бачить відвідувач.
  */
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -8,10 +9,11 @@ import { api, uploadForm, useData } from '../api.js';
 import { CourseIcon } from '../courseLook.jsx';
 import { dateTimeShort, lessonsWord, money } from '../fmt.js';
 import { Button, Checkbox, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageTools, Segmented, Select, Status, Textarea, useAction, useUI } from '../ui.jsx';
-import { IconBell, IconEdit, IconExternal, IconImage, IconPhone, IconPlus, IconQuote, IconRestore, IconTick, IconTrash } from '../icons.jsx';
+import { IconBell, IconDown, IconEdit, IconExternal, IconImage, IconPhone, IconPlus, IconQuote, IconRestore, IconRoadmap, IconTick, IconTrash, IconUp } from '../icons.jsx';
 
 const TABS = [
   { value: 'leads', label: 'Заявки' },
+  { value: 'directions', label: 'Напрямки' },
   { value: 'reviews', label: 'Відгуки' },
   { value: 'projects', label: 'Проєкти' },
   { value: 'showcase', label: 'На сайті' },
@@ -31,20 +33,25 @@ export default function SiteAdmin() {
   };
   const [editing, setEditing] = useState(null);
   const [project, setProject] = useState(null);
+  const [direction, setDirection] = useState(null);
+  const directions = useData(tab === 'directions' ? '/site-admin/directions' : null);
   const reviews = useData(tab === 'reviews' ? '/site-admin/reviews' : null);
   const projects = useData(tab === 'projects' ? '/site-admin/projects' : null);
   return (
     <div>
       <PageTools title="Сайт" filtered={tab !== 'leads'} filters={<Segmented value={tab} onChange={setTab} options={TABS} />}>
+        {tab === 'directions' && <Button icon={<IconPlus size={18} />} onClick={() => setDirection({})}>Новий напрямок</Button>}
         {tab === 'reviews' && <Button icon={<IconPlus size={18} />} onClick={() => setEditing({})}>Новий відгук</Button>}
         {tab === 'projects' && <Button icon={<IconPlus size={18} />} onClick={() => setProject({})}>Новий проєкт</Button>}
-        {tab !== 'reviews' && tab !== 'projects' && <a className="btn btn-ghost" href="/" target="_blank" rel="noreferrer"><IconExternal size={18} /><span>Відкрити сайт</span></a>}
+        {!['reviews', 'projects', 'directions'].includes(tab) && <a className="btn btn-ghost" href="/" target="_blank" rel="noreferrer"><IconExternal size={18} /><span>Відкрити сайт</span></a>}
       </PageTools>
       {tab === 'leads' && <Leads />}
+      {tab === 'directions' && <Directions state={directions} onEdit={setDirection} />}
       {tab === 'reviews' && <Reviews state={reviews} onEdit={setEditing} />}
       {tab === 'projects' && <Projects state={projects} onEdit={setProject} />}
       {tab === 'showcase' && <Showcase />}
       {tab === 'contacts' && <Contacts />}
+      {direction && <DirectionForm direction={direction} onClose={() => setDirection(null)} onSaved={() => { setDirection(null); directions.reload(); }} />}
       {project && <ProjectForm project={project} onClose={() => setProject(null)} onSaved={() => { setProject(null); projects.reload(); }} />}
       {editing && <ReviewForm review={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reviews.reload(); }} />}
     </div>
@@ -93,6 +100,113 @@ function Leads() {
         </li>
       ))}
     </ul>
+  );
+}
+
+/* ───────── Напрямки: те, що на сайті називається «Курси» ───────── */
+
+const coursesWord = (n) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'курс' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'курси' : 'курсів'}`;
+
+function Directions({ state, onEdit }) {
+  const { data, error, loading, reload, setData } = state;
+  const [run] = useAction();
+  const { confirm } = useUI();
+  const remove = async (d) => {
+    if (!(await confirm({ title: `Видалити напрямок «${d.title}»?`, text: 'Курси в системі залишаться, зникне лише картка на сайті.', action: 'Видалити', danger: true }))) return;
+    if (await run(() => api(`/site-admin/directions/${d.id}`, { method: 'DELETE' }), 'Напрямок видалено')) reload();
+  };
+  const move = async (k, by) => {
+    const ids = data.map((d) => d.id);
+    [ids[k], ids[k + by]] = [ids[k + by], ids[k]];
+    const r = await run(() => api('/site-admin/directions/order', { method: 'PUT', body: { ids } }));
+    if (r) setData(r);
+  };
+  if (error) return <ErrorNote text={error} onRetry={reload} />;
+  if (!data) return loading ? <Loader /> : null;
+  if (!data.length) {
+    return <Empty icon={<IconRoadmap size={36} />} title="Напрямків ще немає"
+      action={<Button icon={<IconPlus size={18} />} onClick={() => onEdit({})}>Новий напрямок</Button>} />;
+  }
+  return (
+    <ul className="rows">
+      {data.map((d, k) => (
+        <li key={d.id} className="row direction-row">
+          <CourseIcon course={d} size={22} />
+          <div className="row-main">
+            <h3>{d.title}</h3>
+            <p className="muted small">{d.courses.length ? d.courses.map((c) => c.title).join(', ') : 'Без курсів: на сайті не видно'}</p>
+          </div>
+          {!d.is_published && <Status kind="cancelled">Прихований</Status>}
+          <div className="row-actions">
+            <IconButton label="Вище" disabled={k === 0} onClick={() => move(k, -1)}><IconUp size={20} /></IconButton>
+            <IconButton label="Нижче" disabled={k === data.length - 1} onClick={() => move(k, 1)}><IconDown size={20} /></IconButton>
+            <IconButton label="Редагувати" onClick={() => onEdit(d)}><IconEdit size={20} /></IconButton>
+            <IconButton label="Видалити" onClick={() => remove(d)}><IconTrash size={20} /></IconButton>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function DirectionForm({ direction, onClose, onSaved }) {
+  const isNew = !direction.id;
+  const [title, setTitle] = useState(direction.title ?? '');
+  const [summary, setSummary] = useState(direction.summary ?? '');
+  const [ids, setIds] = useState(() => (direction.courses ?? []).map((c) => c.id));
+  const [published, setPublished] = useState(direction.is_published !== 0);
+  const { data: showcase } = useData('/site-admin/showcase');
+  const [run, busy] = useAction();
+  const all = showcase?.courses ?? [];
+  const byId = new Map(all.map((c) => [c.id, c]));
+  const picked = ids.map((x) => byId.get(x)).filter(Boolean);
+  const rest = all.filter((c) => !ids.includes(c.id));
+  const shift = (k, by) => setIds((cur) => { const n = [...cur]; [n[k], n[k + by]] = [n[k + by], n[k]]; return n; });
+  const submit = async (e) => {
+    e.preventDefault();
+    const body = { title, summary, course_ids: ids, is_published: published };
+    const ok = await run(() => api(isNew ? '/site-admin/directions' : `/site-admin/directions/${direction.id}`, { method: isNew ? 'POST' : 'PATCH', body }), isNew ? 'Напрямок додано' : 'Зміни збережено');
+    if (ok) onSaved();
+  };
+  return (
+    <Modal title={isNew ? 'Новий напрямок' : 'Напрямок'} onClose={onClose}>
+      <form className="form" onSubmit={submit}>
+        <Input label="Назва" required maxLength={120} hint="Так курс називається на сайті" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Textarea label="Опис" rows={3} maxLength={600} value={summary} onChange={(e) => setSummary(e.target.value)} />
+        <div className="dir-courses">
+          <p className="label">Курси напрямку{picked.length > 0 && <span className="muted">, {coursesWord(picked.length)} по черзі</span>}</p>
+          {picked.length > 0 ? (
+            <ol className="dir-picked">
+              {picked.map((c, k) => (
+                <li key={c.id}>
+                  <b>{k + 1}</b>
+                  <span className="showcase-item"><CourseIcon course={c} size={18} />{c.title}</span>
+                  <IconButton label="Вище" disabled={k === 0} onClick={() => shift(k, -1)}><IconUp size={18} /></IconButton>
+                  <IconButton label="Нижче" disabled={k === picked.length - 1} onClick={() => shift(k, 1)}><IconDown size={18} /></IconButton>
+                  <IconButton label={`Прибрати «${c.title}»`} onClick={() => setIds(ids.filter((x) => x !== c.id))}><IconTrash size={18} /></IconButton>
+                </li>
+              ))}
+            </ol>
+          ) : <p className="muted small">Додайте курси нижче. Перший курс задає іконку й колір картки.</p>}
+          {rest.length > 0 && (
+            <ul className="dir-add">
+              {rest.map((c) => (
+                <li key={c.id}>
+                  <button type="button" className="dir-add-btn" onClick={() => setIds([...ids, c.id])}>
+                    <IconPlus size={16} /><CourseIcon course={c} size={16} />{c.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <Checkbox checked={published} onChange={setPublished}>Показувати на сайті</Checkbox>
+        <div className="form-actions">
+          <Button variant="ghost" onClick={onClose}>Скасувати</Button>
+          <Button type="submit" busy={busy}>{isNew ? 'Додати' : 'Зберегти'}</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -286,7 +400,7 @@ function Showcase() {
   const save = async (next) => {
     const r = await run(() => api('/site-admin/showcase', {
       method: 'PUT',
-      body: { course_ids: next.courses.filter((c) => c.on_site).map((c) => c.id), plan_ids: next.plans.filter((p) => p.on_site).map((p) => p.id) },
+      body: { plan_ids: next.plans.filter((p) => p.on_site).map((p) => p.id) },
     }), 'Збережено');
     if (r) setData(r);
   };
@@ -294,20 +408,6 @@ function Showcase() {
 
   return (
     <div className="showcase">
-      <section>
-        <h2>Курси</h2>
-        {data.courses.length ? (
-          <ul className="showcase-list">
-            {data.courses.map((c) => (
-              <li key={c.id}>
-                <Checkbox checked={Boolean(c.on_site)} onChange={(on) => toggle('courses', c, on)}>
-                  <span className="showcase-item"><CourseIcon course={c} size={18} />{c.title}</span>
-                </Checkbox>
-              </li>
-            ))}
-          </ul>
-        ) : <p className="muted">Курсів ще немає.</p>}
-      </section>
       <section>
         <h2>Абонементи</h2>
         {data.plans.length ? (

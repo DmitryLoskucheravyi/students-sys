@@ -53,6 +53,9 @@ function SliderSection({ title, to, more, label, children }) {
   );
 }
 
+const coursesWord = (n) => `${n} ${plural(n, 'курс', 'курси', 'курсів')}`;
+
+/** Картка «курсу» на сайті — це напрямок: вигляд від першого курсу, під назвою — курси, з яких він складається. */
 function CourseCard({ c }) {
   const lead = useLead();
   return (
@@ -60,11 +63,16 @@ function CourseCard({ c }) {
       <span className="s-course-cover">
         <CourseIcon course={c} size={30} big />
         <span className="s-course-mark" aria-hidden="true"><CourseIcon course={c} size={150} /></span>
-        {c.steps > 0 && <span className="s-course-count">{topicsWord(c.steps)}</span>}
+        {c.courses.length > 1
+          ? <span className="s-course-count">{coursesWord(c.courses.length)}</span>
+          : c.steps > 0 && <span className="s-course-count">{topicsWord(c.steps)}</span>}
       </span>
       <div className="s-course-body">
         <h3><Link to={`/courses/${c.id}`} className="s-course-link">{c.title}</Link></h3>
         {c.summary && <p>{c.summary}</p>}
+        {c.courses.length > 1 && (
+          <ol className="s-course-parts">{c.courses.map((x, k) => <li key={x.id}><b>{k + 1}</b>{x.title}</li>)}</ol>
+        )}
         <div className="s-course-actions">
           <Link to={`/courses/${c.id}`} className="btn btn-ghost">Детальніше</Link>
           <Button onClick={() => lead(`Курс: ${c.title}`)}>Записатись</Button>
@@ -594,9 +602,9 @@ export function Home() {
       {error && !data && <LoadError onRetry={reload} />}
       {!data && !error && <Loading />}
 
-      {data?.courses.length > 0 && (
+      {data?.directions.length > 0 && (
         <SliderSection title="Курси" to="/courses" more="Усі курси" label="Курси">
-          {data.courses.map((c) => <CourseCard key={c.id} c={c} />)}
+          {data.directions.map((c) => <CourseCard key={c.id} c={c} />)}
         </SliderSection>
       )}
 
@@ -658,8 +666,8 @@ export function CoursesPage() {
       <section className="s-wrap s-sec is-tight">
         {error && !data && <LoadError onRetry={reload} />}
         {!data && !error && <Loading />}
-        {data && (data.courses.length
-          ? <div className="s-grid">{data.courses.map((c) => <CourseCard key={c.id} c={c} />)}</div>
+        {data && (data.directions.length
+          ? <div className="s-grid">{data.directions.map((c) => <CourseCard key={c.id} c={c} />)}</div>
           : <p className="s-empty">Список курсів скоро зʼявиться. Залиште заявку — розкажемо, що можемо запропонувати.</p>)}
       </section>
       <CtaBand />
@@ -667,6 +675,43 @@ export function CoursesPage() {
   );
 }
 
+/** Програма одного курсу: нумерований шлях зигзагом, підтеми згорнуті. */
+function Program({ course, index, total, last }) {
+  return (
+    <section className={`s-wrap s-sec s-program-wrap ${themeClass(course.theme)}`}>
+      <div className="s-program-side">
+        {total > 1 && <p className="s-program-part">Курс {index + 1} з {total}</p>}
+        <h2>{total > 1 ? course.title : 'Програма'}</h2>
+        {total > 1 && course.summary && <p className="s-program-sum">{course.summary}</p>}
+        <p>{topicsWord(course.steps.length)}</p>
+      </div>
+      <div className="s-program-main">
+        <ol className="s-program">
+          {course.steps.map((s, i) => (
+            <li key={s.id} className={i % 2 ? 'is-r' : 'is-l'}>
+              <span className="s-program-n">{String(i + 1).padStart(2, '0')}</span>
+              <div className="s-program-card">
+                <h3>{s.title}</h3>
+                {s.description && <p>{s.description}</p>}
+                {s.topics.length > 0 && (
+                  <details className="s-topics-box">
+                    <summary>{s.topics.length} {plural(s.topics.length, 'підтема', 'підтеми', 'підтем')}<IconDown size={16} /></summary>
+                    <ul className="s-topics">{s.topics.map((t) => <li key={t}>{t}</li>)}</ul>
+                  </details>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+        {last
+          ? <p className="s-program-end"><span>:)</span>Фініш і сертифікат</p>
+          : <p className="s-program-end is-next"><span><IconDown size={20} /></span>Далі: курс {index + 2}</p>}
+      </div>
+    </section>
+  );
+}
+
+/** Сторінка «курсу» на сайті — напрямку: шапка, програми його курсів по черзі, відгуки. */
 export function CoursePage() {
   const { id } = useParams();
   const [state, setState] = useState({ course: null, error: null });
@@ -683,6 +728,8 @@ export function CoursePage() {
     return error.message.includes('не знайдено') ? <NotFound title="Курс не знайдено" /> : <LoadError onRetry={load} />;
   }
   if (!course) return <Loading />;
+  const withSteps = course.courses.filter((c) => c.steps.length > 0);
+  const meta = [course.courses.length > 1 && coursesWord(course.courses.length), course.steps > 0 && topicsWord(course.steps)].filter(Boolean).join(', ');
   return (
     <>
       <section className={`s-course-hero ${themeClass(course.theme)}`}>
@@ -693,40 +740,13 @@ export function CoursePage() {
           {course.summary && <p className="s-lead">{course.summary}</p>}
           <div className="s-course-hero-actions">
             <Button className="btn-onred s-big" onClick={() => lead(`Курс: ${course.title}`)}>Записатись на курс</Button>
-            {course.steps.length > 0 && <span className="s-course-hero-meta">{topicsWord(course.steps.length)}</span>}
+            {meta && <span className="s-course-hero-meta">{meta}</span>}
           </div>
         </div>
         <span className="s-course-hero-mark" aria-hidden="true"><CourseIcon course={course} size={320} /></span>
       </section>
 
-      {course.steps.length > 0 && (
-        <section className={`s-wrap s-sec s-program-wrap ${themeClass(course.theme)}`}>
-          <div className="s-program-side">
-            <h2>Програма</h2>
-            <p>{topicsWord(course.steps.length)}</p>
-          </div>
-          <div className="s-program-main">
-          <ol className="s-program">
-            {course.steps.map((s, i) => (
-              <li key={s.id} className={i % 2 ? 'is-r' : 'is-l'}>
-                <span className="s-program-n">{String(i + 1).padStart(2, '0')}</span>
-                <div className="s-program-card">
-                  <h3>{s.title}</h3>
-                  {s.description && <p>{s.description}</p>}
-                  {s.topics.length > 0 && (
-                    <details className="s-topics-box">
-                      <summary>{s.topics.length} {plural(s.topics.length, 'підтема', 'підтеми', 'підтем')}<IconDown size={16} /></summary>
-                      <ul className="s-topics">{s.topics.map((t) => <li key={t}>{t}</li>)}</ul>
-                    </details>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ol>
-          <p className="s-program-end"><span>:)</span>Фініш курсу і сертифікат</p>
-          </div>
-        </section>
-      )}
+      {withSteps.map((c, k) => <Program key={c.id} course={c} index={k} total={withSteps.length} last={k === withSteps.length - 1} />)}
 
       {course.reviews.length > 0 && (
         <section className="s-wrap s-sec">

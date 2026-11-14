@@ -214,7 +214,7 @@
 .s-course-hero-in { position: relative; z-index: 1; display: grid; justify-items: start; gap: 14px; padding-top: 22px; padding-bottom: 40px; }
 .s-back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 10px; color: inherit; opacity: 0.8; font-weight: 600; font-size: 14.5px; }
 .s-course-hero .course-ico { background: #fff; color: var(--red); }
-.s-course-hero h1 { font: 800 clamp(36px, 10vw, 96px)/1 var(--display); letter-spacing: -0.055em; overflow-wrap: anywhere; }
+.s-course-hero h1 { font: 800 clamp(28px, 8vw, 96px)/1.05 var(--display); letter-spacing: -0.055em; overflow-wrap: break-word; hyphens: auto; }
 .s-course-hero .s-lead { color: inherit; opacity: 0.9; max-width: 52ch; }
 .s-course-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; margin-top: 8px; }
 .s-course-hero .btn-onred { color: var(--red); }
@@ -611,3 +611,12 @@
 .s-plan-slot.is-mid > .s-ticket { transform: scale(1.04); box-shadow: 0 30px 60px -30px rgb(84 14 26 / 0.45); }
 @keyframes s-plan-swap { from { opacity: 0; transform: rotateY(-70deg) translateY(10px); } }
 @media (prefers-reduced-motion: reduce) { .s-plans-row .s-ticket { animation: none !important; } }
+
+/* Напрямок: курси, з яких він складається — на картці й на сторінці */
+.s-course-parts { display: grid; gap: 6px; margin: 2px 0 4px; padding: 0; list-style: none; }
+.s-course-parts li { display: flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 600; }
+.s-course-parts b { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: var(--red-soft); color: var(--red); font: 800 12px/1 var(--display); }
+.s-program-part { color: var(--red); font: 800 13px/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.s-program-sum { color: var(--muted); }
+.s-program-wrap + .s-program-wrap { padding-top: 24px; }
+.s-program-end.is-next span { background: var(--red-soft); color: var(--red); }

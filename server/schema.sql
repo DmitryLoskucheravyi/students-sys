@@ -464,3 +464,23 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Напрямок на сайті («Курси» для відвідувача): складається з курсів системи у заданому порядку.
+-- Вигляд (іконку й колір) бере з першого курсу. Складає менеджер.
+CREATE TABLE IF NOT EXISTS directions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(120) NOT NULL,
+  summary VARCHAR(600) NULL,
+  position INT NOT NULL DEFAULT 0,
+  is_published TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS direction_courses (
+  direction_id INT NOT NULL,
+  course_id INT NOT NULL,
+  position INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (direction_id, course_id),
+  FOREIGN KEY (direction_id) REFERENCES directions(id) ON DELETE CASCADE,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

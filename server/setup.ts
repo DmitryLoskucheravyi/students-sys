@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
-import mysql, { type Connection, type RowDataPacket } from 'mysql2/promise';
+import mysql, { type Connection, type ResultSetHeader, type RowDataPacket } from 'mysql2/promise';
 import bcrypt from 'bcryptjs';
 import { dbConfig, dbName } from './db.js';
 import { ROOT } from './paths.js';
@@ -27,7 +27,7 @@ async function columnInfo(conn: Connection, table: string, column: string): Prom
  * Вчитель і учні колись належали уроку, тепер постановці в розклад. Склад копіюється
  * в кожну постановку того самого уроку, домашнє переходить до постановки свого заняття.
  */
-async function migrate(conn: Connection, { hadRoster, hadSchedules }: { hadRoster: boolean; hadSchedules: boolean }): Promise<void> {
+async function migrate(conn: Connection, { hadRoster, hadSchedules, hadDirections }: { hadRoster: boolean; hadSchedules: boolean; hadDirections: boolean }): Promise<void> {
   const lessonTeacher = await columnInfo(conn, 'lessons', 'teacher_id');
   if (lessonTeacher?.nullable === 'NO') await conn.query('ALTER TABLE lessons MODIFY teacher_id INT NULL');
 
@@ -109,6 +109,14 @@ async function migrate(conn: Connection, { hadRoster, hadSchedules }: { hadRoste
   if (!(await columnInfo(conn, 'plans', 'on_site'))) {
     await conn.query('ALTER TABLE plans ADD COLUMN on_site TINYINT(1) NOT NULL DEFAULT 0');
   }
+  // Напрямки зʼявились: кожен курс, що вже був на сайті, стає окремим напрямком, щоб сайт не спорожнів.
+  if (!hadDirections) {
+    const [shown] = await conn.query<RowDataPacket[]>('SELECT id, title, summary FROM courses WHERE on_site = 1 ORDER BY title');
+    for (const [k, c] of shown.entries()) {
+      const [r] = await conn.query<ResultSetHeader>('INSERT INTO directions (title, summary, position) VALUES (?, ?, ?)', [c.title, c.summary, k]);
+      await conn.query('INSERT INTO direction_courses (direction_id, course_id, position) VALUES (?, ?, 0)', [r.insertId, c.id]);
+    }
+  }
   if (hadSchedules && !hadRoster) {
     await conn.query(
       `INSERT IGNORE INTO schedule_students (schedule_id, student_id)
@@ -135,8 +143,9 @@ export async function ensureDatabase(): Promise<void> {
     await conn.query(`USE \`${dbName}\``);
     const hadRoster = await tableExists(conn, 'schedule_students');
     const hadSchedules = await tableExists(conn, 'lesson_schedules');
+    const hadDirections = await tableExists(conn, 'directions');
     await conn.query(await readFile(path.join(ROOT, 'server', 'schema.sql'), 'utf8'));
-    await migrate(conn, { hadRoster, hadSchedules });
+    await migrate(conn, { hadRoster, hadSchedules, hadDirections });
     const [[{ n }]] = await conn.query<RowDataPacket[]>(`SELECT COUNT(*) n FROM users WHERE role='manager'`);
     if (n === 0) {
       const production = process.env.NODE_ENV === 'production';

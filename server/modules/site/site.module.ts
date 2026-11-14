@@ -14,9 +14,10 @@ export class SiteController {
     return this.site.overview();
   }
 
+  /** Сторінка «курсу» на сайті — це напрямок. */
   @Get('courses/:id')
-  course(@Param('id') idValue: string) {
-    return this.site.course(idValue);
+  direction(@Param('id') idValue: string) {
+    return this.site.direction(idValue);
   }
 
   @Get('images/:name')
@@ -108,6 +109,32 @@ export class SiteAdminController {
   @Get('images/:name')
   sendImage(@Param('name') name: string, @Res() res: Response) {
     return this.admin.sendImage(name, res);
+  }
+
+  @Get('directions')
+  directions() {
+    return this.admin.directions();
+  }
+
+  @Post('directions')
+  @HttpCode(201)
+  createDirection(@Body() body: any) {
+    return this.admin.createDirection(body);
+  }
+
+  @Put('directions/order')
+  orderDirections(@Body() body: any) {
+    return this.admin.orderDirections(body);
+  }
+
+  @Patch('directions/:id')
+  updateDirection(@Param('id') idValue: string, @Body() body: any) {
+    return this.admin.updateDirection(idValue, body);
+  }
+
+  @Delete('directions/:id')
+  removeDirection(@Param('id') idValue: string) {
+    return this.admin.removeDirection(idValue);
   }
 
   @Get('showcase')

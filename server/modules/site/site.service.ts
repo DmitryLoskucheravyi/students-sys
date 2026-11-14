@@ -97,6 +97,55 @@ async function settings(): Promise<Record<Setting, string>> {
   return out;
 }
 
+/* ───────── Напрямки ───────── */
+
+/** Курси напрямків разом, у порядку всередині напрямку. Вигляд напрямку — від першого курсу. */
+async function directionCourses(ids: number[]): Promise<Row[]> {
+  if (!ids.length) return [];
+  return q(`SELECT dc.direction_id, c.id, c.title, c.summary, c.icon, c.theme,
+                   (SELECT COUNT(*) FROM roadmap_steps s WHERE s.course_id = c.id) AS steps
+              FROM direction_courses dc JOIN courses c ON c.id = dc.course_id
+             WHERE dc.direction_id IN (?) ORDER BY dc.direction_id, dc.position, c.title`, [ids]);
+}
+
+function withCourses(d: Row, all: Row[]): Row {
+  const courses: Row[] = all.filter((c) => c.direction_id === d.id).map(({ direction_id: _d, ...c }) => ({ ...c, steps: Number(c.steps) }));
+  return {
+    ...d,
+    icon: courses[0]?.icon ?? null,
+    theme: courses[0]?.theme ?? null,
+    steps: courses.reduce((n: number, c: Row) => n + c.steps, 0),
+    courses,
+  };
+}
+
+function parseDirection(b: any) {
+  const courseIds = idList(b.course_ids ?? [], 'Курси');
+  if (new Set(courseIds).size !== courseIds.length) throw bad('Курс у напрямку двічі');
+  return {
+    row: {
+      title: str(b.title, 'Назва', { max: 120 }),
+      summary: str(b.summary, 'Опис', { max: 600, required: false }),
+      is_published: b.is_published === false || b.is_published === 0 ? 0 : 1,
+    },
+    courseIds,
+  };
+}
+
+/** Усі курси мають існувати: перевіряємо до запису, щоб не лишити напрямок без курсів. */
+async function checkCourses(courseIds: number[]) {
+  if (!courseIds.length) return;
+  const found: Row[] = await q('SELECT id FROM courses WHERE id IN (?)', [courseIds]);
+  if (found.length !== courseIds.length) throw bad('Курс не знайдено');
+}
+
+async function saveDirectionCourses(directionId: number, courseIds: number[]) {
+  await q('DELETE FROM direction_courses WHERE direction_id = ?', [directionId]);
+  for (const [k, courseId] of courseIds.entries()) {
+    await q('INSERT INTO direction_courses (direction_id, course_id, position) VALUES (?, ?, ?)', [directionId, courseId, k]);
+  }
+}
+
 const REVIEW_SELECT = `SELECT r.id, r.author, r.author_role, r.text, r.course_id, r.is_published, r.created_at, c.title AS course_title
   FROM reviews r LEFT JOIN courses c ON c.id = r.course_id`;
 
@@ -114,10 +163,8 @@ function parseReview(b: any) {
 @Injectable()
 export class SiteService {
   async overview() {
-    const [courses, plans, reviews, contacts, projects] = await Promise.all([
-      q(`SELECT c.id, c.title, c.summary, c.icon, c.theme,
-                (SELECT COUNT(*) FROM roadmap_steps s WHERE s.course_id = c.id) AS steps
-           FROM courses c WHERE c.on_site = 1 ORDER BY c.title`),
+    const [directions, plans, reviews, contacts, projects] = await Promise.all([
+      this.publishedDirections(),
       q(`SELECT id, name, lessons_count, price_per_lesson, valid_days, color
            FROM plans WHERE on_site = 1 AND is_active = 1 ORDER BY lessons_count`),
       q(`${REVIEW_SELECT} WHERE r.is_published = 1 ORDER BY r.id DESC`),
@@ -126,25 +173,40 @@ export class SiteService {
     ]);
     return {
       projects: projects.map(({ is_published: _p, course_id: _c, ...x }: Row) => x),
-      courses,
+      directions,
       plans: plans.map((p: Row) => ({ ...p, price_per_lesson: Number(p.price_per_lesson), total: Number(p.price_per_lesson) * p.lessons_count })),
       reviews: reviews.map(({ is_published: _p, course_id: _c, ...r }: Row) => r),
       contacts,
     };
   }
 
-  async course(idValue: unknown) {
-    const courseId = id(idValue);
-    const [course] = await q('SELECT id, title, summary, icon, theme FROM courses WHERE id = ? AND on_site = 1', [courseId]);
-    if (!course) throw notFound('Курс не знайдено');
-    const steps: Row[] = await q('SELECT id, title, description FROM roadmap_steps WHERE course_id = ? ORDER BY position, id', [courseId]);
+  /** Опубліковані напрямки, у яких є хоч один курс. */
+  private async publishedDirections() {
+    const rows: Row[] = await q('SELECT id, title, summary FROM directions WHERE is_published = 1 ORDER BY position, id');
+    const all = await directionCourses(rows.map((d) => d.id));
+    return rows.map((d) => withCourses(d, all)).filter((d) => d.courses.length > 0);
+  }
+
+  /** Сторінка напрямку: його курси з програмами (теми й підтеми) і відгуки про будь-який із курсів. */
+  async direction(idValue: unknown) {
+    const directionId = id(idValue);
+    const [row] = await q('SELECT id, title, summary FROM directions WHERE id = ? AND is_published = 1', [directionId]);
+    if (!row) throw notFound('Курс не знайдено');
+    const d = withCourses(row, await directionCourses([directionId]));
+    if (!d.courses.length) throw notFound('Курс не знайдено');
+    const courseIds = d.courses.map((c: Row) => c.id);
+    const steps: Row[] = await q('SELECT id, course_id, title, description FROM roadmap_steps WHERE course_id IN (?) ORDER BY position, id', [courseIds]);
     const subs: Row[] = steps.length
       ? await q(`SELECT step_id, title FROM roadmap_substeps WHERE step_id IN (?) ORDER BY position, id`, [steps.map((s) => s.id)])
       : [];
     return {
-      ...course,
-      steps: steps.map((s) => ({ ...s, topics: subs.filter((x) => x.step_id === s.id).map((x) => x.title) })),
-      reviews: await q(`${REVIEW_SELECT} WHERE r.is_published = 1 AND r.course_id = ? ORDER BY r.id DESC`, [courseId]),
+      ...d,
+      courses: d.courses.map((c: Row) => ({
+        ...c,
+        steps: steps.filter((s) => s.course_id === c.id)
+          .map(({ course_id: _c, ...s }) => ({ ...s, topics: subs.filter((x) => x.step_id === s.id).map((x) => x.title) })),
+      })),
+      reviews: await q(`${REVIEW_SELECT} WHERE r.is_published = 1 AND r.course_id IN (?) ORDER BY r.id DESC`, [courseIds]),
     };
   }
 
@@ -282,13 +344,58 @@ export class SiteAdminService {
     return { courses, plans };
   }
 
-  /** Повний список того, що показувати: усе інше ховається. */
+  /** Повний список абонементів, які показувати: усе інше ховається. Курси на сайт ідуть через напрямки. */
   async setShowcase(body: any) {
-    const courseIds = idList(body?.course_ids ?? [], 'Курси');
     const planIds = idList(body?.plan_ids ?? [], 'Абонементи');
-    await q('UPDATE courses SET on_site = (id IN (?))', [courseIds.length ? courseIds : [0]]);
     await q('UPDATE plans SET on_site = (id IN (?))', [planIds.length ? planIds : [0]]);
     return this.showcase();
+  }
+
+  async directions() {
+    const rows: Row[] = await q('SELECT id, title, summary, position, is_published FROM directions ORDER BY position, id');
+    const all = await directionCourses(rows.map((d) => d.id));
+    return rows.map((d) => withCourses(d, all));
+  }
+
+  private async oneDirection(directionId: number) {
+    const [row] = await q('SELECT id, title, summary, position, is_published FROM directions WHERE id = ?', [directionId]);
+    if (!row) throw notFound();
+    return withCourses(row, await directionCourses([directionId]));
+  }
+
+  async createDirection(body: any) {
+    const { row, courseIds } = parseDirection(body ?? {});
+    await checkCourses(courseIds);
+    const [{ next }] = await q('SELECT COALESCE(MAX(position), -1) + 1 AS next FROM directions');
+    const r = await q('INSERT INTO directions SET ?', [{ ...row, position: Number(next) }]);
+    await saveDirectionCourses(r.insertId, courseIds);
+    return this.oneDirection(r.insertId);
+  }
+
+  async updateDirection(idValue: unknown, body: any) {
+    const directionId = id(idValue);
+    const cur = await this.oneDirection(directionId);
+    const b = body ?? {};
+    const { row, courseIds } = parseDirection({
+      title: cur.title, summary: cur.summary, is_published: cur.is_published,
+      course_ids: cur.courses.map((c: Row) => c.id), ...b,
+    });
+    await checkCourses(courseIds);
+    await q('UPDATE directions SET ? WHERE id = ?', [row, directionId]);
+    if ('course_ids' in b) await saveDirectionCourses(directionId, courseIds);
+    return this.oneDirection(directionId);
+  }
+
+  /** Порядок напрямків на сайті: повний список id згори вниз. */
+  async orderDirections(body: any) {
+    const ids = idList(body?.ids ?? [], 'Напрямки');
+    for (const [k, directionId] of ids.entries()) await q('UPDATE directions SET position = ? WHERE id = ?', [k, directionId]);
+    return this.directions();
+  }
+
+  async removeDirection(idValue: unknown) {
+    await q('DELETE FROM directions WHERE id = ?', [id(idValue)]);
+    return { ok: true };
   }
 
   settings() {

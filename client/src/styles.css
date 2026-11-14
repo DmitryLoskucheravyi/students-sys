@@ -1631,3 +1631,15 @@ button.stop:active { transform: scale(0.94); }
 .modal-badge b { font-weight: 800; }
 @keyframes badge-in { from { opacity: 0; transform: translateY(10px) scale(0.85); } }
 @media (prefers-reduced-motion: reduce) { .modal-badge { animation: none; } }
+
+/* Напрямки сайту: курси по черзі з номерами, нижче — кнопки «+ курс» */
+.direction-row > svg, .direction-row > .course-ico { flex: none; }
+.dir-courses { display: grid; gap: 10px; }
+.dir-courses .label { font-weight: 600; font-size: 14px; }
+.dir-picked { display: grid; gap: 6px; }
+.dir-picked li { display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 10px; border-radius: 10px; background: var(--wash); }
+.dir-picked b { flex: none; display: grid; place-items: center; width: 24px; height: 24px; margin-right: 6px; border-radius: 8px; background: var(--red-soft); color: var(--red); font-size: 12px; }
+.dir-picked .showcase-item { flex: 1; min-width: 0; }
+.dir-add { display: flex; flex-wrap: wrap; gap: 6px; }
+.dir-add-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--grid-strong); font-size: 14px; font-weight: 500; }
+@media (hover: hover) and (pointer: fine) { .dir-add-btn:hover { background: var(--wash); } }
