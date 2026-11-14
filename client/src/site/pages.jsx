@@ -216,7 +216,7 @@ function CtaBand({ title = CTA.title, text = CTA.text, note }) {
   );
 }
 
-/* Перший екран: роадмап від новачка до сертифіката. Шлях малюється, «Ти» йде ним, кроки загоряються. */
+/* Перший екран: роадмап від новачка до сертифіката. Шлях малюється, «Ви» йдете ним, кроки загоряються. */
 const ROAD_PATH = 'M80 540 C 240 560, 420 520, 400 440 S 120 380, 110 320 S 380 270, 390 200 S 290 80, 250 66';
 const ROAD = [
   { x: 80, y: 540, label: 'Старт', title: 'Новачок у програмуванні', side: 'r', at: 0 },
@@ -248,7 +248,7 @@ function HeroArt() {
           <g className="s-road-you" transform={reduce ? 'translate(250 66)' : undefined}>
             <circle className="s-road-ring" r="18" />
             <circle r="18" />
-            <text>Ти</text>
+            <text>Ви</text>
             {!reduce && (
               <animateMotion dur={`${total}s`} fill="freeze" path={ROAD_PATH} calcMode="spline"
                 keyPoints="0;0;1" keyTimes={`0;${(ROAD_START / total).toFixed(3)};1`} keySplines="0 0 1 1;0.42 0 0.58 1" />
@@ -275,23 +275,41 @@ function HeroArt() {
   );
 }
 
-/** Шторка під кнопкою в хіро: висувається, висить ~5 с і ховається. Лише раз за сесію. */
+/**
+ * Шторка під кнопкою в хіро. Висувається, лише коли кнопку вже видно на екрані (на телефоні — коли доскролили),
+ * висить 12 с і ховається. Лише раз за сесію.
+ */
+const PEEK_HOLD = 12000;
 function TrialPeek() {
+  const ref = useRef(null);
   const [state, setState] = useState('hidden');
   useEffect(() => {
     let seen = false;
     try { seen = sessionStorage.getItem('bs.trialPeek') === '1'; } catch { /* приватний режим */ }
-    if (seen) return undefined;
-    const timers = [
-      setTimeout(() => { setState('open'); try { sessionStorage.setItem('bs.trialPeek', '1'); } catch { /* ок */ } }, 1600),
-      setTimeout(() => setState('closing'), 1600 + 4800),
-      setTimeout(() => setState('done'), 1600 + 4800 + 700),
-    ];
-    return () => timers.forEach(clearTimeout);
+    const anchor = ref.current?.parentElement;
+    if (seen || !anchor) return undefined;
+    const timers = [];
+    let shown = false;
+    const show = () => {
+      if (shown) return;
+      shown = true;
+      io?.disconnect();
+      setState('open');
+      try { sessionStorage.setItem('bs.trialPeek', '1'); } catch { /* ок */ }
+      timers.push(setTimeout(() => setState('closing'), PEEK_HOLD), setTimeout(() => setState('done'), PEEK_HOLD + 700));
+    };
+    // Кнопка має повністю потрапити в кадр і пробути там мить — тоді шторка виїжджає на очах
+    let wait = null;
+    const io = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver(([e]) => {
+      clearTimeout(wait);
+      if (e.isIntersecting) wait = setTimeout(show, 700);
+    }, { threshold: 1 });
+    if (io) io.observe(anchor); else show();
+    return () => { io?.disconnect(); clearTimeout(wait); timers.forEach(clearTimeout); };
   }, []);
-  if (state === 'hidden' || state === 'done') return null;
+  if (state === 'done') return null;
   return (
-    <div className="s-peek-wrap" role="status">
+    <div ref={ref} className="s-peek-wrap" role="status" hidden={state === 'hidden'}>
       <div className={`s-peek ${state === 'closing' ? 'is-out' : ''}`}><IconSpark size={18} />Перше пробне заняття <b>безкоштовно</b></div>
     </div>
   );
@@ -320,7 +338,7 @@ function SoloArt() {
       <div className="s-art-duo">
         <span className="s-art-person"><span className="s-art-ava is-big">ОК</span><small>Викладач</small></span>
         <span className="s-art-link" aria-hidden="true"><i /><i /><i /></span>
-        <span className="s-art-person"><span className="s-art-ava is-big is-you">Ти</span><small>Учень</small></span>
+        <span className="s-art-person"><span className="s-art-ava is-big is-you">Ви</span><small>Учень</small></span>
       </div>
       <small className="s-art-label">Індивідуальна програма</small>
       <ul className="s-art-tags"><li>Python</li><li>Свої ігри</li><li>Свій темп</li></ul>
@@ -334,7 +352,7 @@ function HomeworkArt() {
     <div className="s-art-card">
       <div className="s-art-row"><b>Домашнє «Цикли»</b><span className="s-art-pill is-ok">Перевірено</span></div>
       <div className="s-art-code"><span><u className="k">for</u> n <u className="k">in</u> <u className="f">range</u>(<u className="n">5</u>):</span><span>    <u className="f">print</u>(n * n)</span></div>
-      <div className="s-art-note"><span className="s-art-ava">ОК</span><p>Гарно! Наступного разу спробуй винести це у функцію.</p></div>
+      <div className="s-art-note"><span className="s-art-ava">ОК</span><p>Гарно! Наступного разу спробуйте винести це у функцію.</p></div>
       <div className="s-art-row"><small>Оцінка</small><b className="s-art-grade">11<span>/12</span></b></div>
     </div>
   );
@@ -373,8 +391,8 @@ function CabinetArt() {
 function PlanArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><b>Твоя програма</b><span className="s-art-pill is-ok">Індивідуально</span></div>
-      <div className="s-art-note"><span className="s-art-ava is-you">Ти</span><p>Хочу робити свої ігри!</p></div>
+      <div className="s-art-row"><b>Ваша програма</b><span className="s-art-pill is-ok">Індивідуально</span></div>
+      <div className="s-art-note"><span className="s-art-ava is-you">Ви</span><p>Хочу робити свої ігри!</p></div>
       <ol className="s-art-plan">
         <li><b>1</b>Основи Python</li>
         <li><b>2</b>Pygame: перша гра</li>
@@ -401,7 +419,7 @@ function TaskArt() {
   return (
     <div className="s-art-card">
       <div className="s-art-row"><b>Нове домашнє</b><span className="s-art-pill is-live">до пт</span></div>
-      <p className="s-art-task">Зроби гру «Вгадай число»: компʼютер загадує, ти вгадуєш, а програма підказує «більше» чи «менше».</p>
+      <p className="s-art-task">Зробіть гру «Вгадай число»: компʼютер загадує, Ви вгадуєте, а програма підказує «більше» чи «менше».</p>
       <div className="s-art-row"><small>Тема «Цикли»</small><span className="s-art-btn">Здати роботу</span></div>
     </div>
   );
