@@ -113,27 +113,49 @@ export function HeroArt() {
   );
 }
 
-/** Плаваючі іконки: [іконка з набору курсів, підпис (на великих), ліво %, верх %, розмір px, нахил°]. */
-const FLOAT = [
-  ['py', 'Python', 4, 3, 104, -8], ['web', 'Сайти', 60, 0, 92, 6], ['game', 'Ігри', 31, 22, 124, -4], ['code', '', 80, 27, 70, 10],
-  ['ai', '', 1, 44, 70, 8], ['react', 'React', 60, 50, 108, -6], ['js', '', 31, 62, 70, -10], ['terminal', 'Термінал', 4, 74, 96, 4], ['mobile', '', 81, 79, 66, -8],
-];
+/** Плаваючі плитки: що саме вчать у школі — код, сайти, ігри, ШІ. [вигляд, ліво %, верх %, нахил°]. */
+const FLOAT = [['code', 0, 4, -6], ['web', 52, 0, 5], ['game', 14, 54, 5], ['ai', 64, 50, -7]];
+
+const iconOf = (id, size) => COURSE_ICONS.find((i) => i.id === id)?.render(size);
+
+function FloatTile({ kind }) {
+  if (kind === 'code') {
+    return (
+      <span className="s-ft s-ft-code">
+        <i className="s-ft-dots"><b /><b /><b /></i>
+        <code><u className="k">for</u> n <u className="k">in</u> <u className="f">range</u>(<u className="n">3</u>):</code>
+        <code>{'  '}<u className="f">print</u>(<u className="s">"Привіт!"</u>)<em /></code>
+        <small>Python</small>
+      </span>
+    );
+  }
+  if (kind === 'web') {
+    return (
+      <span className="s-ft s-ft-web">
+        <i className="s-ft-dots"><b /><b /><b /></i>
+        <span className="s-ft-page"><i /><i /><i /><b>Мій сайт</b></span>
+        <small>Сайти</small>
+      </span>
+    );
+  }
+  return (
+    <span className={`s-ft s-ft-icon s-ft-${kind}`}>
+      {iconOf(kind, 52)}
+      <small>{kind === 'game' ? 'Ігри' : 'ШІ'}</small>
+    </span>
+  );
+}
 
 /**
- * Компʼютер, хіро ще не гортали: на місці роадмапу плавають іконки технологій і підказка гортати.
+ * Компʼютер, хіро ще не гортали: на місці роадмапу плавають плитки «що вчимо» і підказка гортати.
  * З першою прокруткою розлітаються, і починається роадмап. На телефоні не показується: там «Старт» видно одразу.
  */
 function HeroIntro() {
   return (
     <div className="s-rm-intro" aria-hidden="true">
       <ul className="s-float">
-        {FLOAT.map(([id, label, x, y, size, r], k) => (
-          <li key={id} className={`is-t${k % 3}`} style={{ '--x': `${x}%`, '--y': `${y}%`, '--s': `${size}px`, '--r': `${r}deg`, '--k': k }}>
-            <span>
-              {COURSE_ICONS.find((i) => i.id === id)?.render(Math.round(size * (label ? 0.42 : 0.5)))}
-              {label && <small>{label}</small>}
-            </span>
-          </li>
+        {FLOAT.map(([kind, x, y, r], k) => (
+          <li key={kind} style={{ '--x': `${x}%`, '--y': `${y}%`, '--r': `${r}deg`, '--k': k }}><FloatTile kind={kind} /></li>
         ))}
       </ul>
       <p className="s-rm-intro-hint"><span className="s-mouse" />Гортайте, щоб побачити шлях учня</p>
