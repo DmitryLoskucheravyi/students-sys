@@ -224,52 +224,122 @@ function CtaBand({ title = CTA.title, text = CTA.text, note }) {
   );
 }
 
-/* Перший екран: роадмап від новачка до сертифіката. Шлях малюється, «Ви» йдете ним, кроки загоряються. */
-const ROAD_PATH = 'M80 540 C 240 560, 420 520, 400 440 S 120 380, 110 320 S 380 270, 390 200 S 290 80, 250 66';
+/*
+ * Перший екран: роадмап згори вниз, від новачка до сертифіката. Шлях пунктирний; яскравий пунктир прогресу
+ * заповнюється, поки сторінку гортають, і відкочується назад, коли гортають угору. «Ви» їде по шляху,
+ * кроки загоряються, на фініші — конфеті. Усе рахується з прокрутки, без React-рендеру на кожен кадр.
+ */
+const ROAD_W = 500;
+const ROAD_H = 660;
+const ROAD_PATH = 'M100 52 C 290 40, 420 100, 400 180 S 110 250, 100 340 S 390 420, 400 500 S 300 590, 250 592';
 const ROAD = [
-  { x: 80, y: 540, label: 'Старт', title: 'Новачок у програмуванні', side: 'r', at: 0 },
-  { x: 400, y: 440, label: 'Крок 1', title: 'Перша програма', side: 'l', at: 0.3 },
-  { x: 110, y: 320, label: 'Крок 2', title: 'Свій сайт або гра', side: 'r', at: 0.59 },
-  { x: 390, y: 200, label: 'Крок 3', title: 'Проєкт у команді', side: 'l', at: 0.85 },
+  { x: 100, y: 52, label: 'Старт', title: 'Новачок у програмуванні', side: 'r' },
+  { x: 400, y: 180, label: 'Крок 1', title: 'Перша програма', side: 'l' },
+  { x: 100, y: 340, label: 'Крок 2', title: 'Свій сайт або гра', side: 'r' },
+  { x: 400, y: 500, label: 'Крок 3', title: 'Проєкт у команді', side: 'l' },
 ];
-const ROAD_START = 0.4; // с
-const ROAD_TIME = 4; // с
-const roadDelay = (at) => `${(ROAD_START + at * ROAD_TIME).toFixed(2)}s`;
-const CONFETTI = [[-90, -60, '#ffd479'], [80, -70, '#fff'], [-120, 10, '#a3e6b0'], [120, 0, '#ffd479'], [-60, 70, '#fff'], [70, 66, '#a7d4ff'], [0, -92, '#ff9aa7'], [-140, -40, '#fff'], [140, -44, '#a3e6b0'], [10, 90, '#ffd479']];
+const ROAD_END = { x: 250, y: 612 };
+const CONFETTI = [[-110, -70, '#ffd479'], [96, -84, '#fff'], [-150, 6, '#a3e6b0'], [150, -6, '#ffd479'], [-70, -110, '#fff'], [70, -112, '#a7d4ff'], [0, -128, '#ff9aa7'], [-170, -48, '#fff'], [172, -52, '#a3e6b0'], [30, -100, '#ffd479'], [-30, -140, '#a7d4ff'], [124, -120, '#ff9aa7']];
+
+/** Скільки шляху пройдено: на компʼютері — від прокрутки самого хіро, на телефоні — від того, де роадмап на екрані. */
+function roadTarget(el) {
+  const vh = window.innerHeight;
+  if (window.matchMedia('(min-width: 900px)').matches) {
+    const hero = el.closest('.s-hero');
+    const span = (hero?.offsetHeight ?? vh) * 0.6;
+    return window.scrollY / span;
+  }
+  const r = el.getBoundingClientRect();
+  return (vh * 0.5 - r.top) / r.height;
+}
 
 function HeroArt() {
-  const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const total = ROAD_START + ROAD_TIME;
+  const ref = useRef(null);
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return undefined;
+    const path = root.querySelector('.s-road-measure');
+    const total = path.getTotalLength();
+    // Де на шляху стоїть кожна зупинка: найближча точка
+    const stops = ROAD.map((st) => {
+      let best = 0;
+      let dist = Infinity;
+      for (let i = 0; i <= 400; i += 1) {
+        const pt = path.getPointAtLength((total * i) / 400);
+        const d = (pt.x - st.x) ** 2 + (pt.y - st.y) ** 2;
+        if (d < dist) { dist = d; best = i / 400; }
+      }
+      return best;
+    });
+    const nodes = [...root.querySelectorAll('[data-stop]')];
+    const fill = root.querySelectorAll('.s-road-fill');
+    const you = root.querySelector('.s-road-you');
+    const calm = prefersCalm();
+    let shown = calm ? 1 : 0;
+    let target = shown;
+    let raf = 0;
+    const paint = () => {
+      for (const f of fill) f.style.strokeDasharray = `${shown} 1`;
+      const pt = path.getPointAtLength(total * Math.min(shown, 0.999));
+      you.setAttribute('transform', `translate(${pt.x.toFixed(1)} ${pt.y.toFixed(1)})`);
+      for (const n of nodes) n.classList.toggle('is-on', shown >= (n.dataset.stop === 'end' ? 0.985 : stops[n.dataset.stop] - 0.01));
+      root.classList.toggle('is-done', shown >= 0.985);
+    };
+    const tick = () => {
+      shown += (target - shown) * 0.14;
+      if (Math.abs(target - shown) < 0.0005) shown = target;
+      paint();
+      raf = shown === target ? 0 : requestAnimationFrame(tick);
+    };
+    const onScroll = () => {
+      target = Math.min(1, Math.max(0, roadTarget(root)));
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
+    paint();
+    if (calm) return undefined;
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, []);
+
   return (
     <div className="s-hero-art" aria-hidden="true">
-      <div className="s-roadmap">
-        <svg viewBox="0 0 500 600">
-          <path className="s-road-bed" d={ROAD_PATH} />
+      <div className="s-roadmap" ref={ref}>
+        <svg viewBox={`0 0 ${ROAD_W} ${ROAD_H}`}>
+          <defs>
+            <mask id="s-road-mask" maskUnits="userSpaceOnUse" x="-50" y="-50" width={ROAD_W + 100} height={ROAD_H + 100}>
+              <path className="s-road-fill" d={ROAD_PATH} pathLength="1" stroke="#fff" strokeWidth="40" fill="none" strokeLinecap="round" />
+            </mask>
+          </defs>
+          <path className="s-road-measure" d={ROAD_PATH} fill="none" stroke="none" />
           <path className="s-road-dash" d={ROAD_PATH} />
-          <path className="s-road-line" d={ROAD_PATH} pathLength="1" />
-          {ROAD.map((st) => (
-            <g key={st.title} className="s-road-node" style={{ '--d': roadDelay(st.at) }}>
-              <circle cx={st.x} cy={st.y} r="15" />
-              <path d={`M${st.x - 6} ${st.y}l4 4 8-8.500`} />
+          <path className="s-road-glow s-road-fill" d={ROAD_PATH} pathLength="1" />
+          <path className="s-road-line" d={ROAD_PATH} mask="url(#s-road-mask)" />
+          {ROAD.map((st, k) => (
+            <g key={st.title} className="s-road-node" data-stop={k} transform={`translate(${st.x} ${st.y})`}>
+              <circle className="s-road-halo" r="26" />
+              <circle className="s-road-dot" r="15" />
+              <path d="M-6 0l4 4 8-8.500" />
             </g>
           ))}
-          <g className="s-road-you" transform={reduce ? 'translate(250 66)' : undefined}>
-            <circle className="s-road-ring" r="18" />
-            <circle r="18" />
+          <g className="s-road-you" transform={`translate(${ROAD[0].x} ${ROAD[0].y})`}>
+            <circle className="s-road-ring" r="20" />
+            <circle r="20" />
             <text>Ви</text>
-            {!reduce && (
-              <animateMotion dur={`${total}s`} fill="freeze" path={ROAD_PATH} calcMode="spline"
-                keyPoints="0;0;1" keyTimes={`0;${(ROAD_START / total).toFixed(3)};1`} keySplines="0 0 1 1;0.42 0 0.58 1" />
-            )}
           </g>
         </svg>
-        {ROAD.map((st) => (
-          <div key={st.title} className={`s-road-card is-${st.side}`} style={{ left: `${st.x / 5}%`, top: `${st.y / 6}%`, '--d': roadDelay(st.at) }}>
+        {ROAD.map((st, k) => (
+          <div key={st.title} data-stop={k} className={`s-road-card is-${st.side}`} style={{ left: `${(st.x / ROAD_W) * 100}%`, top: `${(st.y / ROAD_H) * 100}%` }}>
             <small>{st.label}</small>{st.title}
           </div>
         ))}
-        <div className="s-road-finish" style={{ '--d': roadDelay(1) }}>
-          <span className="s-confetti">{CONFETTI.map(([x, y, c], k) => <i key={k} style={{ '--x': `${x}px`, '--y': `${y}px`, '--c': c, '--r': `${k * 47}deg` }} />)}</span>
+        <div className="s-road-finish" data-stop="end" style={{ left: `${(ROAD_END.x / ROAD_W) * 100}%`, top: `${(ROAD_END.y / ROAD_H) * 100}%` }}>
+          <span className="s-confetti">{CONFETTI.map(([x, y, c], k) => <i key={k} style={{ '--x': `${x}px`, '--y': `${y}px`, '--c': c, '--r': `${k * 47}deg`, '--k': k }} />)}</span>
           <svg className="s-medal" viewBox="0 0 48 48">
             <path d="M15 26 10 44l7-4 4 6 3-14zM33 26l5 18-7-4-4 6-3-14z" fill="#d6112b" />
             <circle cx="24" cy="20" r="15" fill="#ffd479" stroke="#e5a91a" strokeWidth="3" />
