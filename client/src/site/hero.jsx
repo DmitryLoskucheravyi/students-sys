@@ -4,8 +4,11 @@
  * тут лише читаємо розміри з DOM і перемикаємо класи, без React-рендеру на кожен кадр прокрутки.
  */
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { CourseIcon, themeClass } from '../courseLook.jsx';
 import { IconRight, IconSpark } from '../icons.jsx';
-import { desktopProgress, mobileProgress, peekReady, shownCount } from './logic.js';
+import { useSite } from './ctx.js';
+import { desktopProgress, directionMeta, mobileProgress, peekReady, shownCount } from './logic.js';
 import { prefersCalm } from './motion.jsx';
 
 const WIDE = '(min-width: 900px)';
@@ -55,7 +58,9 @@ export function HeroArt() {
     if (!root) return undefined;
     const items = [...root.querySelectorAll('[data-step]')];
     const finish = root.querySelector('.s-rm-finish');
+    const art = root.closest('.s-hero-art');
     const apply = (n) => {
+      art?.classList.toggle('is-started', n > 0);
       items.forEach((el, i) => el.classList.toggle('is-on', i < n));
       finish.classList.toggle('is-done', n === items.length);
     };
@@ -74,8 +79,9 @@ export function HeroArt() {
   }, []);
 
   return (
-    <div className="s-hero-art" aria-hidden="true">
-      <div className="s-roadmap" ref={ref}>
+    <div className="s-hero-art">
+      <HeroIntro />
+      <div className="s-roadmap" ref={ref} aria-hidden="true">
         <ol className="s-rm-steps">
           {ROAD.map((st, k) => (
             <li key={st.title} data-step className={`s-rm-card ${k % 2 ? 'is-r' : 'is-l'}`}>
@@ -99,6 +105,37 @@ export function HeroArt() {
           </ul>
         </div>
       </div>
+    </div>
+  );
+}
+
+const INTRO_MAX = 4;
+
+/**
+ * Компʼютер, хіро ще не гортали: на місці роадмапу — курси школи з сайту і підказка гортати.
+ * З першою прокруткою зникає, і починається роадмап. На телефоні не показується: там «Старт» видно одразу.
+ */
+function HeroIntro() {
+  const list = useSite().data?.directions?.slice(0, INTRO_MAX) ?? [];
+  return (
+    <div className="s-rm-intro">
+      {list.length > 0 && (
+        <>
+          <p className="s-rm-intro-label">Курси школи</p>
+          <ul className="s-rm-intro-list">
+            {list.map((d, k) => (
+              <li key={d.id} style={{ '--k': k }}>
+                <Link to={`/courses/${d.id}`} className={`s-rm-course ${themeClass(d.theme)}`}>
+                  <CourseIcon course={d} size={22} big />
+                  <span><b>{d.title}</b>{directionMeta(d) && <small>{directionMeta(d)}</small>}</span>
+                  <IconRight size={18} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <p className="s-rm-intro-hint"><span className="s-mouse" aria-hidden="true" />Гортайте, щоб побачити шлях учня від старту до фінішу</p>
     </div>
   );
 }

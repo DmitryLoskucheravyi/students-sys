@@ -728,3 +728,35 @@
 .s-chapter-art.is-in .s-stack { opacity: 1; transform: none; }
 @media (min-width: 600px) { .s-chapter-art::before, .s-chapter-art::after { display: none; } }
 @media (prefers-reduced-motion: reduce) { .s-chapter-art::before, .s-chapter-art::after, .s-chapter-art .s-stack { transition: none; } }
+
+/*
+ * Компʼютер до першої прокрутки: курси школи і підказка гортати на місці роадмапу.
+ * Шар лежить поверх роадмапу в тій самій клітинці й зникає, щойно відкрилась перша картка.
+ */
+.s-rm-intro { display: none; }
+@media (min-width: 900px) {
+  .s-hero-art { display: grid; }
+  .s-hero-art > * { grid-area: 1 / 1; }
+  .s-rm-intro { position: relative; z-index: 1; display: grid; align-content: center; gap: 14px; transition: opacity 0.45s var(--ease), translate 0.45s var(--ease), visibility 0s; }
+  .s-hero-art.is-started .s-rm-intro { opacity: 0; translate: 0 -24px; visibility: hidden; pointer-events: none; transition: opacity 0.35s var(--ease), translate 0.35s var(--ease), visibility 0s 0.35s; }
+  .s-rm-intro-label { color: rgb(255 255 255 / 0.75); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .s-rm-intro-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .s-rm-intro-list li { animation: s-intro-in 0.6s calc(0.25s + var(--k) * 0.09s) var(--ease) both; }
+  .s-rm-course {
+    display: flex; align-items: center; gap: 14px; padding: 12px 16px 12px 12px; border-radius: 18px; background: #fff; color: var(--ink);
+    box-shadow: 0 24px 44px -26px rgb(40 0 8 / 0.7); transition: translate 0.2s var(--ease), box-shadow 0.2s;
+  }
+  .s-rm-course > span:not(.course-ico) { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .s-rm-course b { overflow: hidden; font-size: 16.5px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+  .s-rm-course small { color: var(--muted); font-size: 13px; font-weight: 600; }
+  .s-rm-course > svg { flex: none; color: var(--red); transition: translate 0.2s var(--ease); }
+  .s-rm-course:hover { translate: 0 -2px; box-shadow: 0 30px 50px -26px rgb(40 0 8 / 0.8); }
+  .s-rm-course:hover > svg { translate: 3px 0; }
+  .s-rm-course:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .s-rm-intro-hint { display: flex; align-items: center; gap: 12px; margin-top: 10px; color: rgb(255 255 255 / 0.9); font-size: 15px; font-weight: 600; animation: s-intro-in 0.6s 0.7s var(--ease) both; }
+  .s-mouse { position: relative; flex: none; width: 24px; height: 36px; border: 2px solid rgb(255 255 255 / 0.85); border-radius: 12px; }
+  .s-mouse::after { content: ''; position: absolute; top: 7px; left: 50%; width: 4px; height: 8px; margin-left: -2px; border-radius: 2px; background: #fff; animation: s-mouse 1.6s var(--ease) infinite; }
+}
+@keyframes s-intro-in { from { opacity: 0; translate: 0 16px; } }
+@keyframes s-mouse { 0% { opacity: 0; translate: 0 -2px; } 30% { opacity: 1; } 80% { opacity: 0; translate: 0 10px; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .s-rm-intro-list li, .s-rm-intro-hint, .s-mouse::after { animation: none; } }
