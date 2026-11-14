@@ -417,8 +417,8 @@
   .s-chapter-art { padding: 0; border-radius: 0; background-color: transparent; overflow: visible; }
   .s-chapter-art::before, .s-chapter-art::after { display: none; }
 }
-/* Від планшета: заголовок секції з одного боку, опис — з другого, під ними картки */
-@media (min-width: 600px) {
+/* Від 900px: заголовок секції з одного боку, опис — з другого, під ними картки. Вужче опис іде під заголовок */
+@media (min-width: 900px) {
   /* Заголовок ліворуч, опис праворуч в одному рядку (вирівняні по низу), під ними — ряд карток на всю ширину */
   .s-chapter { grid-template-columns: max-content minmax(0, 1fr); grid-template-areas: 'n n' 't l' 'a a'; align-content: center; column-gap: 40px; row-gap: 14px; min-height: 88svh; padding-top: 48px; padding-bottom: 48px; }
   .s-chapter.is-right { grid-template-columns: minmax(0, 1fr) max-content; grid-template-areas: 'n n' 'l t' 'a a'; }
