@@ -7,8 +7,8 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { CourseIcon, themeClass } from '../courseLook.jsx';
 import { Button } from '../ui.jsx';
-import { IconDown, IconLeft, IconPhone, IconRight } from '../icons.jsx';
-import { FEATURES, HERO, PAGES, STEPS } from './content.js';
+import { IconDown, IconLeft, IconPeople, IconPhone, IconRight, IconTick, IconUser } from '../icons.jsx';
+import { FEATURES, FORMAT, HERO, PAGES, STEPS } from './content.js';
 import { telHref, useLead, useSite } from './ctx.js';
 import { FeatureArt } from './features.jsx';
 import { Bits, HeroArt, TrialPeek } from './hero.jsx';
@@ -58,11 +58,44 @@ function TitleArt({ parts: [top, bottom, up] }) {
   );
 }
 
+const FORMAT_ICON = { solo: IconUser, group: IconPeople };
+
+/** Секція «Формат навчання»: досвід викладачів, цифри, два формати й запис. */
+function FormatChapter({ n }) {
+  const lead = useLead();
+  return (
+    <section className="s-wrap s-chapter s-format">
+      <Reveal as="p" className="s-format-eyebrow">{String(n).padStart(2, '0')} — {FORMAT.label}</Reveal>
+      <Reveal as="h2" className="s-format-title">{FORMAT.title}</Reveal>
+      <Reveal as="ul" className="s-format-stats" delay={120}>
+        {FORMAT.stats.map(([big, small]) => <li key={small}><b>{big}</b><span>{small}</span></li>)}
+      </Reveal>
+      <Reveal className="s-format-ways" delay={220}>
+        {FORMAT.ways.map((w) => {
+          const Icon = FORMAT_ICON[w.icon];
+          return (
+            <article key={w.title} className="s-format-way">
+              <span className="s-format-ico"><Icon size={24} /></span>
+              <h3>{w.title}</h3>
+              <p>{w.text}</p>
+              <ul>{w.points.map((t) => <li key={t}><IconTick size={16} />{t}</li>)}</ul>
+            </article>
+          );
+        })}
+        <div className="s-format-cta">
+          <p>Не знаєте, що обрати? Підкажемо на пробному занятті.</p>
+          <Button className="s-format-btn" onClick={() => lead()} icon={<IconRight size={18} />}>Записатися</Button>
+        </div>
+      </Reveal>
+    </section>
+  );
+}
+
 /** Секції «як навчаємо»: номер, заголовок, опис і картки-макети. */
 function Story() {
   return (
     <div className="s-story">
-      {FEATURES.map((f, i) => (
+      {FEATURES.map((f, i) => (f.icon === 'solo' ? <FormatChapter key={f.title} n={i + 1} /> : (
         <section key={f.title} className={`s-wrap s-chapter ${f.align === 'right' ? 'is-right' : ''}`}>
           <div className="s-chapter-text">
             <Reveal as="p" className="s-chapter-n">{String(i + 1).padStart(2, '0')}</Reveal>
@@ -71,7 +104,7 @@ function Story() {
           </div>
           <FeatureArt icon={f.icon} variant={i % 4} />
         </section>
-      ))}
+      )))}
     </div>
   );
 }

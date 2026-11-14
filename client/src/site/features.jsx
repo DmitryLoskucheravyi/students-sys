@@ -10,29 +10,56 @@ const Tick = () => <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path
 
 /* ───────── Макети ───────── */
 
-/** Індивідуальні / групові заняття: без карток, просто текст прямо на секції — досвід викладачів. */
-function TeamArt() {
-  return (
-    <div className="s-team">
-      <p><span>За спиною наших викладачів</span> <span><mark>понад 3 роки</mark> викладання,</span></p>
-      <p className="is-end"><span><mark>більше сотні</mark> випускників</span> <span>і задоволених родин!</span></p>
-      <p className="s-team-sub">Ми точно знаємо, як пояснити те, що Вас цікавить.</p>
-    </div>
-  );
-}
+/* «Програмування легше, ніж здається»: жива гра «Вгадай число» — пограти, а код сховано під кнопку */
+const MAX = 10;
+const roll = () => 1 + Math.floor(Math.random() * MAX);
+function GuessGame() {
+  const [secret, setSecret] = useState(roll);
+  const [value, setValue] = useState('');
+  const [log, setLog] = useState([]);
+  const [error, setError] = useState('');
+  const won = log.at(-1)?.[1] === 'win';
+  const inputRef = useRef(null);
+  const listRef = useRef(null);
+  useEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; }, [log]);
 
-/* «Програмування легше, ніж здається»: без карток — ланцюжок «ідея → код → гра» прямо на секції */
-const PLAY = [['Число? ', '5'], ['Більше!'], ['Число? ', '8'], ['Менше!'], ['Число? ', '7'], ['Вгадав! 🎉']];
-function EasyFlow() {
+  const guess = (e) => {
+    e.preventDefault();
+    const n = Number(value);
+    if (value === '' || !Number.isInteger(n) || n < 1 || n > MAX) { setError(`Введіть ціле число від 1 до ${MAX}`); return; }
+    setError('');
+    setLog((l) => [...l, [n, n < secret ? 'more' : n > secret ? 'less' : 'win']]);
+    setValue('');
+  };
+  const again = () => { setSecret(roll()); setLog([]); setError(''); setValue(''); setTimeout(() => inputRef.current?.focus(), 0); };
+
   return (
-    <ol className="s-flow">
-      <li>
-        <span className="s-flow-n">1<b>Ідея</b></span>
-        <p className="s-flow-quote">«Хочу свою гру: компʼютер загадує число, а я вгадую»</p>
-        <small>Звучить складно?</small>
-      </li>
-      <li>
-        <span className="s-flow-n">2<b>Код</b></span>
+    <div className="s-game">
+      <div className="s-game-win">
+        <div className="s-game-bar" aria-hidden="true"><i /><i /><i /><span>вгадай_число.py</span></div>
+        <div className="s-game-out" ref={listRef} aria-live="polite">
+          <p className="is-sys">Я загадав число від 1 до {MAX}. Спробуйте вгадати!</p>
+          {log.map(([n, r], k) => (
+            <p key={k}><span>Число? <b>{n}</b></span>{r === 'win' ? <em className="is-win">Вгадав! 🎉 Спроб: {log.length}</em> : <em>{r === 'more' ? 'Більше!' : 'Менше!'}</em>}</p>
+          ))}
+        </div>
+        {won ? (
+          <div className="s-game-done">
+            <p>Цю гру написав <b>10-річний учень</b> на 3-му уроці</p>
+            <button type="button" className="btn btn-primary" onClick={again}>Зіграти ще</button>
+          </div>
+        ) : (
+          <form className="s-game-form" onSubmit={guess} noValidate>
+            <label htmlFor="s-game-in">Число?</label>
+            <input id="s-game-in" ref={inputRef} type="number" inputMode="numeric" min={1} max={MAX} value={value} autoComplete="off"
+              onChange={(e) => setValue(e.target.value)} placeholder={`1–${MAX}`} aria-invalid={error ? true : undefined} aria-describedby={error ? 's-game-err' : undefined} />
+            <button type="submit" className="btn btn-primary">Перевірити</button>
+          </form>
+        )}
+        {error && !won && <p className="s-game-err" id="s-game-err" role="alert">{error}</p>}
+      </div>
+      <details className="s-game-code">
+        <summary>Подивитися, як це зроблено</summary>
         <div className="s-art-code">
           <span><u className="k">from</u> random <u className="k">import</u> randint</span>
           <span>secret = <u className="f">randint</u>(<u className="n">1</u>, <u className="n">10</u>)</span>
@@ -43,16 +70,9 @@ function EasyFlow() {
           <span>  <u className="k">if</u> guess &gt; secret: <u className="f">print</u>(<u className="s">"Менше!"</u>)</span>
           <span><u className="f">print</u>(<u className="s">"Вгадав! 🎉"</u>)</span>
         </div>
-        <small>Вісім рядків, і все</small>
-      </li>
-      <li>
-        <span className="s-flow-n">3<b>Гра</b></span>
-        <div className="s-art-term">
-          {PLAY.map(([t, you], k) => <span key={k} style={{ '--k': k }} className={k === PLAY.length - 1 ? 'is-win' : ''}>{t}{you && <b>{you}</b>}</span>)}
-        </div>
-        <small>Працює! Це Ваша перша гра</small>
-      </li>
-    </ol>
+        <p>Вісім рядків на Python, і гра готова.</p>
+      </details>
+    </div>
   );
 }
 
@@ -150,8 +170,7 @@ function PathArt() {
 
 /** Які макети показувати в секції (ключ — FEATURES[].icon з content.js). */
 const FEATURE_ART = {
-  solo: [TeamArt],
-  check: [EasyFlow],
+  check: [GuessGame],
   quiz: [QuizArt, HintArt, PassArt],
   cabinet: [TodayArt, CheckedArt, PathArt],
 };
@@ -209,7 +228,7 @@ function CardRow({ cards }) {
  * а стопка виїжджає по-своєму в кожній секції (variant 0–3).
  */
 export function FeatureArt({ icon, variant }) {
-  const cards = FEATURE_ART[icon] ?? FEATURE_ART.solo;
+  const cards = FEATURE_ART[icon] ?? FEATURE_ART.check;
   const wide = useMedia('(min-width: 600px)');
   const [ref, seen] = useSeenOnce({ threshold: 0.25 });
   return (
