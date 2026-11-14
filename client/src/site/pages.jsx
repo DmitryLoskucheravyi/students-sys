@@ -388,7 +388,7 @@ function TrialPeek() {
   if (state === 'done') return null;
   return (
     <div ref={ref} className="s-peek-wrap" role="status" hidden={state === 'hidden'}>
-      <div className={`s-peek ${state === 'closing' ? 'is-out' : ''}`}><IconSpark size={18} />Перше пробне заняття <b>безкоштовно</b></div>
+      <div className={`s-peek ${state === 'closing' ? 'is-out' : ''}`}><IconSpark size={18} /><span>Перше пробне заняття <b>безкоштовно</b></span></div>
     </div>
   );
 }
