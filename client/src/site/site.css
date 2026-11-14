@@ -172,6 +172,19 @@
   position: relative; display: grid; place-items: center; min-height: 340px; padding: 32px 18px; overflow: hidden; border-radius: 28px; background-color: var(--red-soft);
   background-image: linear-gradient(rgb(214 17 43 / 0.07) 1px, transparent 1px), linear-gradient(90deg, rgb(214 17 43 / 0.07) 1px, transparent 1px); background-size: 30px 30px;
 }
+/* Кожна секція — на весь екран і зі своїм кольором і клітинками; макет стоїть просто на фоні */
+.s-story { margin-top: 0; }
+.s-chapter { --ch-bg: #fdecee; --ch-line: rgb(214 17 43 / 0.07); --ch-ink: var(--ink); --ch-muted: var(--muted); --ch-chip: var(--red-soft); --ch-tick: var(--red); --ch-n: var(--red);
+  padding-top: 56px; padding-bottom: 56px; background-color: var(--ch-bg); color: var(--ch-ink);
+  background-image: linear-gradient(var(--ch-line) 1px, transparent 1px), linear-gradient(90deg, var(--ch-line) 1px, transparent 1px); background-size: 34px 34px; }
+.s-chapter:nth-child(4n+2) { --ch-bg: var(--red-fill); --ch-line: rgb(255 255 255 / 0.09); --ch-ink: #fff; --ch-muted: rgb(255 255 255 / 0.85); --ch-chip: rgb(255 255 255 / 0.16); --ch-tick: #fff; --ch-n: #fff; }
+.s-chapter:nth-child(4n+3) { --ch-bg: #fff4ea; --ch-line: rgb(214 90 17 / 0.08); }
+.s-chapter:nth-child(4n) { --ch-bg: #1f1114; --ch-line: rgb(255 255 255 / 0.06); --ch-ink: #fff; --ch-muted: rgb(255 255 255 / 0.7); --ch-chip: rgb(255 255 255 / 0.1); --ch-tick: #ff8a99; --ch-n: #ff8a99; }
+.s-chapter-n { color: var(--ch-n); }
+.s-chapter-lead { color: var(--ch-muted); }
+/* підкладка під картками не потрібна: фон і клітинки — у самої секції */
+.s-chapter-art { padding: 0; border-radius: 0; background-color: transparent; overflow: visible; }
+.s-chapter-art::before, .s-chapter-art::after { display: none; }
 .s-chapter-art.s-reveal { transform: translateY(40px) scale(0.97); }
 .s-chapter-art.s-reveal.is-in { transform: none; }
 .s-art-card { display: grid; align-content: start; gap: 14px; width: 100%; height: 100%; padding: 20px; border-radius: 22px; background: #fff; color: var(--ink); box-shadow: 0 30px 60px -30px rgb(84 14 26 / 0.45), 0 0 0 1px rgb(84 14 26 / 0.06); }
@@ -403,19 +416,7 @@
   .s-hero-panel { height: calc(100svh - var(--head)); }
 }
 @media (min-width: 600px) {
-  /* Кожна секція — на весь екран і зі своїм кольором; макет стоїть просто на фоні (з планшета) */
-  .s-story { margin-top: 0; }
-  .s-chapter { --ch-bg: #fdecee; --ch-line: rgb(214 17 43 / 0.07); --ch-ink: var(--ink); --ch-muted: var(--muted); --ch-chip: var(--red-soft); --ch-tick: var(--red); --ch-n: var(--red);
-    padding-top: 80px; padding-bottom: 80px; background-color: var(--ch-bg); color: var(--ch-ink);
-    background-image: linear-gradient(var(--ch-line) 1px, transparent 1px), linear-gradient(90deg, var(--ch-line) 1px, transparent 1px); background-size: 34px 34px; }
-  .s-chapter:nth-child(4n+2) { --ch-bg: var(--red-fill); --ch-line: rgb(255 255 255 / 0.09); --ch-ink: #fff; --ch-muted: rgb(255 255 255 / 0.85); --ch-chip: rgb(255 255 255 / 0.16); --ch-tick: #fff; --ch-n: #fff; }
-  .s-chapter:nth-child(4n+3) { --ch-bg: #fff4ea; --ch-line: rgb(214 90 17 / 0.08); }
-  .s-chapter:nth-child(4n) { --ch-bg: #1f1114; --ch-line: rgb(255 255 255 / 0.06); --ch-ink: #fff; --ch-muted: rgb(255 255 255 / 0.7); --ch-chip: rgb(255 255 255 / 0.1); --ch-tick: #ff8a99; --ch-n: #ff8a99; }
-  .s-chapter-n { color: var(--ch-n); }
-  .s-chapter-lead { color: var(--ch-muted); }
-  /* підкладка під картками не потрібна: фон і клітинки — у самої секції */
-  .s-chapter-art { padding: 0; border-radius: 0; background-color: transparent; overflow: visible; }
-  .s-chapter-art::before, .s-chapter-art::after { display: none; }
+  .s-chapter { padding-top: 80px; padding-bottom: 80px; }
 }
 /* Від 900px: заголовок секції з одного боку, опис — з другого, під ними картки. Вужче опис іде під заголовок */
 @media (min-width: 900px) {
