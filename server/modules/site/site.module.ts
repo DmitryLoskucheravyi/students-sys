@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, type MiddlewareConsumer, Module, type NestModule, Param, Patch, Post, Put, Req, RequestMethod, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import rateLimit from 'express-rate-limit';
+import { clientKey } from '../../common/client-ip.js';
 import { Roles } from '../../common/access.js';
 import { SiteAdminService, SiteService } from './site.service.js';
 
@@ -165,7 +166,7 @@ const leadLimit = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 6,
   skipFailedRequests: true,
-  keyGenerator: (req) => ipKeyGenerator(String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.ip || ''),
+  keyGenerator: clientKey,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Забагато заявок. Спробуйте трохи згодом або зателефонуйте нам.' },

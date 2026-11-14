@@ -44,7 +44,7 @@ test('числа й id', () => {
   assert.equal(int('5', 'x'), 5);
   assert.equal(id(3), 3);
   assert.deepEqual(idList([1, '2', 2], 'x'), [1, 2]);
-  for (const bad of [0, -1, 'abc', 1.5]) rejects(() => id(bad));
+  for (const bad of [0, -1, 'abc', 1.5, 2147483648, '9'.repeat(40), 1e40]) rejects(() => id(bad));
   rejects(() => idList('1', 'x'));
   rejects(() => idList([{}], 'x'));
 });

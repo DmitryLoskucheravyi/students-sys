@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { unlink } from 'node:fs/promises';
 import type { Request, Response } from 'express';
 import multer from 'multer';
-import { type Row, q } from '../../db.js';
+import { type Query, type Row, q, tx } from '../../db.js';
+import { checkOrder, parseDirection, withCourses } from './directions.js';
 import { bad, id, idList, normalizePhone, notFound, str } from '../../lib.js';
 import { UPLOAD_DIR, persistFile, removeFile } from '../../storage.js';
 import { imageMime, readHead, sendStored } from '../../files.js';
@@ -108,41 +109,18 @@ async function directionCourses(ids: number[]): Promise<Row[]> {
              WHERE dc.direction_id IN (?) ORDER BY dc.direction_id, dc.position, c.title`, [ids]);
 }
 
-function withCourses(d: Row, all: Row[]): Row {
-  const courses: Row[] = all.filter((c) => c.direction_id === d.id).map(({ direction_id: _d, ...c }) => ({ ...c, steps: Number(c.steps) }));
-  return {
-    ...d,
-    icon: courses[0]?.icon ?? null,
-    theme: courses[0]?.theme ?? null,
-    steps: courses.reduce((n: number, c: Row) => n + c.steps, 0),
-    courses,
-  };
-}
-
-function parseDirection(b: any) {
-  const courseIds = idList(b.course_ids ?? [], 'Курси');
-  if (new Set(courseIds).size !== courseIds.length) throw bad('Курс у напрямку двічі');
-  return {
-    row: {
-      title: str(b.title, 'Назва', { max: 120 }),
-      summary: str(b.summary, 'Опис', { max: 600, required: false }),
-      is_published: b.is_published === false || b.is_published === 0 ? 0 : 1,
-    },
-    courseIds,
-  };
-}
-
 /** Усі курси мають існувати: перевіряємо до запису, щоб не лишити напрямок без курсів. */
-async function checkCourses(courseIds: number[]) {
+async function checkCourses(t: Query, courseIds: number[]) {
   if (!courseIds.length) return;
-  const found: Row[] = await q('SELECT id FROM courses WHERE id IN (?)', [courseIds]);
+  const found: Row[] = await t('SELECT id FROM courses WHERE id IN (?)', [courseIds]);
   if (found.length !== courseIds.length) throw bad('Курс не знайдено');
 }
 
-async function saveDirectionCourses(directionId: number, courseIds: number[]) {
-  await q('DELETE FROM direction_courses WHERE direction_id = ?', [directionId]);
-  for (const [k, courseId] of courseIds.entries()) {
-    await q('INSERT INTO direction_courses (direction_id, course_id, position) VALUES (?, ?, ?)', [directionId, courseId, k]);
+/** Курси напрямку заново, у переданому порядку. Лише всередині транзакції. */
+async function saveDirectionCourses(t: Query, directionId: number, courseIds: number[]) {
+  await t('DELETE FROM direction_courses WHERE direction_id = ?', [directionId]);
+  if (courseIds.length) {
+    await t('INSERT INTO direction_courses (direction_id, course_id, position) VALUES ?', [courseIds.map((c, k) => [directionId, c, k])]);
   }
 }
 
@@ -365,11 +343,14 @@ export class SiteAdminService {
 
   async createDirection(body: any) {
     const { row, courseIds } = parseDirection(body ?? {});
-    await checkCourses(courseIds);
-    const [{ next }] = await q('SELECT COALESCE(MAX(position), -1) + 1 AS next FROM directions');
-    const r = await q('INSERT INTO directions SET ?', [{ ...row, position: Number(next) }]);
-    await saveDirectionCourses(r.insertId, courseIds);
-    return this.oneDirection(r.insertId);
+    const newId = await tx(async (t) => {
+      await checkCourses(t, courseIds);
+      const [{ next }] = await t('SELECT COALESCE(MAX(position), -1) + 1 AS next FROM directions');
+      const r = await t('INSERT INTO directions SET ?', [{ ...row, position: Number(next) }]);
+      await saveDirectionCourses(t, r.insertId, courseIds);
+      return r.insertId as number;
+    });
+    return this.oneDirection(newId);
   }
 
   async updateDirection(idValue: unknown, body: any) {
@@ -380,16 +361,22 @@ export class SiteAdminService {
       title: cur.title, summary: cur.summary, is_published: cur.is_published,
       course_ids: cur.courses.map((c: Row) => c.id), ...b,
     });
-    await checkCourses(courseIds);
-    await q('UPDATE directions SET ? WHERE id = ?', [row, directionId]);
-    if ('course_ids' in b) await saveDirectionCourses(directionId, courseIds);
+    await tx(async (t) => {
+      await checkCourses(t, courseIds);
+      await t('UPDATE directions SET ? WHERE id = ?', [row, directionId]);
+      if ('course_ids' in b) await saveDirectionCourses(t, directionId, courseIds);
+    });
     return this.oneDirection(directionId);
   }
 
   /** Порядок напрямків на сайті: повний список id згори вниз. */
   async orderDirections(body: any) {
     const ids = idList(body?.ids ?? [], 'Напрямки');
-    for (const [k, directionId] of ids.entries()) await q('UPDATE directions SET position = ? WHERE id = ?', [k, directionId]);
+    await tx(async (t) => {
+      const existing: Row[] = await t('SELECT id FROM directions');
+      checkOrder(ids, existing.map((d) => d.id));
+      for (const [k, directionId] of ids.entries()) await t('UPDATE directions SET position = ? WHERE id = ?', [k, directionId]);
+    });
     return this.directions();
   }
 

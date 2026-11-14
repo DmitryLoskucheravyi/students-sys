@@ -10,6 +10,7 @@ import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/unbounded';
 import '@fontsource-variable/onest';
 import './styles.css';
+import ErrorBoundary, { BootLoader } from './ErrorBoundary.jsx';
 
 const Cabinet = lazy(() => import('./cabinet.jsx'));
 const QuizLink = lazy(() => import('./cabinet.jsx').then((m) => ({ default: m.QuizLink })));
@@ -30,6 +31,11 @@ function pick() {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <Suspense fallback={null}>{pick()}</Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<BootLoader />}>{pick()}</Suspense>
+    </ErrorBoundary>
   </StrictMode>
 );
+
+// версія завантажилась — наступний збій після деплою знову може перезавантажити сторінку сам
+setTimeout(() => { try { sessionStorage.removeItem('bs.chunkReload'); } catch { /* приватний режим */ } }, 10000);

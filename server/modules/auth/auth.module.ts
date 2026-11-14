@@ -1,5 +1,6 @@
 import { type MiddlewareConsumer, Module, type NestModule, RequestMethod } from '@nestjs/common';
 import rateLimit from 'express-rate-limit';
+import { clientKey } from '../../common/client-ip.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 
@@ -8,6 +9,8 @@ const loginLimit = rateLimit({
   limit: 20,
   // Рахуємо лише невдалі спроби: цілий клас за одним IP не має блокувати сам себе.
   skipSuccessfulRequests: true,
+  // Справжня адреса відвідувача, а не проксі: інакше чужі помилки блокували б вхід усім
+  keyGenerator: clientKey,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Забагато спроб входу. Спробуйте за 15 хвилин.' },

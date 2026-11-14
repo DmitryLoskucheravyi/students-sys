@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { api } from './api.js';
+import { RouteBoundary } from './ErrorBoundary.jsx';
 import { UIProvider } from './ui.jsx';
 import { AuthCtx, ThemeButton, useAuth } from './session.jsx';
 import { IconCalendar, IconChart, IconGlobe, IconHomework, IconLesson, IconLogout, IconPeople, IconRoadmap, IconTicket } from './icons.jsx';
@@ -235,25 +236,27 @@ function Shell() {
         </div>
       </aside>
       <main className="page">
-        <Routes>
-          <Route path="/" element={<Schedule />} />
-          <Route path="/homework" element={<Homework />} />
-          <Route path="/homework/:id" element={<HomeworkDetail />} />
-          {(user.role === 'student' || user.role === 'manager') && <Route path="/tests/:id" element={<QuizTake />} />}
-          {user.role !== 'student' && <Route path="/quizzes/new" element={<QuizEditor />} />}
-          {user.role !== 'student' && <Route path="/quizzes/:id" element={<QuizDetail />} />}
-          {user.role !== 'student' && <Route path="/quizzes/:id/edit" element={<QuizEditor />} />}
-          <Route path="/courses" element={<Courses />} />
-          <Route path="/courses/:id" element={<CourseDetail />} />
-          <Route path="/profile" element={<Profile />} />
-          {user.role !== 'student' && <Route path="/lessons" element={<Lessons />} />}
-          {user.role === 'manager' && <Route path="/subscriptions" element={<Subscriptions />} />}
-          {user.role === 'manager' && <Route path="/people" element={<People />} />}
-          {user.role === 'manager' && <Route path="/stats" element={<Stats />} />}
-          {user.role === 'manager' && <Route path="/site" element={<SiteAdmin />} />}
-          {user.role === 'student' && <Route path="/subscription" element={<MySubscription />} />}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <RouteBoundary>
+          <Routes>
+            <Route path="/" element={<Schedule />} />
+            <Route path="/homework" element={<Homework />} />
+            <Route path="/homework/:id" element={<HomeworkDetail />} />
+            {(user.role === 'student' || user.role === 'manager') && <Route path="/tests/:id" element={<QuizTake />} />}
+            {user.role !== 'student' && <Route path="/quizzes/new" element={<QuizEditor />} />}
+            {user.role !== 'student' && <Route path="/quizzes/:id" element={<QuizDetail />} />}
+            {user.role !== 'student' && <Route path="/quizzes/:id/edit" element={<QuizEditor />} />}
+            <Route path="/courses" element={<Courses />} />
+            <Route path="/courses/:id" element={<CourseDetail />} />
+            <Route path="/profile" element={<Profile />} />
+            {user.role !== 'student' && <Route path="/lessons" element={<Lessons />} />}
+            {user.role === 'manager' && <Route path="/subscriptions" element={<Subscriptions />} />}
+            {user.role === 'manager' && <Route path="/people" element={<People />} />}
+            {user.role === 'manager' && <Route path="/stats" element={<Stats />} />}
+            {user.role === 'manager' && <Route path="/site" element={<SiteAdmin />} />}
+            {user.role === 'student' && <Route path="/subscription" element={<MySubscription />} />}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </RouteBoundary>
       </main>
     </div>
   );

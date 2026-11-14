@@ -2,10 +2,11 @@
  * Сайт школи: головна з превʼю, курси, ціни, відгуки. Курси, ціни, відгуки й контакти — з кабінету наживо.
  * «Записатись» відкриває форму заявки; заявка йде менеджеру в кабінет і, якщо налаштовано, у Telegram.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { api } from '../api.js';
 import BsLogo from '../BsLogo.jsx';
+import { RouteBoundary } from '../ErrorBoundary.jsx';
 import { Button, IconButton, Input, Modal, Textarea } from '../ui.jsx';
 import { IconRight, IconFacebook, IconInstagram, IconTelegram, IconTiktok, IconSpark, IconClose, IconMenu, IconPhone, IconSend, IconTick, IconUser } from '../icons.jsx';
 import { CoursePage, CoursesPage, Home, NotFound, PricesPage, ProjectsPage, ReviewsPage } from './pages.jsx';
@@ -19,10 +20,12 @@ function useSiteData() {
   const [state, setState] = useState({ data: null, error: null });
   const load = useCallback(() => {
     setState((s) => ({ ...s, error: null }));
-    api('/site').then((data) => setState({ data, error: null })).catch((error) => setState({ data: null, error }));
+    // Повторне завантаження не вдалося — вже показані дані лишаються, додається лише помилка
+    api('/site').then((data) => setState({ data, error: null })).catch((error) => setState((s) => ({ data: s.data, error })));
   }, []);
   useEffect(load, [load]);
-  return { ...state, reload: load };
+  // Той самий обʼєкт, доки дані не змінились: сторінки не перемальовуються, коли відкривається форма заявки
+  return useMemo(() => ({ ...state, reload: load }), [state, load]);
 }
 
 /* ───────── Заявка ───────── */
@@ -217,15 +220,17 @@ export default function Site() {
           <div className="site">
             <Header onLead={openLead} />
             <main className="s-main">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/courses" element={<CoursesPage />} />
-                <Route path="/courses/:id" element={<CoursePage />} />
-                <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/prices" element={<PricesPage />} />
-                <Route path="/reviews" element={<ReviewsPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <RouteBoundary>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/courses" element={<CoursesPage />} />
+                  <Route path="/courses/:id" element={<CoursePage />} />
+                  <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/prices" element={<PricesPage />} />
+                  <Route path="/reviews" element={<ReviewsPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </RouteBoundary>
             </main>
             <Footer />
           </div>

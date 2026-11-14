@@ -107,7 +107,7 @@ img { display: block; max-width: 100%; }
 .text-link { color: var(--red); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
 @media (hover: hover) and (pointer: fine) { .text-link:hover { text-decoration-thickness: 2px; } }
 /* Статистика */
-.stats-bar { margin-bottom: 18px; }
+
 .stat-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 26px; }
 .stat-tile { display: grid; align-content: start; gap: 4px; padding: 14px; border-radius: 10px; background: var(--wash); min-width: 0; }
 .stat-tile small { color: var(--muted); font-size: 13px; }
@@ -138,10 +138,6 @@ img { display: block; max-width: 100%; }
 .stats-table thead th { color: var(--muted); font-weight: 500; font-size: 12.5px; }
 .stats-table tbody th { font-weight: 500; }
 @media (min-width: 900px) { .stat-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-
-.lesson-people { display: flex; flex-wrap: wrap; gap: 4px 16px; }
-.lesson-people > span { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
-.lesson-people svg { flex: none; color: var(--muted); }
 
 /* Каркас: зверху смужка, знизу панель вкладок */
 .shell { padding-bottom: calc(var(--nav-h) + var(--dock-h, 0px) + env(safe-area-inset-bottom)); min-height: 100dvh; }
@@ -189,7 +185,7 @@ img { display: block; max-width: 100%; }
 .top-link.active { background: var(--paper); color: var(--red); }
 .rail-nav a.only-desktop { display: none; }
 @media (min-width: 900px) { .rail-nav a.only-desktop { display: flex; } }
-.theme-btn.on-page, .login-theme { border: 1.5px solid var(--line); --ia: var(--red); }
+.theme-btn.on-page { border: 1.5px solid var(--line); --ia: var(--red); }
 
 .page { padding: 20px 16px 40px; min-width: 0; width: 100%; }
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
@@ -449,7 +445,6 @@ img { display: block; max-width: 100%; }
 }
 .login-form { position: relative; z-index: 1; justify-self: center; width: min(100%, 400px); padding: 24px 16px; display: flex; flex-direction: column; gap: 16px; }
 .login-form h1 { font: 700 28px/1.1 var(--display); letter-spacing: -0.03em; margin-bottom: 6px; }
-.login-theme { position: absolute; top: 16px; right: 16px; }
 
 /* Списки-рядки: без карток, лише лінії зошита */
 .rows { border-top: 1px solid var(--line); }
@@ -462,13 +457,12 @@ img { display: block; max-width: 100%; }
 .step-num { font: 700 16px/1 var(--display); color: var(--red); width: 26px; text-align: center; flex: none; }
 .person-row .row-main { flex-basis: calc(100% - 50px); }
 .person-stat { white-space: nowrap; flex: 1 1 auto; }
-.slot-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
 .slot {
   display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 9px;
   border-radius: 6px; font-size: 13px; font-weight: 500; white-space: nowrap;
 }
-.slot-weekly { background: var(--red-fill); color: #fff; --ia: currentColor; }
-.slot-once { box-shadow: inset 0 0 0 1.5px var(--red); color: var(--red); }
+
 .slot button { display: grid; place-items: center; margin-right: -4px; width: 24px; height: 24px; border-radius: 4px; opacity: 0.85; }
 .archive { margin-top: 26px; }
 .archive summary { cursor: pointer; color: var(--muted); font-weight: 500; padding: 8px 0; }
@@ -493,6 +487,18 @@ img { display: block; max-width: 100%; }
 .loader { display: grid; place-items: center; padding: 60px; }
 .loader span { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--red); animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.loader.is-boot { min-height: 100svh; padding: 0; }
+.btn-spin { width: 16px; height: 16px; flex: none; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin 0.7s linear infinite; }
+.btn.is-busy { cursor: progress; }
+.btn.is-busy:disabled { opacity: 0.8; }
+
+/* Запобіжник: екран помилки замість білої сторінки */
+.crash { display: grid; justify-items: center; gap: 12px; padding: 72px 16px; text-align: center; color: var(--ink); }
+.crash-mark { font: 700 56px/1 var(--display, inherit); color: var(--red); }
+.crash h1 { font-size: 24px; }
+.crash p:not(.crash-mark) { max-width: 36ch; color: var(--muted); }
+.crash-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) { .btn-spin, .loader span { animation-duration: 2.4s; } }
 
 .toasts { position: fixed; z-index: 70; left: 16px; right: 16px; bottom: calc(var(--nav-h) + var(--dock-h, 0px) + 16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .toast { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 9px; background: var(--ink); color: var(--paper); box-shadow: var(--shadow); font-weight: 500; animation: pop 0.16s ease-out; }
@@ -503,7 +509,7 @@ img { display: block; max-width: 100%; }
 .week-bar { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
 .week-nav { display: flex; align-items: center; gap: 2px; }
 .week-nav strong { font-weight: 600; font-size: 15px; flex: 1; text-align: center; }
-.week-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+
 /* Доба не влазить в екран: сітка гортається всередині, шапка днів лишається зверху */
 .week { max-height: max(420px, calc(100dvh - 300px)); overflow-y: auto; scrollbar-width: thin; }
 .week:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
@@ -680,7 +686,6 @@ img { display: block; max-width: 100%; }
 .sheet-actions .btn { flex: 1 1 auto; }
 .sheet-form { display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 10px; background: var(--wash); }
 .sheet-form .input, .sheet-form .stepper { background: var(--paper); }
-.check-list { display: flex; flex-direction: column; }
 
 /* Курси */
 .course-list { border-top: 1px solid var(--line); }
@@ -995,7 +1000,7 @@ button.stop:active { transform: scale(0.94); }
   .plans { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
   .week-bar { flex-direction: row; justify-content: space-between; align-items: center; flex-wrap: wrap; }
   .week-nav strong { flex: none; min-width: 150px; }
-  .week-filters { display: flex; }
+
   .select-btn.is-compact { min-width: 170px; }
   .modal-backdrop { align-items: center; justify-content: center; padding: 16px; }
   .modal { width: min(100%, 560px); max-height: calc(100dvh - 32px); border-radius: 14px; animation: pop 0.18s var(--ease); }
@@ -1013,7 +1018,7 @@ button.stop:active { transform: scale(0.94); }
   .row-actions { flex: none; flex-wrap: nowrap; }
   .lesson-row, .sub-row { flex-wrap: wrap; }
   .lesson-row .row-main { min-width: 240px; }
-  .slot-list { max-width: 340px; }
+
   .road-editor .row-actions, .sub-edit-row .row-actions { margin-left: 0; }
   .road-editor .row-main { flex-basis: 0; }
   .modal-body > .form > .form-actions { padding: 12px 0; }
@@ -1155,7 +1160,7 @@ button.stop:active { transform: scale(0.94); }
   .bs-logo { font-size: clamp(50px, 8vw, 140px); }
   .login-form { align-self: center; padding: 32px 24px; }
   .login-form h1 { font-size: 30px; }
-  .login-theme { top: 28px; right: 24px; }
+
 }
 
 /* Лише для миші: на тачскрінах hover залипає після дотику */
@@ -1163,7 +1168,7 @@ button.stop:active { transform: scale(0.94); }
   .for-pointer { display: block; }
   .for-touch { display: none; }
   .rail-nav a:hover:not(.active), .rail-user:hover, .theme-btn:hover { background: var(--rail-deep); }
-  .theme-btn.on-page:hover, .login-theme:hover { background: var(--wash); }
+  .theme-btn.on-page:hover { background: var(--wash); }
   .back:hover { color: var(--red); }
   .btn-primary:hover:not(:disabled), .btn-danger:hover { background: var(--red-hover); }
   .btn-ghost:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
@@ -1275,7 +1280,6 @@ button.stop:active { transform: scale(0.94); }
 @keyframes badge-pop { from { transform: scale(0.4); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .nav-badge { animation: none; } }
 .new-dot { display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--red); vertical-align: 2px; }
-.tabs-row { margin: -6px 0 18px; }
 
 /* Тести: список і рядки */
 .quiz-ico { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--wash); color: var(--ink); --ia: var(--red); }
@@ -1407,7 +1411,7 @@ button.stop:active { transform: scale(0.94); }
 @media (prefers-reduced-motion: reduce) {
   .pq-title, .bs-logo.is-corner .bs-be, .bs-logo.is-corner .bs-stack { animation: none; }
 }
-.pq-who { margin: 14px 0; }
+
 .pq .quiz-submit { bottom: 0; }
 .share-url { display: flex; flex-direction: column; gap: 8px; }
 .share-url .input { flex: 1; min-width: 0; }

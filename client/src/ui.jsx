@@ -73,8 +73,8 @@ export function useAction() {
 /* Кнопки */
 export function Button({ variant = 'primary', icon, busy, children, className = '', small, ...p }) {
   return (
-    <button type="button" className={`btn btn-${variant} ${small ? 'btn-small' : ''} ${className}`} disabled={busy || p.disabled} {...p}>
-      {icon}
+    <button type="button" className={`btn btn-${variant} ${small ? 'btn-small' : ''} ${busy ? 'is-busy' : ''} ${className}`} disabled={busy || p.disabled} aria-busy={busy || undefined} {...p}>
+      {busy ? <span className="btn-spin" aria-hidden="true" /> : icon}
       {children && <span>{children}</span>}
     </button>
   );

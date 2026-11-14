@@ -35,8 +35,10 @@ export function money(v: unknown, label: string): number {
   }
   return Math.round(n * 100) / 100;
 }
+/** Найбільший id у базі: колонки INT. Більші числа — помилка вводу, а не 500 від бази. */
+const MAX_ID = 2_147_483_647;
 export function id(v: unknown, label = 'id'): number {
-  return int(v, label, { min: 1 });
+  return int(v, label, { min: 1, max: MAX_ID });
 }
 export function idList(v: unknown, label: string): number[] {
   if (!Array.isArray(v)) throw bad(`«${label}»: потрібен список`);

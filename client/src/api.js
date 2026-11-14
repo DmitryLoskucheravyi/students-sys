@@ -13,7 +13,12 @@ export async function api(path, { method = 'GET', body } = {}) {
   }
   const data = await res.json().catch(() => null);
   if (res.status === 401 && path !== '/auth/login') window.dispatchEvent(new Event('zoshyt:logout'));
-  if (!res.ok) throw new Error(data?.error ?? 'Не вдалося виконати дію');
+  if (!res.ok) {
+    // Статус — щоб відрізняти «не знайдено» від збою, не розбираючи текст повідомлення
+    const err = new Error(data?.error ?? 'Не вдалося виконати дію');
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 

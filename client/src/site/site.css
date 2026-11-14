@@ -39,7 +39,7 @@
 .s-hero { padding: 0; }
 .s-hero-in.s-wrap { padding: 0; }
 .s-hero-panel {
-  position: relative; overflow: hidden; display: grid; gap: 8px; align-content: space-between; padding: 30px var(--gut) 64px; min-height: calc(100svh - var(--head));
+  position: relative; overflow: clip; display: grid; gap: 8px; align-content: space-between; padding: 30px var(--gut) 64px; min-height: calc(100svh - var(--head));
   background: linear-gradient(160deg, #e01a35 0%, var(--red-fill) 45%, #b60d23 100%); color: #fff;
 }
 .s-hero-panel::before {
@@ -57,6 +57,10 @@
 .s-hero .s-lead { color: rgb(255 255 255 / 0.85); max-width: 44ch; font-size: 14.5px; line-height: 1.5; }
 .s-lead { font-size: 16.5px; line-height: 1.55; color: var(--muted); text-wrap: pretty; }
 .s-hero-actions { position: relative; display: grid; gap: 10px; margin-top: 6px; }
+/* Телефон: «Зателефонувати» видно одразу — прилипає до низу екрана, а в кінці хіро стає на своє місце й гортається з ним */
+.s-hero-actions { position: sticky; z-index: 5; bottom: calc(12px + env(safe-area-inset-bottom)); }
+.s-hero-actions > .btn { box-shadow: 0 14px 34px -12px rgb(40 0 8 / 0.6); }
+.s-hero-courses { position: relative; z-index: 2; width: 100%; }
 .s-hero-actions > .btn { position: relative; z-index: 2; }
 .s-hero-actions .btn { width: 100%; }
 .btn.s-call { background: rgb(255 255 255 / 0.12); color: #fff; box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.45); gap: 10px; }
@@ -126,12 +130,13 @@
 @keyframes s-wait { 50% { opacity: 1; transform: translateY(-4px); } }
 .s-mock-progress { height: 8px; overflow: hidden; border-radius: 99px; background: var(--red-soft); }
 .s-mock-progress i { display: block; width: 48%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #ff5a6e, var(--red-fill)); transform-origin: left; animation: s-grow 1.2s 0.7s var(--ease) both; }
-.s-caret { display: inline-block; width: 7px; height: 14px; vertical-align: -2px; background: #ff5a6e; animation: s-blink 1s steps(1) infinite; }
 
 /* ───────── Секції ───────── */
 .s-sec { padding-top: 56px; }
 .s-sec.is-tight { padding-top: 8px; }
-.s-sec-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+/* На вузькому телефоні «Усі …» переноситься під заголовок, а не вилазить за край */
+.s-sec-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 12px; margin-bottom: 18px; }
+.s-sec-head h2 { min-width: 0; overflow-wrap: break-word; }
 .s-sec-head h2 { font: 800 clamp(26px, 6.5vw, 40px)/1.08 var(--display); letter-spacing: -0.045em; }
 .s-more { display: inline-flex; align-items: center; gap: 4px; flex: none; padding-bottom: 4px; color: var(--red); font-weight: 650; }
 .s-card { display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--line); border-radius: 22px; }
@@ -187,16 +192,10 @@
 .s-art-options svg { width: 18px; height: 18px; }
 .s-art-pill.is-live { display: inline-flex; align-items: center; gap: 6px; background: var(--red-soft); color: var(--red); }
 .s-art-pill.is-live::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: s-blink 1.4s ease-in-out infinite; }
-.s-art-duo { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 16px; border-radius: 16px; background: var(--wash); }
-.s-art-person { display: grid; justify-items: center; gap: 6px; }
-.s-art-person small { color: var(--muted); font-size: 12px; font-weight: 600; }
+
 .s-art-ava.is-big { width: 56px; height: 56px; font-size: 16px; box-shadow: 0 0 0 4px #fff; }
 .s-art-ava.is-you { background: #ffd479; color: #1f1114; }
-.s-art-link { display: flex; flex: 1; justify-content: center; gap: 6px; }
-.s-art-link i { width: 7px; height: 7px; border-radius: 50%; background: var(--red-fill); opacity: 0.25; animation: s-wait 1.4s ease-in-out infinite; }
-.s-art-link i:nth-child(2) { animation-delay: 0.2s; } .s-art-link i:nth-child(3) { animation-delay: 0.4s; }
-.s-art-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 0; padding: 0; list-style: none; }
-.s-art-tags li { padding: 6px 12px; border-radius: 8px; background: var(--red-soft); color: var(--red); font-size: 13.5px; font-weight: 600; }
+
 .s-art-lessons { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .s-art-lessons li { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 14px; background: var(--wash); font-size: 14.5px; font-weight: 600; }
 .s-art-lessons b { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; background: var(--red-fill); color: #fff; font: 800 13px/1 var(--display); }
@@ -333,8 +332,8 @@
 /* ───────── Великий телефон ───────── */
 @media (min-width: 480px) {
   /* Кнопка не на всю ширину, але й не вужча за шторку під нею */
-  .s-hero-actions { justify-self: start; }
-  .s-hero-actions .btn { min-width: 360px; }
+  .s-hero-actions, .s-hero-courses { justify-self: start; }
+  .s-hero-actions .btn, .s-hero-courses { width: auto; min-width: 360px; }
 }
 
 /* ───────── Планшет ───────── */
@@ -386,25 +385,32 @@
   .s-head-cta { height: 46px; padding: 0 22px; font-size: 15px; }
   .s-burger, .s-menu { display: none; }
   /* Текст угорі ліворуч, кнопка внизу ліворуч, роадмап праворуч на всю висоту */
-  .s-hero-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: 1fr auto; column-gap: 48px; row-gap: 32px; align-content: stretch; padding: 64px var(--gut) 72px; }
+  .s-hero-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: 1fr auto auto; column-gap: 48px; row-gap: 10px; align-content: stretch; padding: 64px var(--gut) 72px; }
   .s-hero-text { grid-column: 1; grid-row: 1; align-self: start; }
-  .s-hero-actions { grid-column: 1; grid-row: 2; align-self: end; margin: 0; }
-  .s-hero-art { grid-column: 2; grid-row: 1 / 3; align-self: center; width: min(100%, 520px); margin: 0 auto; }
+  .s-hero-courses { grid-column: 1; grid-row: 2; align-self: end; }
+  .s-hero-actions { grid-column: 1; grid-row: 3; align-self: end; margin: 0; position: relative; bottom: auto; }
+  .s-hero-art { grid-column: 2; grid-row: 1 / 4; align-self: center; width: min(100%, 520px); margin: 0 auto; }
+  /* Хіро прилипає: секція стоїть, прокрутка відкриває картки роадмапу, потім сторінка гортається далі */
+  .s-hero { height: calc(100svh - var(--head) + 900px); }
+  /* Шапка — це --head плюс 1px рамки: прилипаємо одразу під нею, без смикання на піксель */
+  .s-hero-in.s-wrap { position: sticky; top: calc(var(--head) + 1px); }
+  .s-hero-panel { height: calc(100svh - var(--head)); }
 }
 @media (min-width: 1400px) {
   .s-hero h1 { font-size: 64px; }
   .s-hero .s-lead { font-size: 16px; }
   .s-sec { padding-top: 96px; }
   /* Заголовок секції — одним рядком на всю ширину, під ним текст і картки */
-  /* Заголовок і опис в одному рядку, під ними — ряд карток на всю ширину */
-  .s-chapter { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto auto; grid-template-areas: 'n n' 't l' 'a a'; align-content: center; column-gap: 56px; row-gap: 14px; min-height: 88svh; padding-top: 48px; padding-bottom: 48px; }
-  .s-chapter.is-right { grid-template-areas: 'n n' 'l t' 'a a'; }
+  /* Заголовок ліворуч, опис праворуч в одному рядку (вирівняні по низу), під ними — ряд карток на всю ширину */
+  .s-chapter { grid-template-columns: max-content minmax(0, 1fr); grid-template-areas: 'n n' 't l' 'a a'; align-content: center; column-gap: 64px; row-gap: 14px; min-height: 88svh; padding-top: 48px; padding-bottom: 48px; }
+  .s-chapter.is-right { grid-template-columns: minmax(0, 1fr) max-content; grid-template-areas: 'n n' 'l t' 'a a'; }
   .s-chapter-text { display: contents; }
   .s-chapter-n { grid-area: n; }
-  .s-chapter-title { grid-area: t; margin-bottom: 18px; text-wrap: wrap; }
-  .s-chapter-lead { grid-area: l; align-self: end; justify-self: end; margin-bottom: 24px; text-align: right; }
-  .s-chapter.is-right .s-chapter-lead { justify-self: start; text-align: left; }
-  .s-chapter-art { margin-top: 24px; }
+  .s-chapter-title { grid-area: t; text-wrap: wrap; }
+  /* Опис притиснутий до краю, протилежного заголовку; риска — з боку краю */
+  .s-chapter-lead { grid-area: l; align-self: end; justify-self: end; max-width: 30ch; padding: 4px 22px 10px 0; border-right: 3px solid var(--ch-n); text-align: right; font-size: 24px; line-height: 1.4; }
+  .s-chapter.is-right .s-chapter-lead { justify-self: start; padding: 4px 0 10px 22px; border-right: 0; border-left: 3px solid var(--ch-n); text-align: left; }
+  .s-chapter-art { margin-top: 28px; }
   .s-chapter-art { grid-area: a; }
   /* Кожна секція — на весь екран і зі своїм кольором; макет стоїть просто на фоні */
   .s-story { margin-top: 0; }
@@ -417,7 +423,8 @@
   .s-chapter-n { color: var(--ch-n); }
   .s-chapter-lead { color: var(--ch-muted); }
   .s-art-card { box-shadow: 0 40px 80px -30px rgb(30 0 6 / 0.55), 0 0 0 1px rgb(84 14 26 / 0.06); }
-  .s-chapter-title { font-size: clamp(44px, 4.3vw, 96px); }
+  /* На компʼютері заголовок секції — одним рядком (перенос із тексту теж прибирається) */
+  .s-chapter-title { font-size: clamp(40px, 3.2vw, 72px); white-space: nowrap; }
   .s-art-card, .s-card-row .s-art-card { zoom: 1; }
   .s-course-hero-in { padding-top: 36px; padding-bottom: 72px; }
   .s-course-hero-mark { right: 4%; bottom: -120px; }
@@ -451,7 +458,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .s-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
-  .s-hero-text, .s-mock-progress i, .s-caret, .s-roadmap *, .s-bits span, .s-menu, .lead-done-mark { animation: none !important; }
+  .s-hero-text, .s-mock-progress i, .s-roadmap *, .s-bits span, .s-menu, .lead-done-mark { animation: none !important; }
 }
 
 /* Картки-макети (секції й роадмап у хіро): округлий Nunito замість широкого Unbounded */
@@ -476,14 +483,16 @@
 .s-slider-nav { display: none; gap: 6px; }
 .s-slider-nav .icon-btn { width: 42px; height: 42px; border-radius: 10px; box-shadow: inset 0 0 0 1.5px var(--line); }
 .s-slider {
-  display: grid; grid-auto-flow: column; grid-auto-columns: 86%; gap: 12px; overflow-x: auto; overscroll-behavior-x: contain;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 100%; gap: calc(2 * var(--gut)); overflow-x: auto; overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory; scroll-padding-inline: var(--gut); margin-inline: calc(-1 * var(--gut)); padding: 4px var(--gut) 16px; scrollbar-width: none;
 }
 .s-slider::-webkit-scrollbar { display: none; }
-.s-slider > * { scroll-snap-align: start; }
+/* Телефон: рівно одна картка по центру, сусідні не визирають */
+.s-slider > * { scroll-snap-align: center; scroll-snap-stop: always; }
 .s-slider:focus-visible { outline: 2px solid var(--red); outline-offset: -2px; }
 @media (min-width: 600px) {
   .s-slider { grid-auto-columns: calc((100% - 2 * var(--gut)) / 1.6); gap: 16px; }
+  .s-slider > * { scroll-snap-align: start; scroll-snap-stop: normal; }
   .s-slider-nav { display: flex; }
 }
 @media (min-width: 900px) {
@@ -493,8 +502,6 @@
   .s-course h3 { font-size: 28px; }
   .s-course-body p { font-size: 16px; }
   .s-hero h1 { max-width: 22ch; }
-}
-@media (min-width: 1400px) {
 }
 
 /* Соцмережі: круглі кнопки-іконки у футері й мобільному меню */
@@ -526,11 +533,7 @@
 .s-art-plan { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .s-art-plan li { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; background: var(--wash); font-size: 14.5px; font-weight: 600; }
 .s-art-plan b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: var(--red-fill); color: #fff; font: 700 13px/1 var(--body); }
-.s-art-week { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
-.s-art-week span { display: grid; align-content: start; justify-items: center; gap: 6px; min-height: 76px; padding: 8px 2px; border-radius: 12px; background: var(--wash); font-size: 11.5px; font-weight: 700; }
-.s-art-week small { color: var(--muted); font-size: 12px; }
-.s-art-week .is-on { background: var(--red-fill); color: #fff; }
-.s-art-week .is-on small { color: rgb(255 255 255 / 0.8); }
+
 .s-art-task { padding: 12px 14px; border-radius: 14px; background: var(--wash); font-size: 14.5px; line-height: 1.5; }
 .s-art-btn { padding: 8px 14px; border-radius: 10px; background: var(--red-fill); color: #fff; font-size: 13.5px; font-weight: 700; }
 .s-art-streak { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
@@ -616,7 +619,6 @@
 @keyframes s-peek-out { to { transform: translateY(-110%); } }
 @media (prefers-reduced-motion: reduce) { .s-peek, .s-peek.is-out { animation-duration: 0.01s; } }
 
-
 /* Ціни на головній: слайдер на телефоні, ряд із трьох на компʼютері */
 .s-plan-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; border-radius: 16px; }
 .s-plan-slider::-webkit-scrollbar { display: none; }
@@ -638,3 +640,84 @@
 .s-program-sum { color: var(--muted); }
 .s-program-wrap + .s-program-wrap { padding-top: 24px; }
 .s-program-end.is-next span { background: var(--red-soft); color: var(--red); }
+
+/*
+ * Картки в ряд і в стопці однакової висоти. У кожної картки рівно один головний блок (список, графік,
+ * код…): він забирає все вільне місце, тож порожнечі під вмістом не буває. Нова картка = новий клас тут.
+ */
+:is(.s-card-row, .s-stack-item) .s-art-card { display: flex; flex-direction: column; }
+:is(.s-card-row, .s-stack-item) .s-art-card > * { flex: none; }
+:is(.s-card-row, .s-stack-item) :is(.s-art-lessons, .s-art-ticket, .s-art-bars, .s-art-options, .s-art-check, .s-art-plan,
+  .s-art-code, .s-art-task, .s-art-streak, .s-art-facts, .s-art-slots) { flex: 1 1 auto; }
+:is(.s-card-row, .s-stack-item) :is(.s-art-lessons, .s-art-options, .s-art-check, .s-art-plan, .s-art-facts, .s-art-slots) { grid-auto-rows: 1fr; }
+
+:is(.s-card-row, .s-stack-item) .s-art-bars { height: auto; min-height: 120px; }
+:is(.s-card-row, .s-stack-item) .s-art-code { align-content: center; }
+:is(.s-card-row, .s-stack-item) .s-art-task { display: grid; align-content: center; }
+:is(.s-card-row, .s-stack-item) .s-art-ticket { justify-content: center; gap: 18px; }
+:is(.s-card-row, .s-stack-item) .s-art-ticket b { font-size: clamp(64px, 5.5vw, 96px); }
+:is(.s-card-row, .s-stack-item) .s-art-ticket span { font-size: 17px; }
+:is(.s-card-row, .s-stack-item) .s-art-streak { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; align-content: stretch; }
+:is(.s-card-row, .s-stack-item) .s-art-streak i { aspect-ratio: auto; min-height: 44px; }
+:is(.s-card-row, .s-stack-item) .s-art-streak svg { width: 26px; height: 26px; }
+
+/* Над кнопкою в хіро: «Переглянути курси» — червона кнопка з білою рамкою */
+.btn.s-hero-courses { gap: 8px; background: var(--red-fill); color: #fff; box-shadow: inset 0 0 0 2px #fff; }
+.s-hero-courses svg { transition: translate 0.2s var(--ease); }
+@media (hover: hover) { .btn.s-hero-courses:hover { background: #b60d23; } .s-hero-courses:hover svg { translate: 3px 0; } }
+
+/* Невисокий екран компʼютера: роадмап трохи менший, щоб уміщався в прилиплому хіро */
+@media (min-width: 900px) and (max-height: 820px) { .s-roadmap { zoom: 0.82; } }
+@media (min-width: 900px) and (max-height: 700px) { .s-roadmap { zoom: 0.7; } }
+
+/* Картка викладача */
+.s-art-teacher { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 16px; background: var(--wash); }
+.s-art-teacher b { display: block; font-size: 16px; }
+.s-art-teacher small { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; }
+.s-art-facts { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.s-art-facts li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.s-art-facts li:last-child { border-bottom: 0; }
+.s-art-facts span { color: var(--muted); font-weight: 600; }
+
+/* Картка «Зручний час» */
+.s-art-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.s-art-days span { display: grid; justify-items: center; gap: 4px; }
+.s-art-days small { color: var(--muted); font-size: 11.5px; font-weight: 700; }
+.s-art-days b { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font-size: 13.5px; }
+.s-art-days .is-on b { background: var(--red-fill); color: #fff; }
+.s-art-slots { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.s-art-slots li { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 14px; background: var(--wash); font-size: 14px; font-weight: 600; }
+.s-art-slots b { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; background: var(--red-fill); color: #fff; font-size: 13px; }
+.s-art-slots span { display: grid; gap: 1px; }
+.s-art-slots em { color: var(--muted); font-style: normal; font-size: 12.5px; font-weight: 500; }
+.s-art-move { display: flex; align-items: center; gap: 8px; margin: 0; color: #1d6b37; font-size: 13.5px; font-weight: 700; }
+.s-art-move svg { flex: none; width: 20px; height: 20px; padding: 3px; border-radius: 6px; background: #e3f5e8; }
+
+/*
+ * Поява підкладки з картками на телефоні — у кожної секції своя.
+ * Сітка фону — окремий шар, маска поступово відкриває клітинки; стопка карток виїжджає по-різному.
+ */
+.s-chapter-art { background-image: none; transition: background-color 0.6s; }
+.s-chapter-art:not(.is-in) { background-color: transparent; }
+/* Сітка будується згори вниз: вертикальні лінії тягнуться плавно, горизонтальні додаються ряд за рядом */
+.s-chapter-art::before, .s-chapter-art::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; background-size: 30px 30px;
+  -webkit-mask-image: linear-gradient(#000, #000); mask-image: linear-gradient(#000, #000);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: top; mask-position: top;
+  -webkit-mask-size: 100% 0%; mask-size: 100% 0%;
+}
+.s-chapter-art::before { background-image: linear-gradient(90deg, rgb(214 17 43 / 0.1) 1px, transparent 1px);
+  transition: -webkit-mask-size 1.4s cubic-bezier(0.45, 0, 0.25, 1), mask-size 1.4s cubic-bezier(0.45, 0, 0.25, 1); }
+.s-chapter-art::after { background-image: linear-gradient(rgb(214 17 43 / 0.1) 1px, transparent 1px);
+  transition: -webkit-mask-size 1.4s steps(16, end), mask-size 1.4s steps(16, end); }
+.s-chapter-art.is-in::before, .s-chapter-art.is-in::after { -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+.s-chapter-art > * { position: relative; z-index: 1; }
+/* Стопка карток: своя поява в кожній секції */
+.s-chapter-art .s-stack { opacity: 0; transition: opacity 0.6s 0.35s, transform 0.9s 0.35s cubic-bezier(0.2, 1.2, 0.4, 1); }
+.s-chapter-art.is-v0 .s-stack { transform: translateY(60px); }
+.s-chapter-art.is-v1 .s-stack { transform: scale(0.8); }
+.s-chapter-art.is-v2 .s-stack { transform: translateX(70px) rotate(6deg); }
+.s-chapter-art.is-v3 .s-stack { transform: perspective(900px) rotateX(-40deg) translateY(-30px); transform-origin: 50% 0; }
+.s-chapter-art.is-in .s-stack { opacity: 1; transform: none; }
+@media (min-width: 600px) { .s-chapter-art::before, .s-chapter-art::after { display: none; } }
+@media (prefers-reduced-motion: reduce) { .s-chapter-art::before, .s-chapter-art::after, .s-chapter-art .s-stack { transition: none; } }

@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, uploadForm, useData } from '../api.js';
 import { CourseIcon } from '../courseLook.jsx';
-import { dateTimeShort, lessonsWord, money } from '../fmt.js';
+import { dateTimeShort, lessonsWord, money, plural } from '../fmt.js';
 import { Button, Checkbox, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageTools, Segmented, Select, Status, Textarea, useAction, useUI } from '../ui.jsx';
 import { IconBell, IconDown, IconEdit, IconExternal, IconImage, IconPhone, IconPlus, IconQuote, IconRestore, IconRoadmap, IconTick, IconTrash, IconUp } from '../icons.jsx';
 
@@ -105,7 +105,7 @@ function Leads() {
 
 /* ───────── Напрямки: те, що на сайті називається «Курси» ───────── */
 
-const coursesWord = (n) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'курс' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'курси' : 'курсів'}`;
+const coursesWord = (n) => `${n} ${plural(n, 'курс', 'курси', 'курсів')}`;
 
 function Directions({ state, onEdit }) {
   const { data, error, loading, reload, setData } = state;
