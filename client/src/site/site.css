@@ -348,7 +348,13 @@
   .s-medal { width: 50px; height: 50px; }
   .s-sec { padding-top: 72px; }
   .s-chapter { padding-top: 96px; }
-  .s-chapter-art { min-height: 420px; }
+  /* Картки секції рядом: без рожевої підкладки, виїжджають по черзі з легким поворотом */
+  .s-chapter-art { min-height: 0; padding: 8px 0 0; background: none; overflow: visible; }
+  .s-card-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; width: 100%; align-items: stretch; }
+  .s-card-row-item { display: grid; opacity: 0; transform: translateY(48px) rotate(calc((var(--k) - 1) * 3deg)) scale(0.96);
+    transition: opacity 0.6s calc(var(--k) * 0.16s), transform 0.8s calc(var(--k) * 0.16s) cubic-bezier(0.2, 1.2, 0.4, 1); }
+  .s-card-row.is-in .s-card-row-item { opacity: 1; transform: none; }
+  .s-card-row .s-art-card { zoom: 0.78; }
   .s-course-cover { height: 230px; }
   .s-course-hero-in { padding-top: 28px; padding-bottom: 56px; }
   .s-tickets { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -368,6 +374,8 @@
 
 /* ───────── Десктоп ───────── */
 @media (min-width: 900px) {
+  .s-card-row { gap: 22px; }
+  .s-card-row .s-art-card { zoom: 0.9; }
   .site { --gut: 24px; --head: 76px; }
   .s-head-in { gap: 20px; }
   .bs-logo.is-site { font-size: 21px; }
@@ -388,12 +396,15 @@
   .s-hero .s-lead { font-size: 16px; }
   .s-sec { padding-top: 96px; }
   /* Заголовок секції — одним рядком на всю ширину, під ним текст і картки */
-  .s-chapter { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto 1fr; grid-template-areas: 'n n' 't t' 'l a'; align-content: center; column-gap: 56px; row-gap: 14px; min-height: 88svh; padding-top: 48px; padding-bottom: 48px; }
-  .s-chapter:nth-child(even) { grid-template-areas: 'n n' 't t' 'a l'; }
+  /* Заголовок і опис в одному рядку, під ними — ряд карток на всю ширину */
+  .s-chapter { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto auto; grid-template-areas: 'n n' 't l' 'a a'; align-content: center; column-gap: 56px; row-gap: 14px; min-height: 88svh; padding-top: 48px; padding-bottom: 48px; }
+  .s-chapter.is-right { grid-template-areas: 'n n' 'l t' 'a a'; }
   .s-chapter-text { display: contents; }
   .s-chapter-n { grid-area: n; }
   .s-chapter-title { grid-area: t; margin-bottom: 18px; text-wrap: wrap; }
-  .s-chapter-lead { grid-area: l; align-self: start; }
+  .s-chapter-lead { grid-area: l; align-self: end; justify-self: end; margin-bottom: 24px; text-align: right; }
+  .s-chapter.is-right .s-chapter-lead { justify-self: start; text-align: left; }
+  .s-chapter-art { margin-top: 24px; }
   .s-chapter-art { grid-area: a; }
   /* Кожна секція — на весь екран і зі своїм кольором; макет стоїть просто на фоні */
   .s-story { margin-top: 0; }
@@ -405,10 +416,9 @@
   .s-chapter:nth-child(4n) { --ch-bg: #1f1114; --ch-line: rgb(255 255 255 / 0.06); --ch-ink: #fff; --ch-muted: rgb(255 255 255 / 0.7); --ch-chip: rgb(255 255 255 / 0.1); --ch-tick: #ff8a99; --ch-n: #ff8a99; }
   .s-chapter-n { color: var(--ch-n); }
   .s-chapter-lead { color: var(--ch-muted); }
-  .s-chapter-art { min-height: 520px; background: none; overflow: visible; }
   .s-art-card { box-shadow: 0 40px 80px -30px rgb(30 0 6 / 0.55), 0 0 0 1px rgb(84 14 26 / 0.06); }
   .s-chapter-title { font-size: clamp(44px, 4.3vw, 96px); }
-  .s-art-card { zoom: 1.12; }
+  .s-art-card, .s-card-row .s-art-card { zoom: 1; }
   .s-course-hero-in { padding-top: 36px; padding-bottom: 72px; }
   .s-course-hero-mark { right: 4%; bottom: -120px; }
   .s-program-wrap { grid-template-columns: minmax(220px, 0.32fr) minmax(0, 1fr); gap: 48px; align-items: start; }

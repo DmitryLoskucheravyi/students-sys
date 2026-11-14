@@ -557,6 +557,30 @@ function CardStack({ cards }) {
   );
 }
 
+/** Від планшета: картки секції рядом, виїжджають по черзі, коли ряд потрапив на екран. */
+function CardRow({ cards }) {
+  const ref = useRef(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined' || prefersCalm()) { setShown(true); return undefined; }
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setShown(true); io.disconnect(); } }, { threshold: 0.2 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div className={`s-card-row ${shown ? 'is-in' : ''}`} ref={ref}>
+      {cards.map((Card, k) => <div key={k} className="s-card-row-item" style={{ '--k': k }}><Card /></div>)}
+    </div>
+  );
+}
+
+/** Картки секції: на телефоні — стопка, що гортається сама, ширше — ряд. */
+function FeatureCards({ cards }) {
+  const wide = useMedia('(min-width: 600px)');
+  return wide ? <CardRow cards={cards} /> : <CardStack cards={cards} />;
+}
+
 const FEATURE_ART = {
   solo: [SoloArt, PlanArt, TimeArt],
   check: [HomeworkArt, TaskArt, StreakArt],
@@ -626,7 +650,7 @@ export function Home() {
                 <Reveal as="h2" className="s-chapter-title">{f.title}</Reveal>
                 <Reveal as="p" className="s-chapter-lead" delay={120}>{f.text}</Reveal>
               </div>
-              <Reveal className="s-chapter-art" delay={150}><CardStack cards={cards} /></Reveal>
+              <div className="s-chapter-art"><FeatureCards cards={cards} /></div>
             </section>
           );
         })}
