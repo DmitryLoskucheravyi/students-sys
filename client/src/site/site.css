@@ -161,7 +161,9 @@
 /* Заголовок-композиція: два рядки й вертикальне слово праворуч на їхню висоту */
 .s-title-art { display: inline-grid; grid-template-columns: auto auto; column-gap: 0.06em; align-items: stretch; white-space: nowrap; }
 .s-title-art > span:first-child { display: grid; justify-items: end; }
-.s-title-art .is-up { position: relative; top: -0.05em; align-self: center; writing-mode: vertical-rl; font-size: 0.41em; line-height: 0.9; letter-spacing: -0.02em; }
+/* Повернутий звичайний текст, а не writing-mode: довжина слова однакова в усіх браузерах */
+.s-title-art .is-up { position: relative; width: 0.36em; }
+.s-title-art .is-up > span { position: absolute; top: calc(50% - 0.023em); left: 50%; font-size: 0.41em; line-height: 1; letter-spacing: -0.02em; white-space: nowrap; transform: translate(-50%, -50%) rotate(90deg); }
 .s-chapter.is-right :is(.s-chapter-n, .s-chapter-title) { text-align: right; }
 .s-chapter-title.s-reveal { transform: translateY(60px); transition-duration: 0.9s; }
 .s-chapter-title.s-reveal.is-in { transform: none; }

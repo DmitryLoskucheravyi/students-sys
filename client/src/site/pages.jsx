@@ -53,7 +53,7 @@ function TitleArt({ parts: [top, bottom, up] }) {
   return (
     <span className="s-title-art" aria-hidden="true">
       <span><span>{top}</span><span>{bottom}</span></span>
-      <span className="is-up">{up}</span>
+      <span className="is-up"><span>{up}</span></span>
     </span>
   );
 }
