@@ -49,15 +49,15 @@ export const stackPos = (k, front, total) => (k - front + total) % total;
  */
 export function desktopProgress({ heroTop, heroHeight, vh, head }) {
   const room = Math.max(1, heroHeight - (vh - head));
-  return ((head - heroTop) / room) * 1.12;
+  return ((head - heroTop) / room) * 1.35;
 }
 
 /**
- * Прогрес роадмапу на телефоні: 0 при заході, 1 — коли низ роадмапу доїхав до середини екрана.
+ * Прогрес роадмапу на телефоні: 0 при заході, 1 — щойно низ роадмапу трохи піднявся над низом екрана (до 80% висоти).
  * roadmapBottom — низ роадмапу відносно вікна.
  */
 export function mobileProgress({ roadmapBottom, scrollY, vh }) {
-  const room = roadmapBottom + scrollY - vh * 0.5;
+  const room = roadmapBottom + scrollY - vh * 0.8;
   return room <= 0 ? 1 : scrollY / room;
 }
 

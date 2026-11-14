@@ -35,7 +35,7 @@ export function useSeenOnce({ threshold = 0, rootMargin = '0px' } = {}) {
 }
 
 /** Зʼявляється, коли доскролили: кожен елемент окремо, тож контент виростає поступово. */
-export function Reveal({ as: Tag = 'div', className = '', delay = 0, children }) {
+export function Reveal({ as: Tag = 'div', className = '', delay = 0, children, ...rest }) {
   const [ref, seen] = useSeenOnce({ rootMargin: '0px 0px -15% 0px' });
-  return <Tag ref={ref} className={`s-reveal ${seen ? 'is-in' : ''} ${className}`} style={{ '--d': `${delay}ms` }}>{children}</Tag>;
+  return <Tag ref={ref} className={`s-reveal ${seen ? 'is-in' : ''} ${className}`} style={{ '--d': `${delay}ms` }} {...rest}>{children}</Tag>;
 }

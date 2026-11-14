@@ -10,173 +10,160 @@ const Tick = () => <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path
 
 /* ───────── Макети ───────── */
 
-/** Індивідуальні заняття: картка викладача — хто веде, як проходять заняття, коли наступне. */
-function SoloArt() {
+/** Індивідуальні / групові заняття: без карток, просто текст прямо на секції — досвід викладачів. */
+function TeamArt() {
+  return (
+    <div className="s-team">
+      <p>За спиною наших викладачів <mark>понад&nbsp;3&nbsp;роки</mark> викладання, <mark>більше&nbsp;сотні</mark> випускників і задоволених родин!</p>
+      <p className="s-team-sub">Ми точно знаємо, як пояснити те, що Вас цікавить.</p>
+    </div>
+  );
+}
+
+/* «Програмування легше, ніж здається»: від ідеї до власної гри — вісім рядків коду */
+function IdeaArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><b>Ваш викладач</b><span className="s-art-pill is-ok">1 на 1</span></div>
-      <div className="s-art-teacher">
-        <span className="s-art-ava is-big">ОК</span>
-        <span><b>Олена Коваль</b><small>Python і веброзробка</small></span>
+      <div className="s-art-row"><b>Крок 1</b><span className="s-art-pill is-live">Ідея</span></div>
+      <div className="s-art-easy is-idea">
+        <div className="s-art-note"><span className="s-art-ava is-you">Ви</span><p>Хочу свою гру: компʼютер загадує число, а я вгадую</p></div>
+        <div className="s-art-note is-reply"><p>Легко! Зробимо за одне заняття</p><span className="s-art-ava">ОК</span></div>
       </div>
-      <ul className="s-art-facts">
-        <li><span>Формат</span><b>Лише Ви й викладач</b></li>
-        <li><span>Тривалість</span><b>60 хвилин</b></li>
-        <li><span>Темп</span><b>Під Вас</b></li>
-      </ul>
-      <div className="s-art-row"><small>Наступне заняття</small><small><b>Вт, 17:00</b></small></div>
+      <div className="s-art-row"><small>Звучить складно?</small></div>
     </div>
   );
 }
 
-function PlanArt() {
+function LineArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><b>Ваша програма</b><span className="s-art-pill is-ok">Індивідуально</span></div>
-      <div className="s-art-note"><span className="s-art-ava is-you">Ви</span><p>Хочу робити свої ігри!</p></div>
-      <ol className="s-art-plan">
-        <li><b>1</b>Основи Python</li>
-        <li><b>2</b>Pygame: перша гра</li>
-        <li><b>3</b>Своя гра від ідеї до релізу</li>
-      </ol>
-    </div>
-  );
-}
-
-/** Зручний час: тиждень із датами, обрані заняття окремими рядками, перенесення без штрафів. */
-const WEEK = [['Пн', 10], ['Вт', 11], ['Ср', 12], ['Чт', 13], ['Пт', 14], ['Сб', 15], ['Нд', 16]];
-const BUSY = new Set(['Вт', 'Пт']);
-function TimeArt() {
-  return (
-    <div className="s-art-card">
-      <div className="s-art-row"><b>Зручний час</b><small>Листопад</small></div>
-      <div className="s-art-days">
-        {WEEK.map(([d, n]) => <span key={d} className={BUSY.has(d) ? 'is-on' : ''}><small>{d}</small><b>{n}</b></span>)}
+      <div className="s-art-row"><b>Крок 2</b><span className="s-art-pill is-code">Код</span></div>
+      <div className="s-art-code s-art-easy">
+        <span><u className="k">from</u> random <u className="k">import</u> randint</span>
+        <span>secret = <u className="f">randint</u>(<u className="n">1</u>, <u className="n">10</u>)</span>
+        <span>guess = <u className="n">0</u></span>
+        <span><u className="k">while</u> guess != secret:</span>
+        <span>  guess = <u className="f">int</u>(<u className="f">input</u>(<u className="s">"Число? "</u>))</span>
+        <span>  <u className="k">if</u> guess &lt; secret: <u className="f">print</u>(<u className="s">"Більше!"</u>)</span>
+        <span>  <u className="k">if</u> guess &gt; secret: <u className="f">print</u>(<u className="s">"Менше!"</u>)</span>
+        <span><u className="f">print</u>(<u className="s">"Вгадав! 🎉"</u>)</span>
       </div>
-      <ul className="s-art-slots">
-        <li><b>Вт</b><span><em>17:00</em>Python з викладачем</span></li>
-        <li><b>Пт</b><span><em>15:30</em>Python з викладачем</span></li>
-      </ul>
-      <p className="s-art-move"><Tick />Перенести можна без штрафів</p>
+      <div className="s-art-row"><small>Вісім рядків, і все</small></div>
     </div>
   );
 }
 
-function HomeworkArt() {
+const PLAY = [['Число? ', '5'], ['Більше!'], ['Число? ', '8'], ['Менше!'], ['Число? ', '7'], ['Вгадав! 🎉']];
+function RunArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><b>Домашнє «Цикли»</b><span className="s-art-pill is-ok">Перевірено</span></div>
-      <div className="s-art-code"><span><u className="k">for</u> n <u className="k">in</u> <u className="f">range</u>(<u className="n">5</u>):</span><span>    <u className="f">print</u>(n * n)</span></div>
-      <div className="s-art-note"><span className="s-art-ava">ОК</span><p>Гарно! Наступного разу спробуйте винести це у функцію.</p></div>
-      <div className="s-art-row"><small>Оцінка</small><b className="s-art-grade">11<span>/12</span></b></div>
+      <div className="s-art-row"><b>Крок 3</b><span className="s-art-pill is-ok">Граємо</span></div>
+      <div className="s-art-term s-art-easy">
+        {PLAY.map(([t, you], k) => <span key={k} style={{ '--k': k }} className={k === PLAY.length - 1 ? 'is-win' : ''}>{t}{you && <b>{you}</b>}</span>)}
+      </div>
+      <p className="s-art-done"><Tick />Працює! Це Ваша перша гра</p>
     </div>
   );
 }
 
-function TaskArt() {
-  return (
-    <div className="s-art-card">
-      <div className="s-art-row"><b>Нове домашнє</b><span className="s-art-pill is-live">до пт</span></div>
-      <p className="s-art-task">Зробіть гру «Вгадай число»: компʼютер загадує, Ви вгадуєте, а програма підказує «більше» чи «менше».</p>
-      <div className="s-art-row"><small>Тема «Цикли»</small><span className="s-art-btn">Здати роботу</span></div>
-    </div>
-  );
-}
-
-function StreakArt() {
-  return (
-    <div className="s-art-card">
-      <div className="s-art-row"><b>Домашні за місяць</b><b className="s-art-grade is-green">8<span>/8</span></b></div>
-      <div className="s-art-streak">{Array.from({ length: 8 }, (_, k) => <i key={k}><Tick /></i>)}</div>
-      <div className="s-art-row"><small>Середня оцінка</small><small><b>10,5</b> з 12</small></div>
-    </div>
-  );
-}
-
+/* «Помилятися не страшно»: тест після теми, помилка, підказка викладача — і тему закрито */
+const Cross = () => <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 4.5l7 7m0-7l-7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>;
 function QuizArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><small>Тест «Цикли»</small><small>3 з 10</small></div>
-      <b className="s-art-q">Що виведе <code>print(2 ** 3)</code>?</b>
-      <ul className="s-art-options">
-        <li>6</li>
-        <li className="is-right">8<Tick /></li>
-        <li>9</li>
+      <div className="s-art-row"><b>Крок 1</b><span className="s-art-pill is-live">Тест</span></div>
+      <b className="s-art-q">Що виведе <code>print("Ха" * 3)</code>?</b>
+      <ul className="s-art-options s-art-easy">
+        <li className="is-wrong">Ха3<Cross /></li>
+        <li>ХаХаХа</li>
+        <li>Помилка</li>
       </ul>
-      <div className="s-art-row"><small>Результат</small><b className="s-art-grade is-green">9<span>/10</span></b></div>
+      <div className="s-art-row"><small>Ой, не те</small></div>
     </div>
   );
 }
 
-function ResultArt() {
+function HintArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><b>Тест «Умови»</b><b className="s-art-grade is-green">9<span>/10</span></b></div>
-      <ul className="s-art-check">
-        <li className="is-ok"><Tick />if та else</li>
-        <li className="is-ok"><Tick />Порівняння</li>
-        <li className="is-again"><span>!</span>Логічні оператори<small>повторити</small></li>
+      <div className="s-art-row"><b>Крок 2</b><span className="s-art-pill is-code">Підказка</span></div>
+      <div className="s-art-easy is-idea">
+        <div className="s-art-note"><span className="s-art-ava">ОК</span><p>Майже! Рядок, помножений на число, повторюється. Як зірочки в нашій грі</p></div>
+        <div className="s-art-code"><span><u className="s">"Ха"</u> * <u className="n">3</u>  →  <u className="s">"ХаХаХа"</u></span></div>
+      </div>
+      <div className="s-art-row"><small>Помилка показує, що повторити</small></div>
+    </div>
+  );
+}
+
+function PassArt() {
+  return (
+    <div className="s-art-card">
+      <div className="s-art-row"><b>Крок 3</b><span className="s-art-pill is-ok">Тему закрито</span></div>
+      <ul className="s-art-check s-art-easy">
+        <li className="is-ok"><Tick />Цикли</li>
+        <li className="is-ok"><Tick />Умови</li>
+        <li className="is-ok"><Tick />Рядки<small>з другої спроби</small></li>
       </ul>
+      <p className="s-art-done"><Tick />Тепер це знання назавжди</p>
     </div>
   );
 }
 
-function Quiz2Art() {
+/* «Кабінет, де видно весь шлях»: нагадування, перевірене домашнє, прогрес курсу */
+function TodayArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><small>Тест «Рядки»</small><small>5 з 10</small></div>
-      <b className="s-art-q">Що поверне <code>len("код")</code>?</b>
-      <ul className="s-art-options">
-        <li className="is-right">3<Tick /></li>
-        <li>4</li>
-        <li>"код"</li>
-      </ul>
+      <div className="s-art-row"><b>Сьогодні</b><span className="s-art-pill is-live">17:00</span></div>
+      <div className="s-art-easy is-idea">
+        <div className="s-art-ping"><b>🎮</b><span><small>Заняття о 17:00</small>Своя гра: додаємо рахунок</span></div>
+        <ul className="s-art-lessons">
+          <li><b>Ср</b><span><em>17:00</em>Своя гра: рівні</span></li>
+          <li><b>Пт</b><span><em>16:00</em>Показуємо гру друзям</span></li>
+        </ul>
+      </div>
+      <div className="s-art-row"><small>Розклад завжди під рукою</small></div>
     </div>
   );
 }
 
-function CabinetArt() {
+function CheckedArt() {
   return (
     <div className="s-art-card">
-      <small className="s-art-label">Найближчі заняття</small>
-      <ul className="s-art-lessons">
-        <li><b>Пн</b><span><em>17:00</em>Python. Старт</span></li>
-        <li><b>Ср</b><span><em>17:00</em>Python. Старт</span></li>
-        <li><b>Пт</b><span><em>16:00</em>Розбір домашнього</span></li>
-      </ul>
-      <div className="s-art-row"><small>Абонемент</small><small><b>6</b> з 8 занять</small></div>
-      <div className="s-mock-progress"><i style={{ width: '75%' }} /></div>
+      <div className="s-art-row"><b>Домашнє «Вгадай число»</b><span className="s-art-pill is-ok">Перевірено</span></div>
+      <div className="s-art-easy is-idea">
+        <div className="s-art-term">
+          <span>Число? <b>4</b></span>
+          <span>Більше!</span>
+          <span>Число? <b>6</b></span>
+          <span className="is-win">Вгадав! 🎉</span>
+        </div>
+        <div className="s-art-note"><span className="s-art-ava">ОК</span><p>Гра працює! Наступний крок: рахувати спроби</p></div>
+      </div>
+      <div className="s-art-row"><small>Оцінка</small><b className="s-art-grade">12<span>/12</span></b></div>
     </div>
   );
 }
 
-function TicketArt() {
+const PATH = [['Основи Python', 1], ['Умови й цикли', 1], ['Своя гра', 0.6], ['Графіка', 0], ['Реліз гри', 0]];
+function PathArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><b>Абонемент</b><span className="s-art-pill is-ok">Активний</span></div>
-      <div className="s-art-ticket"><b>6</b><span>занять лишилось<small>з 8</small></span></div>
-      <div className="s-mock-progress"><i style={{ width: '75%' }} /></div>
-    </div>
-  );
-}
-
-const GRADES = [9, 11, 10, 12, 11, 12];
-function GradesArt() {
-  return (
-    <div className="s-art-card">
-      <div className="s-art-row"><b>Оцінки</b><small>останні 6</small></div>
-      <div className="s-art-bars">{GRADES.map((v, k) => <span key={k} style={{ '--h': `${(v / 12) * 100}%` }}><b>{v}</b></span>)}</div>
-      <div className="s-art-row"><small>Прогрес курсу</small><small><b>64%</b></small></div>
+      <div className="s-art-row"><b>Мій шлях</b><small><b>52%</b></small></div>
+      <ol className="s-art-path s-art-easy">
+        {PATH.map(([t, v]) => <li key={t} className={v === 1 ? 'is-done' : v > 0 ? 'is-now' : ''} style={{ '--v': v }}><i>{v === 1 && <Tick />}</i>{t}</li>)}
+      </ol>
+      <p className="s-art-done"><Tick />Батькам теж усе видно</p>
     </div>
   );
 }
 
 /** Які макети показувати в секції (ключ — FEATURES[].icon з content.js). */
 const FEATURE_ART = {
-  solo: [SoloArt, PlanArt, TimeArt],
-  check: [HomeworkArt, TaskArt, StreakArt],
-  quiz: [QuizArt, ResultArt, Quiz2Art],
-  cabinet: [CabinetArt, TicketArt, GradesArt],
+  solo: [TeamArt],
+  check: [IdeaArt, LineArt, RunArt],
+  quiz: [QuizArt, HintArt, PassArt],
+  cabinet: [TodayArt, CheckedArt, PathArt],
 };
 
 /* ───────── Як показувати ───────── */
@@ -236,8 +223,10 @@ export function FeatureArt({ icon, variant }) {
   const wide = useMedia('(min-width: 600px)');
   const [ref, seen] = useSeenOnce({ threshold: 0.25 });
   return (
-    <div ref={ref} className={`s-chapter-art is-v${variant} ${seen ? 'is-in' : ''}`}>
-      {wide ? <CardRow cards={cards} /> : <CardStack cards={cards} />}
+    <div ref={ref} className={`s-chapter-art is-v${variant} ${cards.length === 1 ? 'is-open' : ''} ${seen ? 'is-in' : ''}`}>
+      {cards.length === 1
+        ? (() => { const Card = cards[0]; return <Card />; })()
+        : wide ? <CardRow cards={cards} /> : <CardStack cards={cards} />}
     </div>
   );
 }
