@@ -48,7 +48,7 @@ function measureShown(root, total) {
 
 /**
  * Роадмап без дороги: картки кроків зʼявляються по черзі з прокруткою, далі «Фініш», і до нього
- * по одному підкріплюються пункти зі смайликами. Гортаєте вгору — ховаються у зворотному порядку.
+ * по одному підкріплюються пункти зі смайликами. Що відкрилось, лишається: прокрутка вгору нічого не ховає.
  * Компʼютер: хіро прилипає, поки йде анімація. Телефон: «Старт» видно одразу.
  */
 export function HeroArt() {
@@ -66,7 +66,13 @@ export function HeroArt() {
     };
     if (prefersCalm()) { apply(items.length); return undefined; }
     let raf = 0;
-    const update = () => { raf = 0; apply(measureShown(root, items.length)); };
+    let shown = 0; // лише росте: вгору роадмап не відмотується
+    const update = () => {
+      raf = 0;
+      const n = Math.max(shown, measureShown(root, items.length));
+      if (n !== shown || n === 0) apply(n);
+      shown = n;
+    };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
     update();
     window.addEventListener('scroll', onScroll, { passive: true });
