@@ -134,7 +134,8 @@ function Header({ onLead }) {
     </header>
       {menu && (
         <div className="s-menu" id="s-menu">
-          <nav aria-label="Меню">
+          {/* Клік по посиланню закриває меню одразу, не чекаючи зміни адреси */}
+          <nav aria-label="Меню" onClick={(e) => { if (e.target.closest('a')) setMenu(false); }}>
             <Link to="/">Головна</Link>
             {NAV.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
             <a href="/cabinet" className="s-menu-cabinet"><IconUser size={20} />Для учнів</a>

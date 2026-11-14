@@ -161,6 +161,7 @@ with sync_playwright() as pw:
     check("у меню «Для учнів» → /cabinet", g.locator("#s-menu a", has_text="Для учнів").get_attribute("href") == "/cabinet")
     g.locator("#s-menu").get_by_role("link", name="Ціни").click()
     expect(g.get_by_role("heading", name="Ціни", level=1)).to_be_visible()
+    expect(g.locator("#s-menu")).to_have_count(0)
     check("меню закривається після переходу", g.locator("#s-menu").count() == 0)
     check("сторінка цін: ті самі абонементи", g.locator(".s-ticket").count() == 2)
     g.goto(f"{BASE}/courses"); g.wait_for_load_state("networkidle")
