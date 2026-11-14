@@ -25,7 +25,7 @@ check('кабінет на /cabinet віддає застосунок', cabinet.
 
 const siteApi = await get('/api/site');
 const siteData = await siteApi.json().catch(() => null);
-check('дані сайту школи доступні без входу', siteApi.status === 200 && Array.isArray(siteData?.courses) && Array.isArray(siteData?.plans), String(siteApi.status));
+check('дані сайту школи доступні без входу', siteApi.status === 200 && Array.isArray(siteData?.directions) && Array.isArray(siteData?.plans), String(siteApi.status));
 
 const health = await get('/api/health');
 check('проксі доходить до API і бази', health.status === 200 && (await health.json().catch(() => null))?.ok === true, String(health.status));
