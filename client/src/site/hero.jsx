@@ -21,9 +21,9 @@ const ROAD = [
   { label: 'Крок 3', title: 'Проєкт у команді' },
 ];
 const FINISH = [
-  { face: ':)', text: 'Впевнено володію навичками' },
-  { face: ':D', text: 'Опанував найновіші технології' },
-  { face: 'B)', text: 'Маю портфоліо та сертифікат' },
+  { face: ':)', text: 'Впевнено володіє навичками' },
+  { face: ':D', text: 'Опанувала найновіші технології' },
+  { face: 'B)', text: 'Має портфоліо та сертифікат' },
 ];
 const CONFETTI = [[-110, -60, '#ffd479'], [96, -74, '#fff'], [-150, 6, '#a3e6b0'], [150, -6, '#ffd479'], [-70, -100, '#fff'], [70, -102, '#a7d4ff'], [0, -118, '#ff9aa7'], [-170, -38, '#fff'], [172, -42, '#a3e6b0'], [30, -90, '#ffd479'], [-30, -130, '#a7d4ff'], [124, -110, '#ff9aa7']];
 
@@ -98,7 +98,7 @@ export function HeroArt() {
           <span className="s-confetti">{CONFETTI.map(([x, y, c], k) => <i key={k} style={{ '--x': `${x}px`, '--y': `${y}px`, '--c': c, '--r': `${k * 47}deg`, '--k': k }} />)}</span>
           <div className="s-rm-finish-head">
             <Medal />
-            <span><small>Фініш</small><b>Ви — програміст</b></span>
+            <span><small>Фініш</small><b>Ваша дитина:</b></span>
           </div>
           <ul className="s-rm-points">
             {FINISH.map((f) => (

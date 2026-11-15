@@ -49,13 +49,11 @@ function Hero() {
 }
 
 /** Заголовок-композиція: два рядки, а слово між ними — повернуте набік праворуч, на їхню висоту. */
-function TitleArt({ parts: [top, bottom, up] }) {
-  return (
-    <span className="s-title-art" aria-hidden="true">
-      <span><span>{top}</span><span>{bottom}</span></span>
-      <span className="is-up"><span>{up}</span></span>
-    </span>
-  );
+/** Заголовок з одним виділеним словом: те саме слово, інший колір і шрифт. */
+function Accented({ text, word }) {
+  const at = word ? text.indexOf(word) : -1;
+  if (at < 0) return text;
+  return <>{text.slice(0, at)}<em className="s-title-accent">{word}</em>{text.slice(at + word.length)}</>;
 }
 
 const FORMAT_ICON = { solo: IconUser, group: IconPeople };
@@ -98,7 +96,7 @@ function Story() {
         <section key={f.title} className={`s-wrap s-chapter ${f.align === 'right' ? 'is-right' : ''}`}>
           <div className="s-chapter-text">
             <Reveal as="p" className="s-chapter-n">{String(i + 1).padStart(2, '0')}</Reveal>
-            <Reveal as="h2" className="s-chapter-title" aria-label={f.art ? f.title : undefined}>{f.art ? <TitleArt parts={f.art} /> : f.title}</Reveal>
+            <Reveal as="h2" className="s-chapter-title"><Accented text={f.title} word={f.accent} /></Reveal>
             <Reveal as="p" className="s-chapter-lead" delay={120}>{f.text}</Reveal>
           </div>
           <FeatureArt icon={f.icon} variant={i % 4} />

@@ -167,15 +167,13 @@
 .s-chapter-text { display: grid; gap: 12px; }
 .s-chapter-n { color: var(--red); font: 800 15px/1 var(--display); letter-spacing: 0.04em; }
 .s-chapter-title { font: 800 clamp(24px, 8.4vw, 104px)/0.98 var(--display); letter-spacing: -0.055em; text-wrap: balance; }
+/* Виділене слово в заголовку: той самий розмір, інший колір і округлий шрифт */
+.s-title-accent { color: var(--ch-accent, var(--red)); font-family: 'Nunito Variable', var(--display); font-style: normal; font-weight: 900; letter-spacing: -0.03em; }
 /* Заголовок можна розбити на рядки (
  у тексті) і притиснути праворуч */
 .s-chapter-title { white-space: pre-line; }
 /* Заголовок-композиція: два рядки й вертикальне слово праворуч на їхню висоту */
-.s-title-art { display: inline-grid; grid-template-columns: auto auto; column-gap: 0.06em; align-items: stretch; white-space: nowrap; }
-.s-title-art > span:first-child { display: grid; justify-items: end; }
 /* Повернутий звичайний текст, а не writing-mode: довжина слова однакова в усіх браузерах */
-.s-title-art .is-up { position: relative; width: 0.36em; }
-.s-title-art .is-up > span { position: absolute; top: calc(50% - 0.023em); left: 50%; font-size: 0.41em; line-height: 1; letter-spacing: -0.02em; white-space: nowrap; transform: translate(-50%, -50%) rotate(90deg); }
 .s-chapter.is-right :is(.s-chapter-n, .s-chapter-title) { text-align: right; }
 .s-chapter-title.s-reveal { transform: translateY(60px); transition-duration: 0.9s; }
 .s-chapter-title.s-reveal.is-in { transform: none; }
@@ -189,9 +187,9 @@
 .s-chapter { --ch-bg: #e9f7ef; --ch-line: rgb(21 128 61 / 0.07); --ch-ink: var(--ink); --ch-muted: var(--muted); --ch-chip: var(--red-soft); --ch-tick: var(--red); --ch-n: var(--red);
   padding-top: 56px; padding-bottom: 56px; background-color: var(--ch-bg); color: var(--ch-ink);
   background-image: linear-gradient(var(--ch-line) 1px, transparent 1px), linear-gradient(90deg, var(--ch-line) 1px, transparent 1px); background-size: 34px 34px; }
-.s-chapter:nth-child(4n+2) { --ch-bg: var(--red-fill); --ch-line: rgb(255 255 255 / 0.09); --ch-ink: #fff; --ch-muted: rgb(255 255 255 / 0.85); --ch-chip: rgb(255 255 255 / 0.16); --ch-tick: #fff; --ch-n: #fff; }
+.s-chapter:nth-child(4n+2) { --ch-bg: var(--red-fill); --ch-line: rgb(255 255 255 / 0.09); --ch-ink: #fff; --ch-muted: rgb(255 255 255 / 0.85); --ch-chip: rgb(255 255 255 / 0.16); --ch-tick: #fff; --ch-n: #fff; --ch-accent: #ffd479; }
 .s-chapter:nth-child(4n+3) { --ch-bg: #fff4ea; --ch-line: rgb(214 90 17 / 0.08); }
-.s-chapter:nth-child(4n) { --ch-bg: #0f1d16; --ch-line: rgb(255 255 255 / 0.06); --ch-ink: #fff; --ch-muted: rgb(255 255 255 / 0.7); --ch-chip: rgb(255 255 255 / 0.1); --ch-tick: #6ee7a0; --ch-n: #6ee7a0; }
+.s-chapter:nth-child(4n) { --ch-bg: #0f1d16; --ch-line: rgb(255 255 255 / 0.06); --ch-ink: #fff; --ch-muted: rgb(255 255 255 / 0.7); --ch-chip: rgb(255 255 255 / 0.1); --ch-tick: #6ee7a0; --ch-n: #6ee7a0; --ch-accent: #6ee7a0; }
 .s-chapter-n { color: var(--ch-n); }
 .s-chapter-lead { color: var(--ch-muted); }
 /* підкладка під картками не потрібна: фон і клітинки — у самої секції */
@@ -460,7 +458,6 @@
   /* На компʼютері заголовок секції — одним рядком (перенос із тексту теж прибирається) */
   .s-chapter { column-gap: 64px; }
   .s-chapter-title { font-size: clamp(40px, 3.2vw, 72px); white-space: nowrap; }
-  .s-chapter-title:has(.s-title-art) { font-size: clamp(56px, 6vw, 112px); }
   .s-art-card, .s-card-row .s-art-card { zoom: 1; }
   .s-course-hero-in { padding-top: 36px; padding-bottom: 72px; }
   .s-course-hero-mark { right: 4%; bottom: -120px; }

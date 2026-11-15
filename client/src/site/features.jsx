@@ -176,7 +176,6 @@ function TodayArt() {
           <li><b>Пт</b><span><em>16:00</em>Показуємо гру друзям</span></li>
         </ul>
       </div>
-      <div className="s-art-row"><small>Розклад завжди під рукою</small></div>
     </div>
   );
 }
@@ -194,7 +193,6 @@ function CheckedArt() {
         </div>
         <TeacherNote>Гра працює! Наступний крок: рахувати спроби</TeacherNote>
       </div>
-      <div className="s-art-row"><small>Оцінка</small><b className="s-art-grade">12<span>/12</span></b></div>
     </div>
   );
 }
@@ -203,7 +201,7 @@ const PATH = [['Основи Python', 1], ['Умови й цикли', 1], ['С�
 function PathArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><b>Мій шлях</b><small><b>52%</b></small></div>
+      <div className="s-art-row"><b>Шлях вашої дитини</b><small><b>52%</b></small></div>
       <ol className="s-art-path s-art-easy">
         {PATH.map(([t, v]) => <li key={t} className={v === 1 ? 'is-done' : v > 0 ? 'is-now' : ''} style={{ '--v': v }}><i>{v === 1 && <Tick />}</i>{t}</li>)}
       </ol>
