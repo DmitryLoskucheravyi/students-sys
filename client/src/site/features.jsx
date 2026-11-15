@@ -207,7 +207,6 @@ function PathArt() {
       <ol className="s-art-path s-art-easy">
         {PATH.map(([t, v]) => <li key={t} className={v === 1 ? 'is-done' : v > 0 ? 'is-now' : ''} style={{ '--v': v }}><i>{v === 1 && <Tick />}</i>{t}</li>)}
       </ol>
-      <p className="s-art-done"><Tick />З кожною темою дитина ближче до власної гри</p>
     </div>
   );
 }
@@ -273,7 +272,8 @@ function CardRow({ cards }) {
  */
 export function FeatureArt({ icon, variant }) {
   const cards = FEATURE_ART[icon] ?? FEATURE_ART.check;
-  const wide = useMedia('(min-width: 600px)');
+  // три картки в ряд лише від 900px: вужче вони надто стискаються, тож там стопка з накладанням
+  const wide = useMedia('(min-width: 900px)');
   const [ref, seen] = useSeenOnce({ threshold: 0.25 });
   return (
     <div ref={ref} className={`s-chapter-art is-v${variant} ${cards.length === 1 ? 'is-open' : ''} ${seen ? 'is-in' : ''}`}>
