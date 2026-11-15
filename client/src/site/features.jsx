@@ -49,7 +49,8 @@ function GuessGame() {
   const [log, setLog] = useState([]);
   const [error, setError] = useState('');
   const [typed, setTyped] = useState(false);
-  const [code, setCode] = useState(false);
+  // на десктопі код одразу відкритий поруч із грою, на телефоні — схований під стрілкою
+  const [code, setCode] = useState(() => typeof matchMedia === 'function' && matchMedia('(min-width: 900px)').matches);
   const won = log.at(-1)?.[1] === 'win';
   const listRef = useRef(null);
   useEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; });
@@ -206,7 +207,7 @@ function PathArt() {
       <ol className="s-art-path s-art-easy">
         {PATH.map(([t, v]) => <li key={t} className={v === 1 ? 'is-done' : v > 0 ? 'is-now' : ''} style={{ '--v': v }}><i>{v === 1 && <Tick />}</i>{t}</li>)}
       </ol>
-      <p className="s-art-done"><Tick />Кожна тема наближає до своєї гри</p>
+      <p className="s-art-done"><Tick />З кожною темою дитина ближче до власної гри</p>
     </div>
   );
 }
