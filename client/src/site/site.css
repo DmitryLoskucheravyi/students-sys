@@ -728,6 +728,9 @@
 .s-game-toggle svg { transform: rotate(90deg); transition: transform 0.35s var(--ease); }
 .is-code .s-game-toggle svg { transform: rotate(-90deg); }
 .s-game-out { display: grid; align-content: start; gap: 6px; height: 210px; overflow-y: auto; padding: 18px 18px 8px; font: 500 15px/1.5 ui-monospace, Consolas, monospace; }
+/* Без системного скролбара: старі рядки плавно тануть угорі, як у терміналі; прокрутка коліщатком лишається */
+.s-game-out { scrollbar-width: none; -webkit-mask-image: linear-gradient(transparent, #000 34px); mask-image: linear-gradient(transparent, #000 34px); }
+.s-game-out::-webkit-scrollbar { display: none; }
 .s-game-out p { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; }
 .s-game-out .is-sys { color: #ffd479; }
 .s-game-out b { color: #ffd479; }
