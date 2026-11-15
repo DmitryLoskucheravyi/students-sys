@@ -166,7 +166,7 @@ function HeroIntro() {
 function Medal() {
   return (
     <svg className="s-medal" viewBox="0 0 48 48">
-      <path d="M15 26 10 44l7-4 4 6 3-14zM33 26l5 18-7-4-4 6-3-14z" fill="#d6112b" />
+      <path d="M15 26 10 44l7-4 4 6 3-14zM33 26l5 18-7-4-4 6-3-14z" fill="#15803d" />
       <circle cx="24" cy="20" r="15" fill="#ffd479" stroke="#e5a91a" strokeWidth="3" />
       <path d="M24 11.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="#fff" />
     </svg>

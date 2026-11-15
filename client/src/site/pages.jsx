@@ -77,7 +77,6 @@ function FormatChapter({ n }) {
             <article key={w.title} className="s-format-way">
               <span className="s-format-ico"><Icon size={24} /></span>
               <h3>{w.title}</h3>
-              <p>{w.text}</p>
               <ul>{w.points.map((t) => <li key={t}><IconTick size={16} />{t}</li>)}</ul>
             </article>
           );
