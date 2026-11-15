@@ -3,6 +3,8 @@
  * Макети — статичні картинки з розмітки, без даних.
  */
 import { useEffect, useRef, useState } from 'react';
+import { IconRight } from '../icons.jsx';
+import { useLead } from './ctx.js';
 import { stackPos } from './logic.js';
 import { prefersCalm, useMedia, useSeenOnce } from './motion.jsx';
 
@@ -10,81 +12,120 @@ const Tick = () => <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path
 
 /* ───────── Макети ───────── */
 
-/* «Програмування легше, ніж здається»: жива гра «Вгадай число» — пограти, а код сховано під кнопку */
+/* «Програмування легше, ніж здається»: жива гра «Вгадай число». Стрілка в кутку вікна відкриває код поруч,
+   після перемоги в терміналі друкується, хто цю гру написав, і зʼявляється запис на пробне */
 const MAX = 10;
 const roll = () => 1 + Math.floor(Math.random() * MAX);
+const WIN_TEXT = 'Цю гру написав учень на 3-му занятті.';
+
+/** Друкує текст по літері; коли закінчив, кличе onDone. Без анімацій — одразу весь. */
+function Typed({ text, onDone }) {
+  const [n, setN] = useState(() => (prefersCalm() ? text.length : 0));
+  useEffect(() => {
+    if (n >= text.length) { onDone(); return undefined; }
+    const t = setTimeout(() => setN((k) => k + 1), 38);
+    return () => clearTimeout(t);
+  }, [n, text, onDone]);
+  return <><span aria-hidden="true">{text.slice(0, n)}{n < text.length && <i className="s-caret" />}</span><span className="sr-only">{text}</span></>;
+}
+
+const CODE = (
+  <div className="s-art-code">
+    <span><u className="k">from</u> random <u className="k">import</u> randint</span>
+    <span>secret = <u className="f">randint</u>(<u className="n">1</u>, <u className="n">10</u>)</span>
+    <span>guess = <u className="n">0</u></span>
+    <span><u className="k">while</u> guess != secret:</span>
+    <span>  guess = <u className="f">int</u>(<u className="f">input</u>(<u className="s">"Число? "</u>))</span>
+    <span>  <u className="k">if</u> guess &lt; secret: <u className="f">print</u>(<u className="s">"Більше!"</u>)</span>
+    <span>  <u className="k">if</u> guess &gt; secret: <u className="f">print</u>(<u className="s">"Менше!"</u>)</span>
+    <span><u className="f">print</u>(<u className="s">"Вгадав! 🎉"</u>)</span>
+  </div>
+);
+
 function GuessGame() {
-  const [secret, setSecret] = useState(roll);
+  const lead = useLead();
+  const [secret] = useState(roll);
   const [value, setValue] = useState('');
   const [log, setLog] = useState([]);
   const [error, setError] = useState('');
+  const [typed, setTyped] = useState(false);
+  const [code, setCode] = useState(false);
   const won = log.at(-1)?.[1] === 'win';
-  const inputRef = useRef(null);
   const listRef = useRef(null);
-  useEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; }, [log]);
+  useEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; });
 
   const guess = (e) => {
     e.preventDefault();
-    const n = Number(value);
-    if (value === '' || !Number.isInteger(n) || n < 1 || n > MAX) { setError(`Введіть ціле число від 1 до ${MAX}`); return; }
+    const n = Number(value.trim());
+    if (!/^\d+$/.test(value.trim()) || n < 1 || n > MAX) { setError(`Введіть ціле число від 1 до ${MAX}`); return; }
     setError('');
     setLog((l) => [...l, [n, n < secret ? 'more' : n > secret ? 'less' : 'win']]);
     setValue('');
   };
-  const again = () => { setSecret(roll()); setLog([]); setError(''); setValue(''); setTimeout(() => inputRef.current?.focus(), 0); };
 
   return (
-    <div className="s-game">
-      <div className="s-game-win">
-        <div className="s-game-bar" aria-hidden="true"><i /><i /><i /><span>вгадай_число.py</span></div>
-        <div className="s-game-out" ref={listRef} aria-live="polite">
-          <p className="is-sys">Я загадав число від 1 до {MAX}. Спробуйте вгадати!</p>
-          {log.map(([n, r], k) => (
-            <p key={k}><span>Число? <b>{n}</b></span>{r === 'win' ? <em className="is-win">Вгадав! 🎉 Спроб: {log.length}</em> : <em>{r === 'more' ? 'Більше!' : 'Менше!'}</em>}</p>
-          ))}
-        </div>
-        {won ? (
-          <div className="s-game-done">
-            <p>Цю гру написав <b>10-річний учень</b> на 3-му уроці</p>
-            <button type="button" className="btn btn-primary" onClick={again}>Зіграти ще</button>
+    <div className={`s-game ${code ? 'is-code' : ''}`}>
+      <div className="s-game-stage">
+        <div className="s-game-win">
+          <div className="s-game-bar">
+            <span className="s-game-dots" aria-hidden="true"><i /><i /><i /></span>
+            <span className="s-game-file">вгадай_число.py</span>
+            <button type="button" className="s-game-toggle" aria-expanded={code} aria-controls="s-game-code"
+              aria-label={code ? 'Сховати код гри' : 'Показати код гри'} title={code ? 'Сховати код' : 'Як це зроблено'} onClick={() => setCode(!code)}>
+              <IconRight size={18} />
+            </button>
           </div>
-        ) : (
-          <form className="s-game-form" onSubmit={guess} noValidate>
-            <label htmlFor="s-game-in">Число?</label>
-            <input id="s-game-in" ref={inputRef} type="number" inputMode="numeric" min={1} max={MAX} value={value} autoComplete="off"
-              onChange={(e) => setValue(e.target.value)} placeholder={`1–${MAX}`} aria-invalid={error ? true : undefined} aria-describedby={error ? 's-game-err' : undefined} />
-            <button type="submit" className="btn btn-primary">Перевірити</button>
-          </form>
-        )}
-        {error && !won && <p className="s-game-err" id="s-game-err" role="alert">{error}</p>}
-      </div>
-      <details className="s-game-code">
-        <summary>Подивитися, як це зроблено</summary>
-        <div className="s-art-code">
-          <span><u className="k">from</u> random <u className="k">import</u> randint</span>
-          <span>secret = <u className="f">randint</u>(<u className="n">1</u>, <u className="n">10</u>)</span>
-          <span>guess = <u className="n">0</u></span>
-          <span><u className="k">while</u> guess != secret:</span>
-          <span>  guess = <u className="f">int</u>(<u className="f">input</u>(<u className="s">"Число? "</u>))</span>
-          <span>  <u className="k">if</u> guess &lt; secret: <u className="f">print</u>(<u className="s">"Більше!"</u>)</span>
-          <span>  <u className="k">if</u> guess &gt; secret: <u className="f">print</u>(<u className="s">"Менше!"</u>)</span>
-          <span><u className="f">print</u>(<u className="s">"Вгадав! 🎉"</u>)</span>
+          <div className="s-game-out" ref={listRef} aria-live="polite">
+            <p className="is-sys">Я загадав число від 1 до {MAX}. Спробуйте вгадати!</p>
+            {log.map(([n, r], k) => (
+              <p key={k}><span>Число? <b>{n}</b></span>{r === 'win' ? <em className="is-win">Вгадав! 🎉 Спроб: {log.length}</em> : <em>{r === 'more' ? 'Більше!' : 'Менше!'}</em>}</p>
+            ))}
+            {won && <p className="is-story"><Typed text={WIN_TEXT} onDone={() => setTyped(true)} /></p>}
+          </div>
+          {won ? (
+            <div className={`s-game-done ${typed ? 'is-in' : ''}`}>
+              {typed && <button type="button" className="btn btn-primary" onClick={() => lead('Хочу на пробне заняття')}>Спробувати<IconRight size={18} /></button>}
+            </div>
+          ) : (
+            <form className="s-game-form" onSubmit={guess} noValidate>
+              <label htmlFor="s-game-in">Число?</label>
+              <input id="s-game-in" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2} value={value} autoComplete="off"
+                onChange={(e) => setValue(e.target.value)} placeholder={`1–${MAX}`} aria-invalid={error ? true : undefined} aria-describedby={error ? 's-game-err' : undefined} />
+              <button type="submit" className="btn btn-primary">Перевірити</button>
+            </form>
+          )}
+          {error && !won && <p className="s-game-err" id="s-game-err" role="alert">{error}</p>}
         </div>
-        <p>Вісім рядків на Python, і гра готова.</p>
-      </details>
+        <div className="s-game-code" id="s-game-code" aria-hidden={!code}>
+          <div className="s-game-bar"><span className="s-game-dots" aria-hidden="true"><i /><i /><i /></span><span className="s-game-file">код гри</span></div>
+          {CODE}
+          <p>Вісім рядків на Python, і гра готова.</p>
+        </div>
+      </div>
     </div>
   );
 }
 
-/* «Помилятися не страшно»: тест після теми, помилка, підказка викладача — і тему закрито */
+/* «Помилятися не страшно»: тест, підказка від викладача (людина, а не бот), звіт для батьків */
 const Cross = () => <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 4.5l7 7m0-7l-7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>;
+
+/** Репліка викладача: аватар з іменем, щоб було видно, що з помилкою розбирається людина. */
+function TeacherNote({ children }) {
+  return (
+    <div className="s-art-note is-teacher">
+      <span className="s-art-ava is-teacher" aria-hidden="true">О</span>
+      <p><small className="s-art-who">Олена, викладачка Python</small>{children}</p>
+    </div>
+  );
+}
+
 function QuizArt() {
   return (
     <div className="s-art-card">
       <div className="s-art-row"><b>Крок 1</b><span className="s-art-pill is-live">Тест</span></div>
       <b className="s-art-q">Що виведе <code>print("Ха" * 3)</code>?</b>
       <ul className="s-art-options s-art-easy">
-        <li className="is-wrong">Ха3<Cross /></li>
+        <li className="is-wrong"><span>Ха3<small>відповідь учня</small></span><Cross /></li>
         <li>ХаХаХа</li>
         <li>Помилка</li>
       </ul>
@@ -98,10 +139,11 @@ function HintArt() {
     <div className="s-art-card">
       <div className="s-art-row"><b>Крок 2</b><span className="s-art-pill is-code">Підказка</span></div>
       <div className="s-art-easy is-idea">
-        <div className="s-art-note"><span className="s-art-ava">ОК</span><p>Майже! Рядок, помножений на число, повторюється. Як зірочки в нашій грі</p></div>
+        <TeacherNote>Майже! Рядок, помножений на число, просто повторюється стільки разів.</TeacherNote>
         <div className="s-art-code"><span><u className="s">"Ха"</u> * <u className="n">3</u>  →  <u className="s">"ХаХаХа"</u></span></div>
+        <span className="s-art-btn">Спробувати ще раз</span>
       </div>
-      <div className="s-art-row"><small>Помилка показує, що повторити</small></div>
+      <div className="s-art-row"><small>Викладач бачить, де саме дитина помилилась</small></div>
     </div>
   );
 }
@@ -109,13 +151,14 @@ function HintArt() {
 function PassArt() {
   return (
     <div className="s-art-card">
-      <div className="s-art-row"><b>Крок 3</b><span className="s-art-pill is-ok">Тему закрито</span></div>
+      <div className="s-art-row"><b>Звіт для батьків</b><span className="s-art-pill is-ok">Тему закрито</span></div>
+      <p className="s-art-report">Тема «Рядки» закрита з другої спроби</p>
       <ul className="s-art-check s-art-easy">
         <li className="is-ok"><Tick />Цикли</li>
         <li className="is-ok"><Tick />Умови</li>
-        <li className="is-ok"><Tick />Рядки<small>з другої спроби</small></li>
+        <li className="is-ok"><Tick />Рядки<small>щойно</small></li>
       </ul>
-      <p className="s-art-done"><Tick />Тепер це знання назавжди</p>
+      <p className="s-art-done"><Tick />Ви бачите прогрес після кожної теми</p>
     </div>
   );
 }
@@ -148,7 +191,7 @@ function CheckedArt() {
           <span>Число? <b>6</b></span>
           <span className="is-win">Вгадав! 🎉</span>
         </div>
-        <div className="s-art-note"><span className="s-art-ava">ОК</span><p>Гра працює! Наступний крок: рахувати спроби</p></div>
+        <TeacherNote>Гра працює! Наступний крок: рахувати спроби</TeacherNote>
       </div>
       <div className="s-art-row"><small>Оцінка</small><b className="s-art-grade">12<span>/12</span></b></div>
     </div>
@@ -163,7 +206,7 @@ function PathArt() {
       <ol className="s-art-path s-art-easy">
         {PATH.map(([t, v]) => <li key={t} className={v === 1 ? 'is-done' : v > 0 ? 'is-now' : ''} style={{ '--v': v }}><i>{v === 1 && <Tick />}</i>{t}</li>)}
       </ol>
-      <p className="s-art-done"><Tick />Батькам теж усе видно</p>
+      <p className="s-art-done"><Tick />Кожна тема наближає до своєї гри</p>
     </div>
   );
 }

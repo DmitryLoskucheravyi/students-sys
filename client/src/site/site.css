@@ -427,8 +427,9 @@
   .s-chapter-n { grid-area: n; }
   .s-chapter-title { grid-area: t; text-wrap: wrap; }
   /* Опис притиснутий до краю, протилежного заголовку; риска — з боку краю */
-  .s-chapter-lead { grid-area: l; align-self: end; justify-self: end; max-width: 30ch; padding: 4px 22px 10px 0; border-right: 3px solid var(--ch-n); text-align: right; font-size: clamp(17px, 1.8vw, 24px); line-height: 1.4; }
-  .s-chapter.is-right .s-chapter-lead { justify-self: start; padding: 4px 0 10px 22px; border-right: 0; border-left: 3px solid var(--ch-n); text-align: left; }
+  /* Опис — одразу біля заголовка, на рівні його першого рядка; риска з боку заголовка */
+  .s-chapter-lead { grid-area: l; align-self: start; justify-self: start; max-width: 30ch; margin-top: 0.3em; padding: 2px 0 4px 22px; border-left: 3px solid var(--ch-n); text-align: left; font-size: clamp(17px, 1.8vw, 24px); line-height: 1.4; }
+  .s-chapter.is-right .s-chapter-lead { justify-self: end; padding: 2px 22px 4px 0; border-left: 0; border-right: 3px solid var(--ch-n); text-align: right; }
   .s-chapter-art { margin-top: 28px; }
   .s-chapter-art { grid-area: a; }
   .s-chapter-title { font-size: clamp(40px, 6vw, 80px); }
@@ -708,42 +709,76 @@
 .s-art-path li { isolation: isolate; }
 .s-art-path li::before { z-index: -1; }
 
-/* «Програмування легше»: жива гра «Вгадай число» прямо на секції */
-.s-game { display: grid; gap: 14px; width: 100%; max-width: 760px; margin: 0 auto; color: var(--ch-ink, var(--ink)); }
-.s-game-win { overflow: hidden; border-radius: 22px; background: #140b0d; color: #f3e8ea; box-shadow: 0 40px 80px -36px rgb(20 0 4 / 0.8), 0 0 0 1px rgb(255 255 255 / 0.06); }
-.s-game-bar { display: flex; align-items: center; gap: 7px; padding: 12px 16px; background: #22151a; }
-.s-game-bar i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
-.s-game-bar i:nth-child(2) { background: #febc2e; }
-.s-game-bar i:nth-child(3) { background: #28c840; }
-.s-game-bar span { margin-left: 8px; color: rgb(255 255 255 / 0.55); font: 600 12.5px ui-monospace, Consolas, monospace; }
-.s-game-out { display: grid; align-content: start; gap: 6px; height: 200px; overflow-y: auto; padding: 18px 18px 8px; font: 500 15px/1.5 ui-monospace, Consolas, monospace; }
+/* «Програмування легше»: жива гра «Вгадай число» прямо на секції.
+   Код: на телефоні розгортається під грою, від 900px гра відʼїжджає вліво, а код виїжджає з-під неї справа */
+/* Текст лише для екранних читачів */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.s-game { width: 100%; color: var(--ch-ink, var(--ink)); }
+.s-game-stage { position: relative; display: grid; gap: 14px; max-width: 760px; margin: 0 auto; }
+.s-game-win, .s-game-code { overflow: hidden; border-radius: 22px; background: #140b0d; color: #f3e8ea; box-shadow: 0 40px 80px -36px rgb(20 0 4 / 0.8), 0 0 0 1px rgb(255 255 255 / 0.06); }
+.s-game-win { position: relative; z-index: 1; }
+.s-game-bar { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 8px 6px 16px; background: #22151a; }
+.s-game-dots { display: flex; gap: 7px; }
+.s-game-dots i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
+.s-game-dots i:nth-child(2) { background: #febc2e; }
+.s-game-dots i:nth-child(3) { background: #28c840; }
+.s-game-file { flex: 1 1 auto; color: rgb(255 255 255 / 0.55); font: 600 12.5px ui-monospace, Consolas, monospace; }
+.s-game-toggle { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 9px; background: rgb(255 255 255 / 0.08); color: #fff; transition: background 0.2s, transform 0.35s var(--ease); }
+.s-game-toggle:hover, .s-game-toggle:focus-visible { background: rgb(255 255 255 / 0.18); }
+.s-game-toggle svg { transform: rotate(90deg); transition: transform 0.35s var(--ease); }
+.is-code .s-game-toggle svg { transform: rotate(-90deg); }
+.s-game-out { display: grid; align-content: start; gap: 6px; height: 210px; overflow-y: auto; padding: 18px 18px 8px; font: 500 15px/1.5 ui-monospace, Consolas, monospace; }
 .s-game-out p { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; }
 .s-game-out .is-sys { color: #ffd479; }
 .s-game-out b { color: #ffd479; }
 .s-game-out em { font-style: normal; color: #ff8a99; }
 .s-game-out em.is-win { color: #86efac; font-weight: 700; }
-.s-game-out p:last-child:not(.is-sys) { animation: s-term-line 0.3s both; }
+.s-game-out .is-story { margin-top: 6px; color: #fff; font-weight: 700; }
+.s-game-out .is-story::before { content: '>'; color: #86efac; }
+.s-game-out p:not(.is-sys):not(.is-story):last-child { animation: s-term-line 0.3s both; }
+.s-game-out .s-caret { display: inline-block; width: 0.55em; height: 1.1em; margin-left: 2px; vertical-align: -0.2em; background: #86efac; animation: s-caret 1s steps(1) infinite; }
 .s-game-form { display: flex; align-items: center; gap: 10px; padding: 12px 18px 18px; }
 .s-game-form label { color: #f3e8ea; font: 600 15px ui-monospace, Consolas, monospace; }
 .s-game-form input { flex: 1 1 auto; min-width: 0; height: 46px; padding: 0 14px; border: 0; border-radius: 12px; background: #2a1b20; color: #fff; font: 700 18px ui-monospace, Consolas, monospace; outline: 2px solid transparent; }
 .s-game-form input:focus-visible { outline-color: #ffd479; }
-.s-game-form .btn, .s-game-done .btn { flex: none; }
+.s-game-form .btn { flex: none; }
 .s-game-err { margin: -6px 18px 16px; color: #ff8a99; font-size: 14px; font-weight: 600; }
-.s-game-done { display: grid; gap: 12px; justify-items: start; padding: 14px 18px 20px; background: linear-gradient(180deg, transparent, rgb(134 239 172 / 0.08)); animation: s-term-line 0.4s both; }
-.s-game-done p { margin: 0; color: #fff; font: 800 clamp(19px, 3.2vw, 26px)/1.25 var(--display); letter-spacing: -0.02em; }
-.s-game-done b { color: #86efac; }
-.s-game-code summary { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ch-ink, var(--ink)); font-size: 15px; font-weight: 800; list-style: none; text-decoration: underline; text-underline-offset: 4px; }
-.s-game-code summary::-webkit-details-marker { display: none; }
-.s-game-code summary::after { content: '\2193'; transition: transform 0.25s; }
-.s-game-code[open] summary::after { transform: rotate(180deg); }
-.s-game-code .s-art-code { margin-top: 12px; overflow-x: auto; border-radius: 18px; font-size: clamp(11px, 3.2vw, 14px); }
-.s-game-code p { margin: 10px 0 0; color: var(--ch-muted, var(--muted)); font-size: 14px; font-weight: 700; }
-@media (prefers-reduced-motion: reduce) { .s-game-out p, .s-game-done { animation: none !important; } }
+.s-game-done { min-height: 76px; padding: 12px 18px 18px; }
+.s-game-done .btn { animation: s-term-line 0.4s both; }
+.s-game-done .btn svg { margin-left: 4px; }
+/* Код гри: телефон — розгортається під вікном гри */
+.s-game-code { display: none; }
+.is-code .s-game-code { display: block; animation: s-term-line 0.4s both; }
+.s-game-code .s-art-code { overflow-x: auto; border-radius: 0; background: none; box-shadow: none; padding: 16px 18px 6px; font-size: clamp(11px, 3.2vw, 14px); }
+.s-game-code p { margin: 0; padding: 4px 18px 16px; color: rgb(255 255 255 / 0.6); font-size: 13.5px; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .s-game-out p, .s-game-done .btn, .is-code .s-game-code { animation: none !important; } .s-game-out .s-caret { animation: none; } }
 @media (min-width: 600px) {
   .s-game-out { height: 230px; padding: 22px 24px 8px; font-size: 16px; }
-  .s-game-form { padding: 12px 24px 22px; }
-  .s-game-done { padding: 14px 24px 24px; }
+  .s-game-form, .s-game-done { padding: 12px 24px 22px; }
 }
+@media (min-width: 900px) {
+  /* Від 900px: вікна одне над одним у тій самій клітинці; відкрили код — розʼїжджаються */
+  /* кожне вікно — пів сцени: закрито — гра по центру, код під нею; відкрито — гра ліворуч, код праворуч поруч, нічого не перекрито */
+  .s-game-stage { max-width: 1120px; }
+  .s-game-stage > * { grid-area: 1 / 1; width: calc(50% - 6px); transition: transform 0.7s var(--ease), opacity 0.5s; }
+  .s-game-win { transform: translateX(calc(50% + 6px)); }
+  .s-game-code { display: block; align-self: center; justify-self: end; z-index: 0; opacity: 0; transform: translateX(calc(-50% - 6px)) scale(0.94); pointer-events: none; }
+  .s-game-code .s-art-code { padding-left: 22px; }
+  .s-game-toggle svg { transform: none; }
+  .is-code .s-game-toggle svg { transform: rotate(180deg); }
+  .is-code .s-game-win { transform: rotate(-1deg); }
+  .is-code .s-game-code { animation: none; opacity: 1; transform: rotate(1.5deg); pointer-events: auto; }
+}
+@media (min-width: 900px) and (prefers-reduced-motion: reduce) { .s-game-stage > * { transition: none; } }
+
+/* «Помилятися не страшно»: відповідь учня, викладач з іменем, кнопка повтору, звіт для батьків */
+.s-art-options li.is-wrong > span { display: grid; gap: 1px; }
+.s-art-options li.is-wrong small { color: #b4233a; font-size: 11.5px; font-weight: 700; }
+.s-art-note.is-teacher p { display: grid; gap: 2px; }
+.s-art-who { color: var(--red); font-size: 12px; font-weight: 800; }
+.s-art-ava.is-teacher { width: 40px; height: 40px; background: linear-gradient(150deg, #ff7a8a, var(--red-fill)); font-size: 16px; box-shadow: 0 0 0 3px #fff, 0 6px 14px -6px rgb(84 14 26 / 0.6); }
+.s-art-btn { justify-self: start; padding: 10px 16px; border-radius: 12px; background: var(--red-fill); color: #fff; font-size: 14px; font-weight: 800; box-shadow: 0 10px 20px -12px rgb(214 17 43 / 0.9); }
+.s-art-report { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--wash); font-size: 14.5px; font-weight: 700; }
 
 /* Секція 01 «Формат навчання»: підпис, великий заголовок, цифри, два формати й запис */
 .s-format { display: grid; gap: 22px; }
