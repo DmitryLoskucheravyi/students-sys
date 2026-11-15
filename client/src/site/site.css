@@ -243,6 +243,12 @@
 .s-course h3 { font: 700 24px/1.2 var(--display); letter-spacing: -0.035em; overflow-wrap: anywhere; }
 .s-course-body p { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .s-course:active { transform: scale(0.99); }
+/* Своя картинка на тлі картки: заповнює обкладинку, легке затемнення вгорі, щоб читались іконка й лічильник */
+.s-course-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s var(--ease); }
+.s-course.has-cover .s-course-cover::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgb(0 0 0 / 0.22), transparent 55%); pointer-events: none; }
+.s-course-mark img { display: block; width: 150px; height: 150px; object-fit: contain; }
+.s-course-hero-mark img { display: block; width: 320px; height: 320px; object-fit: contain; }
+.s-course-hero .course-ico.is-own { background: #fff; }
 
 /* ───────── Сторінка курсу ───────── */
 .s-course-hero { position: relative; overflow: hidden; background: var(--red-fill); color: var(--ct-on, #fff); }
@@ -477,6 +483,7 @@
 @media (hover: hover) {
   .s-course:hover { transform: translateY(-4px); border-color: var(--grid-strong); box-shadow: var(--shadow); }
   .s-course:hover .s-course-mark { transform: rotate(-4deg) scale(1.06); }
+  .s-course:hover .s-course-bg { transform: scale(1.04); }
   .s-project:has(.s-project-link):hover { transform: translateY(-4px); border-color: var(--grid-strong); box-shadow: var(--shadow); }
   .s-project:hover .s-project-shot img { transform: scale(1.03); }
   .s-nav a:hover:not(.active) { background: var(--wash); }

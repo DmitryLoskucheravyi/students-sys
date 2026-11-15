@@ -117,6 +117,10 @@ async function migrate(conn: Connection, { hadRoster, hadSchedules, hadDirection
       await conn.query('INSERT INTO direction_courses (direction_id, course_id, position) VALUES (?, ?, 0)', [r.insertId, c.id]);
     }
   }
+  // Своя картинка на тлі картки курсу й своя іконка (обидві — з site_images).
+  if (!(await columnInfo(conn, 'directions', 'cover'))) {
+    await conn.query('ALTER TABLE directions ADD COLUMN cover VARCHAR(48) NULL, ADD COLUMN icon_image VARCHAR(48) NULL');
+  }
   if (hadSchedules && !hadRoster) {
     await conn.query(
       `INSERT IGNORE INTO schedule_students (schedule_id, student_id)

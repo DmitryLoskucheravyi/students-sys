@@ -6,16 +6,30 @@ import type { Row } from '../../db.js';
 import { bad, idList, str } from '../../lib.js';
 
 export type DirectionInput = {
-  row: { title: string; summary: string | null; is_published: 0 | 1 };
+  row: { title: string; summary: string | null; cover: string | null; icon_image: string | null; is_published: 0 | 1 };
   courseIds: number[];
 };
 
-/** Форма напрямку: назва, опис, чи показувати, курси по черзі (дублікати прибираються, порядок — як передали). */
+/** Назва завантаженої картинки (uuid.bin) або null. Чи вона справді є в базі — перевіряє сервіс. */
+export const IMAGE_NAME = /^[0-9a-f-]{36}\.bin$/;
+function imageName(v: unknown): string | null {
+  if (v === null || v === undefined || v === '') return null;
+  const s = String(v);
+  if (!IMAGE_NAME.test(s)) throw bad('Картинку не знайдено');
+  return s;
+}
+
+/**
+ * Форма напрямку: назва, опис, своя картинка на тлі й своя іконка (необовʼязкові), чи показувати,
+ * курси по черзі (дублікати прибираються, порядок — як передали).
+ */
 export function parseDirection(b: any): DirectionInput {
   return {
     row: {
       title: str(b.title, 'Назва', { max: 120 }),
       summary: str(b.summary, 'Опис', { max: 600, required: false }),
+      cover: imageName(b.cover),
+      icon_image: imageName(b.icon_image),
       is_published: b.is_published === false || b.is_published === 0 ? 0 : 1,
     },
     courseIds: idList(b.course_ids ?? [], 'Курси'),

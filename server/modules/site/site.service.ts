@@ -4,14 +4,13 @@ import { unlink } from 'node:fs/promises';
 import type { Request, Response } from 'express';
 import multer from 'multer';
 import { type Query, type Row, q, tx } from '../../db.js';
-import { checkOrder, parseDirection, withCourses } from './directions.js';
+import { IMAGE_NAME, checkOrder, parseDirection, withCourses } from './directions.js';
 import { bad, id, idList, normalizePhone, notFound, str } from '../../lib.js';
 import { UPLOAD_DIR, persistFile, removeFile } from '../../storage.js';
 import { imageMime, readHead, sendStored } from '../../files.js';
 
 /* Скріни проєктів: до 5 МБ (браузер і так зменшує до 1600 px), лише PNG, JPG, WEBP, GIF. */
 const MAX_IMAGE_MB = 5;
-const IMAGE_NAME = /^[0-9a-f-]{36}\.bin$/;
 const upload = multer({
   storage: multer.diskStorage({ destination: UPLOAD_DIR, filename: (_req, _file, cb) => cb(null, `${randomUUID()}.bin`) }),
   limits: { fileSize: MAX_IMAGE_MB * 1024 * 1024, files: 1, fields: 0 },
@@ -31,9 +30,14 @@ function projectUrl(v: unknown): string | null {
   return u.href;
 }
 
+/** Картинка має бути саме завантаженою через кабінет. */
+async function assertImage(name: string | null) {
+  if (name && (!IMAGE_NAME.test(name) || !(await q('SELECT 1 FROM site_images WHERE stored_name = ?', [name])).length)) throw bad('Картинку не знайдено');
+}
+
 async function parseProject(b: any) {
   const image = b.image ? String(b.image) : null;
-  if (image && (!IMAGE_NAME.test(image) || !(await q('SELECT 1 FROM site_images WHERE stored_name = ?', [image])).length)) throw bad('Картинку не знайдено');
+  await assertImage(image);
   return {
     title: str(b.title, 'Назва', { max: 120 }),
     author: str(b.author, 'Автор', { max: 80, required: false }),
@@ -45,10 +49,13 @@ async function parseProject(b: any) {
   };
 }
 
-/** Картинка більше ніде не потрібна — прибрати і з бази, і зі сховища. */
+/** Картинка більше ніде не потрібна (ні в проєкті, ні в напрямку) — прибрати і з бази, і зі сховища. */
 async function dropImage(name: string | null) {
   if (!name) return;
-  const [{ n }] = await q('SELECT COUNT(*) AS n FROM projects WHERE image = ?', [name]);
+  const [{ n }] = await q(
+    `SELECT (SELECT COUNT(*) FROM projects WHERE image = ?) + (SELECT COUNT(*) FROM directions WHERE cover = ? OR icon_image = ?) AS n`,
+    [name, name, name]
+  );
   if (Number(n) > 0) return;
   await q('DELETE FROM site_images WHERE stored_name = ?', [name]);
   await removeFile(name);
@@ -160,7 +167,7 @@ export class SiteService {
 
   /** Опубліковані напрямки, у яких є хоч один курс. */
   private async publishedDirections() {
-    const rows: Row[] = await q('SELECT id, title, summary FROM directions WHERE is_published = 1 ORDER BY position, id');
+    const rows: Row[] = await q('SELECT id, title, summary, cover, icon_image FROM directions WHERE is_published = 1 ORDER BY position, id');
     const all = await directionCourses(rows.map((d) => d.id));
     return rows.map((d) => withCourses(d, all)).filter((d) => d.courses.length > 0);
   }
@@ -168,7 +175,7 @@ export class SiteService {
   /** Сторінка напрямку: його курси з програмами (теми й підтеми) і відгуки про будь-який із курсів. */
   async direction(idValue: unknown) {
     const directionId = id(idValue);
-    const [row] = await q('SELECT id, title, summary FROM directions WHERE id = ? AND is_published = 1', [directionId]);
+    const [row] = await q('SELECT id, title, summary, cover, icon_image FROM directions WHERE id = ? AND is_published = 1', [directionId]);
     if (!row) throw notFound('Курс не знайдено');
     const d = withCourses(row, await directionCourses([directionId]));
     if (!d.courses.length) throw notFound('Курс не знайдено');
@@ -188,11 +195,13 @@ export class SiteService {
     };
   }
 
-  /** Скрін проєкту: лише якщо він в опублікованому проєкті. */
+  /** Картинка сайту: лише якщо вона в опублікованому проєкті чи напрямку. */
   async image(name: string, res: Response) {
     if (!IMAGE_NAME.test(name)) throw notFound('Картинку не знайдено');
     const [img] = await q(
-      `SELECT i.* FROM site_images i WHERE i.stored_name = ? AND EXISTS (SELECT 1 FROM projects p WHERE p.image = i.stored_name AND p.is_published = 1)`,
+      `SELECT i.* FROM site_images i WHERE i.stored_name = ? AND (
+         EXISTS (SELECT 1 FROM projects p WHERE p.image = i.stored_name AND p.is_published = 1)
+         OR EXISTS (SELECT 1 FROM directions d WHERE (d.cover = i.stored_name OR d.icon_image = i.stored_name) AND d.is_published = 1))`,
       [name]
     );
     if (!img) throw notFound('Картинку не знайдено');
@@ -330,19 +339,21 @@ export class SiteAdminService {
   }
 
   async directions() {
-    const rows: Row[] = await q('SELECT id, title, summary, position, is_published FROM directions ORDER BY position, id');
+    const rows: Row[] = await q('SELECT id, title, summary, cover, icon_image, position, is_published FROM directions ORDER BY position, id');
     const all = await directionCourses(rows.map((d) => d.id));
     return rows.map((d) => withCourses(d, all));
   }
 
   private async oneDirection(directionId: number) {
-    const [row] = await q('SELECT id, title, summary, position, is_published FROM directions WHERE id = ?', [directionId]);
+    const [row] = await q('SELECT id, title, summary, cover, icon_image, position, is_published FROM directions WHERE id = ?', [directionId]);
     if (!row) throw notFound();
     return withCourses(row, await directionCourses([directionId]));
   }
 
   async createDirection(body: any) {
     const { row, courseIds } = parseDirection(body ?? {});
+    await assertImage(row.cover);
+    await assertImage(row.icon_image);
     const newId = await tx(async (t) => {
       await checkCourses(t, courseIds);
       const [{ next }] = await t('SELECT COALESCE(MAX(position), -1) + 1 AS next FROM directions');
@@ -358,14 +369,18 @@ export class SiteAdminService {
     const cur = await this.oneDirection(directionId);
     const b = body ?? {};
     const { row, courseIds } = parseDirection({
-      title: cur.title, summary: cur.summary, is_published: cur.is_published,
+      title: cur.title, summary: cur.summary, cover: cur.cover, icon_image: cur.icon_image, is_published: cur.is_published,
       course_ids: cur.courses.map((c: Row) => c.id), ...b,
     });
+    await assertImage(row.cover);
+    await assertImage(row.icon_image);
     await tx(async (t) => {
       await checkCourses(t, courseIds);
       await t('UPDATE directions SET ? WHERE id = ?', [row, directionId]);
       if ('course_ids' in b) await saveDirectionCourses(t, directionId, courseIds);
     });
+    if (cur.cover !== row.cover) await dropImage(cur.cover);
+    if (cur.icon_image !== row.icon_image) await dropImage(cur.icon_image);
     return this.oneDirection(directionId);
   }
 
@@ -381,7 +396,10 @@ export class SiteAdminService {
   }
 
   async removeDirection(idValue: unknown) {
-    await q('DELETE FROM directions WHERE id = ?', [id(idValue)]);
+    const directionId = id(idValue);
+    const [cur] = await q('SELECT cover, icon_image FROM directions WHERE id = ?', [directionId]);
+    await q('DELETE FROM directions WHERE id = ?', [directionId]);
+    if (cur) { await dropImage(cur.cover); await dropImage(cur.icon_image); }
     return { ok: true };
   }
 

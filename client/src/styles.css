@@ -1639,6 +1639,18 @@ button.stop:active { transform: scale(0.94); }
 /* Напрямки сайту: курси по черзі з номерами, нижче — кнопки «+ курс» */
 .direction-row > svg, .direction-row > .course-ico { flex: none; }
 .dir-courses { display: grid; gap: 10px; }
+/* Своя іконка напрямку: картинка замість намальованої, без кольорової плашки */
+.course-ico.is-own { overflow: hidden; padding: 0; background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
+.course-ico.is-own img { width: 100%; height: 100%; object-fit: cover; }
+/* Картинки напрямку у формі: тло картки (широке) і своя іконка (квадрат) */
+.dir-image { display: flex; align-items: center; gap: 14px; }
+.dir-image-box { display: grid; flex: none; place-items: center; overflow: hidden; border-radius: 14px; background: var(--wash); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.dir-image.is-cover .dir-image-box { width: 132px; aspect-ratio: 16 / 10; }
+.dir-image.is-icon .dir-image-box { width: 64px; height: 64px; }
+.dir-image-box img { width: 100%; height: 100%; object-fit: cover; }
+.dir-image-tools { display: grid; gap: 4px; min-width: 0; }
+.dir-image-tools .label, .dir-image-tools p { margin: 0; }
+.dir-image-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .dir-courses .label { font-weight: 600; font-size: 14px; }
 .dir-picked { display: grid; gap: 6px; }
 .dir-picked li { display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 10px; border-radius: 10px; background: var(--wash); }

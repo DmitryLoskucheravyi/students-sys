@@ -13,6 +13,12 @@ test('форма напрямку: назва обовʼязкова, дублі
   assert.throws(() => parseDirection({ title: 'x', course_ids: [-1] }));
   assert.equal(parseDirection({ title: 'x', is_published: false }).row.is_published, 0);
   assert.throws(() => parseDirection({ title: 'x'.repeat(121) }));
+  const img = '0f8e4c1a-1b2c-4d5e-8f90-123456789abc.bin';
+  assert.deepEqual([d.row.cover, d.row.icon_image], [null, null]);
+  const own = parseDirection({ title: 'x', cover: img, icon_image: img });
+  assert.deepEqual([own.row.cover, own.row.icon_image], [img, img]);
+  assert.throws(() => parseDirection({ title: 'x', cover: '../../etc/passwd' }), /Картинку/);
+  assert.throws(() => parseDirection({ title: 'x', icon_image: 'evil.svg' }), /Картинку/);
 });
 
 test('напрямок із курсами: вигляд від першого, теми — сума, чужі курси не потрапляють', () => {

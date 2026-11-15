@@ -131,7 +131,7 @@ function Directions({ state, onEdit }) {
     <ul className="rows">
       {data.map((d, k) => (
         <li key={d.id} className="row direction-row">
-          <CourseIcon course={d} size={22} />
+          <DirectionIcon d={d} size={22} />
           <div className="row-main">
             <h3>{d.title}</h3>
             <p className="muted small">{d.courses.length ? d.courses.map((c) => c.title).join(', ') : 'Без курсів: на сайті не видно'}</p>
@@ -149,10 +149,50 @@ function Directions({ state, onEdit }) {
   );
 }
 
+/** Своя іконка напрямку, якщо завантажена; інакше — іконка першого курсу. */
+function DirectionIcon({ d, size }) {
+  if (d.icon_image) return <span className="course-ico is-own" aria-hidden="true"><img src={imageUrl(d.icon_image)} alt="" /></span>;
+  return <CourseIcon course={d} size={size} />;
+}
+
+/** Завантаження картинки напрямку: попередній перегляд, «Замінити» і «Прибрати». */
+function ImagePick({ label, hint, value, onChange, max, kind, onBusy }) {
+  const fileRef = useRef(null);
+  const [upload, uploading] = useAction();
+  useEffect(() => { onBusy(uploading); }, [uploading, onBusy]);
+  const pick = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const form = new FormData();
+    form.append('image', await shrinkImage(file, max));
+    const r = await upload(() => uploadForm('/site-admin/images', form));
+    if (r) onChange(r.image);
+  };
+  return (
+    <div className={`dir-image is-${kind}`}>
+      <div className="dir-image-box">{value ? <img src={imageUrl(value)} alt={label} /> : <IconImage size={kind === 'icon' ? 22 : 30} />}</div>
+      <div className="dir-image-tools">
+        <p className="label">{label}</p>
+        <p className="muted small">{hint}</p>
+        <div className="dir-image-btns">
+          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={pick} aria-label={label} />
+          <Button variant="ghost" small busy={uploading} icon={<IconImage size={16} />} onClick={() => fileRef.current?.click()}>{uploading ? 'Завантажуємо…' : value ? 'Замінити' : 'Завантажити'}</Button>
+          {value && <Button variant="ghost" small onClick={() => onChange(null)}>Прибрати</Button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DirectionForm({ direction, onClose, onSaved }) {
   const isNew = !direction.id;
   const [title, setTitle] = useState(direction.title ?? '');
   const [summary, setSummary] = useState(direction.summary ?? '');
+  const [cover, setCover] = useState(direction.cover ?? null);
+  const [iconImage, setIconImage] = useState(direction.icon_image ?? null);
+  const [coverBusy, setCoverBusy] = useState(false);
+  const [iconBusy, setIconBusy] = useState(false);
   const [ids, setIds] = useState(() => (direction.courses ?? []).map((c) => c.id));
   const [published, setPublished] = useState(direction.is_published !== 0);
   const { data: showcase } = useData('/site-admin/showcase');
@@ -164,7 +204,7 @@ function DirectionForm({ direction, onClose, onSaved }) {
   const shift = (k, by) => setIds((cur) => { const n = [...cur]; [n[k], n[k + by]] = [n[k + by], n[k]]; return n; });
   const submit = async (e) => {
     e.preventDefault();
-    const body = { title, summary, course_ids: ids, is_published: published };
+    const body = { title, summary, cover, icon_image: iconImage, course_ids: ids, is_published: published };
     const ok = await run(() => api(isNew ? '/site-admin/directions' : `/site-admin/directions/${direction.id}`, { method: isNew ? 'POST' : 'PATCH', body }), isNew ? 'Напрямок додано' : 'Зміни збережено');
     if (ok) onSaved();
   };
@@ -173,6 +213,10 @@ function DirectionForm({ direction, onClose, onSaved }) {
       <form className="form" onSubmit={submit}>
         <Input label="Назва" required maxLength={120} hint="Так курс називається на сайті" value={title} onChange={(e) => setTitle(e.target.value)} />
         <Textarea label="Опис" rows={3} maxLength={600} value={summary} onChange={(e) => setSummary(e.target.value)} />
+        <ImagePick kind="cover" label="Картинка на тлі картки" hint="Без неї тло в кольорі першого курсу" max={1200}
+          value={cover} onChange={setCover} onBusy={setCoverBusy} />
+        <ImagePick kind="icon" label="Своя іконка" hint="Квадратна, PNG з прозорим тлом. Без неї іконка першого курсу" max={256}
+          value={iconImage} onChange={setIconImage} onBusy={setIconBusy} />
         <div className="dir-courses">
           <p className="label">Курси напрямку{picked.length > 0 && <span className="muted">, {coursesWord(picked.length)} по черзі</span>}</p>
           {picked.length > 0 ? (
@@ -187,7 +231,7 @@ function DirectionForm({ direction, onClose, onSaved }) {
                 </li>
               ))}
             </ol>
-          ) : <p className="muted small">Додайте курси нижче. Перший курс задає іконку й колір картки.</p>}
+          ) : <p className="muted small">Додайте курси нижче. Перший курс задає колір картки, а також іконку, якщо своєї немає.</p>}
           {rest.length > 0 && (
             <ul className="dir-add">
               {rest.map((c) => (
@@ -203,7 +247,7 @@ function DirectionForm({ direction, onClose, onSaved }) {
         <Checkbox checked={published} onChange={setPublished}>Показувати на сайті</Checkbox>
         <div className="form-actions">
           <Button variant="ghost" onClick={onClose}>Скасувати</Button>
-          <Button type="submit" busy={busy}>{isNew ? 'Додати' : 'Зберегти'}</Button>
+          <Button type="submit" busy={busy} disabled={coverBusy || iconBusy}>{isNew ? 'Додати' : 'Зберегти'}</Button>
         </div>
       </form>
     </Modal>
@@ -282,11 +326,11 @@ function ReviewForm({ review, onClose, onSaved }) {
 
 const imageUrl = (name) => `/api/site-admin/images/${name}`;
 
-/** Скрін зменшується в браузері до 1600 px по довшій стороні й стискається у WEBP: швидше вантажиться на сайті. */
-async function shrinkImage(file) {
+/** Картинка зменшується в браузері (скрін — до 1600 px по довшій стороні) й стискається у WEBP: швидше вантажиться на сайті. */
+async function shrinkImage(file, max = 1600) {
   try {
     const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(bitmap.width * scale);
     canvas.height = Math.round(bitmap.height * scale);

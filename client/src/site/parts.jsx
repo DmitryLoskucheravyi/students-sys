@@ -84,15 +84,24 @@ export function SiteData({ children }) {
 
 /* ───────── Картки ───────── */
 
+export const siteImage = (name) => `/api/site/images/${name}`;
+
+/** Іконка напрямку на сайті: своя картинка, якщо адмін її завантажив, інакше — іконка першого курсу. */
+export function DirectionIcon({ d, size }) {
+  if (d.icon_image) return <span className="course-ico is-big is-own" aria-hidden="true"><img src={siteImage(d.icon_image)} alt="" /></span>;
+  return <CourseIcon course={d} size={size} big />;
+}
+
 /** Картка «курсу» на сайті — це напрямок: вигляд від першого курсу, під назвою — курси, з яких він складається. */
 export function CourseCard({ c }) {
   const lead = useLead();
   const several = c.courses.length > 1;
   return (
-    <article className={`s-card s-course ${themeClass(c.theme)}`}>
+    <article className={`s-card s-course ${themeClass(c.theme)} ${c.cover ? 'has-cover' : ''}`}>
       <span className="s-course-cover">
-        <CourseIcon course={c} size={30} big />
-        <span className="s-course-mark" aria-hidden="true"><CourseIcon course={c} size={150} /></span>
+        {c.cover && <img className="s-course-bg" src={siteImage(c.cover)} alt="" loading="lazy" />}
+        <DirectionIcon d={c} size={30} />
+        {!c.cover && <span className="s-course-mark" aria-hidden="true">{c.icon_image ? <img src={siteImage(c.icon_image)} alt="" loading="lazy" /> : <CourseIcon course={c} size={150} />}</span>}
         {several
           ? <span className="s-course-count">{coursesWord(c.courses.length)}</span>
           : c.steps > 0 && <span className="s-course-count">{topicsWord(c.steps)}</span>}

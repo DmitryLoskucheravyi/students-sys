@@ -15,8 +15,8 @@ import { Bits, HeroArt, TrialPeek } from './hero.jsx';
 import { directionMeta, subtopicsWord, topicsWord } from './logic.js';
 import { Reveal } from './motion.jsx';
 import {
-  CourseCard, CtaBand, HomePlans, LoadError, Loading, PageHero, PlanTicket, ProjectCard, ReviewCard,
-  SectionHead, SiteData, SliderSection, useTitle,
+  CourseCard, CtaBand, DirectionIcon, HomePlans, LoadError, Loading, PageHero, PlanTicket, ProjectCard, ReviewCard,
+  SectionHead, SiteData, SliderSection, siteImage, useTitle,
 } from './parts.jsx';
 
 /* ───────── Головна ───────── */
@@ -283,7 +283,7 @@ export function CoursePage() {
       <section className={`s-course-hero ${themeClass(course.theme)}`}>
         <div className="s-wrap s-course-hero-in">
           <Link to="/courses" className="s-back"><IconLeft size={18} />Усі курси</Link>
-          <CourseIcon course={course} size={34} big />
+          <DirectionIcon d={course} size={34} />
           <h1>{course.title}</h1>
           {course.summary && <p className="s-lead">{course.summary}</p>}
           <div className="s-course-hero-actions">
@@ -291,7 +291,7 @@ export function CoursePage() {
             {meta && <span className="s-course-hero-meta">{meta}</span>}
           </div>
         </div>
-        <span className="s-course-hero-mark" aria-hidden="true"><CourseIcon course={course} size={320} /></span>
+        <span className="s-course-hero-mark" aria-hidden="true">{course.icon_image ? <img src={siteImage(course.icon_image)} alt="" /> : <CourseIcon course={course} size={320} />}</span>
       </section>
 
       {withSteps.map((c, k) => <Program key={c.id} course={c} index={k} total={withSteps.length} last={k === withSteps.length - 1} />)}
