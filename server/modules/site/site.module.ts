@@ -148,6 +148,16 @@ export class SiteAdminController {
     return this.admin.setShowcase(body);
   }
 
+  @Get('palette')
+  palette() {
+    return this.admin.palette();
+  }
+
+  @Put('palette')
+  setPalette(@Body() body: any) {
+    return this.admin.setPalette(body);
+  }
+
   @Get('settings')
   settings() {
     return this.admin.settings();

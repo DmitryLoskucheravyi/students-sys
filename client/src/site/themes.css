@@ -1,0 +1,65 @@
+/*
+ * Кольорові теми сайту. Менеджер перемикає їх у кабінеті («Сайт» → «Тема»), сайт ставить <html data-palette="…">.
+ * Імена змінних спільні з кабінетом (--red*), але цей файл вантажиться лише на сайті, тож кабінет лишається червоним.
+ *
+ * Тема задає лише основні кольори, решта виводиться з них:
+ *   --red-fill  заливка бренду (кнопки, кольорова секція, хіро); --on-red — текст на ній
+ *   --red       бренд як текст на білому (має читатися);  --red-hover — наведення;  --red-soft — світлий відтінок
+ *   --dark      темні секції й вікна;  --on-dark — текст на них;  --tint — колір тіней
+ *   --hl        акцент на заливці (жовтий у зеленій темі);  --hl-dark — акцент на темному
+ *   --ch-light  тло світлої кольорової секції
+ */
+:root {
+  --fill-light: color-mix(in srgb, var(--red-fill) 78%, #fff);
+  --fill-deep: color-mix(in srgb, var(--red-fill) 76%, #000);
+  --dark-deep: color-mix(in srgb, var(--dark) 72%, #000);
+  --dark-2: color-mix(in srgb, var(--dark) 90%, #fff);
+  --dark-3: color-mix(in srgb, var(--dark) 84%, #fff);
+  --rail: var(--red-fill); --rail-deep: var(--red-hover); --chart-bar: var(--red-fill);
+  --hl-fill: var(--hl); /* акцент на заливці бренду, якщо --hl на ній не видно */
+  --shadow: 0 18px 50px -14px color-mix(in srgb, var(--tint) 28%, transparent);
+
+  /* Зелена — за замовчуванням */
+  --red: #15803d; --red-fill: #19934b; --red-hover: #15803d; --red-soft: #e8f7ee; --on-red: #fff;
+  --ink: #0f1d16; --muted: #56675d; --wash: #f4f9f5; --line: #dbe8df; --grid: #e9f2ec; --grid-strong: #d3e3d8; --road-bed: #d9e8de; --ok-soft: #edf3ef;
+  --ch-light: #e9f7ef; --dark: #0f1d16; --on-dark: #e8f3ec; --hl: #ffd479; --hl-dark: #86efac; --tint: #0a3c20;
+}
+
+/* Кобальт: синій, глибокий синій, помаранчевий, персиковий, теплий білий */
+:root[data-palette='cobalt'] {
+  --red: #3155d9; --red-fill: #3155d9; --red-hover: #182d79; --red-soft: #e7ecfb; --on-red: #fff;
+  --ink: #141c3a; --muted: #5b6178; --wash: #f6f5f0; --line: #e3e2da; --grid: #eeede6; --grid-strong: #dedcd2; --road-bed: #e3e2da; --ok-soft: #efeee8;
+  --ch-light: #fdeee0; --dark: #182d79; --on-dark: #f6f5f0; --hl: #ff965e; --hl-dark: #ffd0a8; --tint: #182d79;
+}
+
+/* Лайм: графіт, лайм, оливковий, світло-сірий */
+:root[data-palette='lime'] {
+  --red: #4f6212; --red-fill: #d7f75b; --red-hover: #c3e443; --red-soft: #f1fbd0; --on-red: #202124;
+  --ink: #202124; --muted: #5d6066; --wash: #f2f2ed; --line: #e2e2dc; --grid: #ebebe5; --grid-strong: #d9d9d2; --road-bed: #e0e0d9; --ok-soft: #eeeee8;
+  --ch-light: #edf2dc; --dark: #202124; --on-dark: #f2f2ed; --hl: #d7f75b; --hl-dark: #d7f75b; --hl-fill: #4f6212; --tint: #202124;
+}
+
+/* Корал: темно-синій, кораловий, персиковий, теплий білий */
+:root[data-palette='coral'] {
+  --red: #c8412e; --red-fill: #ff725e; --red-hover: #f25c47; --red-soft: #ffece6; --on-red: #18243a;
+  --ink: #18243a; --muted: #5d6678; --wash: #f4f1ec; --line: #e6e1da; --grid: #eeeae4; --grid-strong: #ddd6cd; --road-bed: #e4ded6; --ok-soft: #f0ece6;
+  --ch-light: #ffe6da; --dark: #18243a; --on-dark: #f4f1ec; --hl: #ffc3a8; --hl-dark: #ffc3a8; --hl-fill: #fff; --tint: #18243a;
+}
+
+/* Фіалка: майже чорний, фіолетовий, бузковий, помаранчевий, теплий білий */
+:root[data-palette='violet'] {
+  --red: #4935a5; --red-fill: #4935a5; --red-hover: #3a2a88; --red-soft: #efebff; --on-red: #fff;
+  --ink: #17151e; --muted: #615d6e; --wash: #f5f0e9; --line: #e7e1d8; --grid: #efeae3; --grid-strong: #ddd5ca; --road-bed: #e4ddd3; --ok-soft: #f1ece5;
+  --ch-light: #ece6ff; --dark: #17151e; --on-dark: #f5f0e9; --hl: #ff813e; --hl-dark: #9879ff; --tint: #17151e;
+}
+
+/* Лаванда: бузковий, світло-бузковий, лайм, майже чорний, білий */
+:root[data-palette='lavender'] {
+  --red: #6a4bd6; --red-fill: #a78bfa; --red-hover: #9472f6; --red-soft: #f1ecff; --on-red: #191825;
+  --ink: #191825; --muted: #615e70; --wash: #f7f5fa; --line: #e6e2ee; --grid: #efecf5; --grid-strong: #ddd7e8; --road-bed: #e3dfeb; --ok-soft: #f1eef6;
+  --ch-light: #ede7fe; --dark: #191825; --on-dark: #f7f5fa; --hl: #c7f464; --hl-dark: #c7f464; --hl-fill: #fff; --tint: #191825;
+}
+
+/* Біла кнопка на заливці бренду: текст — бренд, наведення — світлий відтінок */
+.btn-onred { color: var(--red); }
+@media (hover: hover) { .btn.btn-onred:hover:not(:disabled) { background: var(--red-soft); } }

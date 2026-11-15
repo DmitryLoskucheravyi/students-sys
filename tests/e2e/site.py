@@ -155,6 +155,26 @@ with sync_playwright() as pw:
     check("вчителю керування сайтом закрите", api(tc, "GET", "/site-admin/leads").status == 403 and t.locator(".rail-nav a", has_text="Сайт").count() == 0)
     tc.close()
 
+    # Кольорова тема сайту: менеджер перемикає у вкладці «Тема», кабінет лишається у своїх кольорах
+    m.goto(f"{APP}/site?tab=palette"); m.wait_for_load_state("networkidle")
+    check("тема за замовчуванням зелена", m.get_by_role("radio", name="Зелена").get_attribute("aria-checked") == "true")
+    m.get_by_role("radio", name="Кобальт").click(); expect(m.locator(".toast").last).to_contain_text("Тему сайту змінено")
+    shot(m, "site-admin-palette")
+    check("обрана тема позначена", m.get_by_role("radio", name="Кобальт").get_attribute("aria-checked") == "true")
+    check("кабінет не перефарбовано", m.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--red-fill').trim().toLowerCase()") == "#d6112b")
+    check("невідома тема відхилена", api(mc, "PUT", "/site-admin/palette", data={"palette": "neon"}).status == 400)
+    check("тему видно у публічних даних", api(gc, "GET", "/site").json()["palette"] == "cobalt")
+    check("тему змінює лише менеджер", api(gc, "PUT", "/site-admin/palette", data={"palette": "lime"}).status == 401)
+    g.goto(BASE); g.wait_for_load_state("networkidle")
+    check("сайт у кобальтовій темі", g.evaluate("document.documentElement.dataset.palette") == "cobalt"
+          and g.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--red-fill').trim()") == "#3155d9")
+    check("рядок браузера не червоний", g.evaluate("document.querySelector('meta[name=theme-color]').content").lower() != "#d6112b")
+    g.goto(BASE + "/?palette=lime"); g.wait_for_load_state("networkidle")
+    check("?palette= показує тему без збереження", g.evaluate("document.documentElement.dataset.palette") == "lime" and api(gc, "GET", "/site").json()["palette"] == "cobalt")
+    api(mc, "PUT", "/site-admin/palette", data={"palette": "green"})
+    g.goto(BASE); g.wait_for_load_state("networkidle")
+    check("повернули зелену", g.evaluate("document.documentElement.dataset.palette") is None)
+
     # 3. Сайт для відвідувача: телефон
     g.goto(BASE); g.wait_for_load_state("networkidle")
     check("тема сайту світла навіть із темною системною", g.evaluate("document.documentElement.dataset.theme") == "light")

@@ -12,7 +12,9 @@ import { IconRight, IconFacebook, IconInstagram, IconTelegram, IconTiktok, IconS
 import { CoursePage, CoursesPage, Home, NotFound, PricesPage, ProjectsPage, ReviewsPage } from './pages.jsx';
 import { socialLinks, LeadCtx, SiteCtx, prettyPhone, telHref, useSite } from './ctx.js';
 import '@fontsource-variable/nunito';
+import './themes.css';
 import './site.css';
+import { applyPalette, pickPalette } from './palette.js';
 
 /* ───────── Дані сайту: один запит на все, кешується на час відвідування ───────── */
 
@@ -210,8 +212,14 @@ export default function Site() {
   const [lead, setLead] = useState(null);
   const openLead = useCallback((note = '') => setLead({ note }), []);
 
-  // Сайт завжди світлий: червоно-біла айдентика. Тема кабінету тут не діє.
+  // Сайт завжди світлий. Тема кабінету тут не діє; кольорову тему сайту обирає менеджер.
   useEffect(() => { document.documentElement.dataset.theme = 'light'; }, []);
+  const saved = site.data?.palette;
+  useEffect(() => {
+    const id = pickPalette(saved);
+    // ?palette=… — лише перегляд: не запамʼятовуємо, щоб наступного разу показати обрану менеджером
+    applyPalette(id, { remember: !new URLSearchParams(window.location.search).has('palette') && (saved !== undefined) });
+  }, [saved]);
 
   return (
     <SiteCtx.Provider value={site}>
