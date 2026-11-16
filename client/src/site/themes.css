@@ -12,7 +12,7 @@
   --red: #3e2c8f; --red-fill: #3e2c8f; --red-hover: #312272; --red-soft: #efebff; --on-red: #fff;
   --ink: #17151e; --muted: #615d6e; --wash: #f5f0e9; --line: #e7e1d8; --grid: #efeae3; --grid-strong: #ddd5ca; --road-bed: #e4ddd3; --ok-soft: #f1ece5;
   --ch-light: #ece6ff; --dark: #17151e; --on-dark: #f5f0e9; --hl: #ff813e; --hl-dark: #9879ff; --tint: #17151e;
-  --trial: #bbf7d0; --on-trial: #053d1d;
+  --trial: #2ee86a; --on-trial: #053d1d;
 
   --fill-light: color-mix(in srgb, var(--red-fill) 78%, #fff);
   --fill-deep: color-mix(in srgb, var(--red-fill) 76%, #000);
