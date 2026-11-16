@@ -7,7 +7,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, uploadForm, useData } from '../api.js';
 import { CourseIcon } from '../courseLook.jsx';
-import { PALETTES } from '../site/palette.js';
 import { dateTimeShort, lessonsWord, money, plural } from '../fmt.js';
 import { Button, Checkbox, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageTools, Segmented, Select, Status, Textarea, useAction, useUI } from '../ui.jsx';
 import { IconBell, IconDown, IconEdit, IconExternal, IconImage, IconPhone, IconPlus, IconQuote, IconRestore, IconRoadmap, IconTick, IconTrash, IconUp } from '../icons.jsx';
@@ -18,7 +17,6 @@ const TABS = [
   { value: 'reviews', label: 'Відгуки' },
   { value: 'projects', label: 'Проєкти' },
   { value: 'showcase', label: 'На сайті' },
-  { value: 'palette', label: 'Тема' },
   { value: 'contacts', label: 'Контакти' },
 ];
 const notify = () => window.dispatchEvent(new Event('bs:notify'));
@@ -52,7 +50,6 @@ export default function SiteAdmin() {
       {tab === 'reviews' && <Reviews state={reviews} onEdit={setEditing} />}
       {tab === 'projects' && <Projects state={projects} onEdit={setProject} />}
       {tab === 'showcase' && <Showcase />}
-      {tab === 'palette' && <PalettePick />}
       {tab === 'contacts' && <Contacts />}
       {direction && <DirectionForm direction={direction} onClose={() => setDirection(null)} onSaved={() => { setDirection(null); directions.reload(); }} />}
       {project && <ProjectForm project={project} onClose={() => setProject(null)} onSaved={() => { setProject(null); projects.reload(); }} />}
@@ -472,40 +469,6 @@ function Showcase() {
           </ul>
         ) : <p className="muted">Видів абонементів ще немає.</p>}
       </section>
-    </div>
-  );
-}
-
-/* ───────── Кольорова тема сайту ───────── */
-
-/** Тема сайту: обрана застосовується одразу для всіх відвідувачів. «Переглянути» відкриває сайт у темі без збереження. */
-function PalettePick() {
-  const { data, error, loading, reload, setData } = useData('/site-admin/palette');
-  const [run] = useAction();
-  if (error) return <ErrorNote text={error} onRetry={reload} />;
-  if (!data) return loading ? <Loader /> : null;
-  const choose = async (id) => {
-    if (id === data.palette) return;
-    const r = await run(() => api('/site-admin/palette', { method: 'PUT', body: { palette: id } }), 'Тему сайту змінено');
-    if (r) setData(r);
-  };
-  return (
-    <div className="palettes">
-      <p className="muted">Кабінет лишається у своїх кольорах, тема змінює лише сайт.</p>
-      <ul className="palette-list" role="radiogroup" aria-label="Тема сайту">
-        {PALETTES.map((p) => {
-          const on = p.id === data.palette;
-          return (
-            <li key={p.id} className={`palette-item ${on ? 'is-on' : ''}`}>
-              <button type="button" role="radio" aria-checked={on} className="palette-pick" onClick={() => choose(p.id)}>
-                <span className="palette-swatches" aria-hidden="true">{p.swatches.map((c) => <i key={c} style={{ background: c }} />)}</span>
-                <span className="palette-name">{p.name}{on && <small><IconTick size={16} />Зараз на сайті</small>}</span>
-              </button>
-              <a className="btn btn-ghost btn-small" href={`/?palette=${p.id}`} target="_blank" rel="noreferrer"><IconExternal size={16} /><span>Переглянути</span></a>
-            </li>
-          );
-        })}
-      </ul>
     </div>
   );
 }

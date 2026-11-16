@@ -14,7 +14,6 @@ import { socialLinks, LeadCtx, SiteCtx, prettyPhone, telHref, useSite } from './
 import '@fontsource-variable/nunito';
 import './themes.css';
 import './site.css';
-import { applyPalette, pickPalette } from './palette.js';
 
 /* ───────── Дані сайту: один запит на все, кешується на час відвідування ───────── */
 
@@ -212,14 +211,8 @@ export default function Site() {
   const [lead, setLead] = useState(null);
   const openLead = useCallback((note = '') => setLead({ note }), []);
 
-  // Сайт завжди світлий. Тема кабінету тут не діє; кольорову тему сайту обирає менеджер.
+  // Сайт завжди світлий: фіолетова палітра (themes.css). Тема кабінету тут не діє.
   useEffect(() => { document.documentElement.dataset.theme = 'light'; }, []);
-  const saved = site.data?.palette;
-  useEffect(() => {
-    const id = pickPalette(saved);
-    // ?palette=… — лише перегляд: не запамʼятовуємо, щоб наступного разу показати обрану менеджером
-    applyPalette(id, { remember: !new URLSearchParams(window.location.search).has('palette') && (saved !== undefined) });
-  }, [saved]);
 
   return (
     <SiteCtx.Provider value={site}>

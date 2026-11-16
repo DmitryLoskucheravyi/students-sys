@@ -98,13 +98,6 @@ async function sendToTelegram(lead: { name: string; phone: string; note: string 
   }
 }
 
-/** Кольорова тема сайту (id з client/src/site/palette.js). Зберігається поруч із контактами. */
-export const PALETTES = ['green', 'cobalt', 'lime', 'coral', 'violet', 'lavender'] as const;
-async function palette(): Promise<string> {
-  const [row] = await q("SELECT value FROM site_settings WHERE name = 'palette'");
-  return row && (PALETTES as readonly string[]).includes(row.value) ? row.value : 'green';
-}
-
 async function settings(): Promise<Record<Setting, string>> {
   const rows: Row[] = await q('SELECT name, value FROM site_settings');
   const out = Object.fromEntries(SETTINGS.map((k) => [k, ''])) as Record<Setting, string>;
@@ -155,17 +148,15 @@ function parseReview(b: any) {
 @Injectable()
 export class SiteService {
   async overview() {
-    const [directions, plans, reviews, contacts, projects, theme] = await Promise.all([
+    const [directions, plans, reviews, contacts, projects] = await Promise.all([
       this.publishedDirections(),
       q(`SELECT id, name, lessons_count, price_per_lesson, valid_days, color
            FROM plans WHERE on_site = 1 AND is_active = 1 ORDER BY lessons_count`),
       q(`${REVIEW_SELECT} WHERE r.is_published = 1 ORDER BY r.id DESC`),
       settings(),
       q(`${PROJECT_SELECT} WHERE p.is_published = 1 ORDER BY p.id DESC`),
-      palette(),
     ]);
     return {
-      palette: theme,
       projects: projects.map(({ is_published: _p, course_id: _c, ...x }: Row) => x),
       directions,
       plans: plans.map((p: Row) => ({ ...p, price_per_lesson: Number(p.price_per_lesson), total: Number(p.price_per_lesson) * p.lessons_count })),
@@ -414,17 +405,6 @@ export class SiteAdminService {
 
   settings() {
     return settings();
-  }
-
-  async palette() {
-    return { palette: await palette() };
-  }
-
-  async setPalette(body: any) {
-    const value = body?.palette;
-    if (!(PALETTES as readonly string[]).includes(value)) throw bad('Невідома тема');
-    await q("INSERT INTO site_settings (name, value) VALUES ('palette', ?) ON DUPLICATE KEY UPDATE value = VALUES(value)", [value]);
-    return { palette: value };
   }
 
   async setSettings(body: any) {
