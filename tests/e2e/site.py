@@ -158,7 +158,7 @@ with sync_playwright() as pw:
     # Палітра: сайт фіолетовий, кабінет лишається червоним, рядок браузера не червоний
     check("кабінет не перефарбовано", m.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--red-fill').trim().toLowerCase()") == "#d6112b")
     g.goto(BASE); g.wait_for_load_state("networkidle")
-    check("сайт фіолетовий", g.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--red-fill').trim()") == "#33237a")
+    check("сайт фіолетовий", g.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--red-fill').trim()") == "#291c63")
     check("рядок браузера не червоний", g.evaluate("document.querySelector('meta[name=theme-color]').content").lower() != "#d6112b")
 
     # 3. Сайт для відвідувача: телефон

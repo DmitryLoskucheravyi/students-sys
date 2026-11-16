@@ -9,7 +9,7 @@
  *   --trial / --on-trial  зелена плашка «Перше пробне заняття безкоштовно»
  */
 :root {
-  --red: #33237a; --red-fill: #33237a; --red-hover: #281b61; --red-soft: #efebff; --on-red: #fff;
+  --red: #291c63; --red-fill: #291c63; --red-hover: #1f154d; --red-soft: #efebff; --on-red: #fff;
   --ink: #17151e; --muted: #615d6e; --wash: #f5f0e9; --line: #e7e1d8; --grid: #efeae3; --grid-strong: #ddd5ca; --road-bed: #e4ddd3; --ok-soft: #f1ece5;
   --ch-light: #ece6ff; --dark: #17151e; --on-dark: #f5f0e9; --hl: #ff813e; --hl-dark: #9879ff; --tint: #17151e;
   --trial: #2ee86a; --on-trial: #053d1d;
