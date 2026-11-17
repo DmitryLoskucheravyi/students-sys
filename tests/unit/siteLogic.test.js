@@ -59,7 +59,8 @@ test('роадмап, компʼютер: при заході нічого, пі
 
 test('роадмап, телефон: «Старт» одразу, решта з прокруткою', () => {
   const at = (scrollY) => mobileProgress({ roadmapBottom: 950 - scrollY, scrollY, vh: 844 });
-  assert.equal(shownCount(at(0), 8, { wide: false }), 1);
+  assert.equal(shownCount(at(0), 8, { wide: false }), 0);
+  assert.equal(shownCount(at(4), 8, { wide: false }), 1);
   assert.ok(shownCount(at(250), 8, { wide: false }) < 8);
   assert.equal(shownCount(at(600), 8, { wide: false }), 8);
   // Роадмап уже вище середини екрана (високий екран) — усе відкрито
@@ -67,9 +68,10 @@ test('роадмап, телефон: «Старт» одразу, решта з
 });
 
 test('шторка: кнопка в кадрі і на своєму місці', () => {
-  const base = { panelBottom: 1500, buttonTop: 700, buttonBottom: 754, vh: 800 };
+  const base = { panelBottom: 1500, buttonTop: 646, buttonBottom: 700, vh: 800 };
   assert.equal(peekReady({ ...base, wide: true }), true);
   assert.equal(peekReady({ ...base, wide: false }), false, 'телефон: кнопка ще прилипла внизу');
   assert.equal(peekReady({ ...base, wide: false, panelBottom: 780 }), true);
   assert.equal(peekReady({ ...base, wide: true, buttonBottom: 820 }), false, 'кнопка обрізана знизу');
+  assert.equal(peekReady({ ...base, wide: false, panelBottom: 780, buttonBottom: 760 }), false, 'під кнопкою немає місця для шторки');
 });

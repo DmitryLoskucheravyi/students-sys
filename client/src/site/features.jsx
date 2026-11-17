@@ -164,47 +164,121 @@ function PassArt() {
   );
 }
 
-/* «Кабінет, де видно весь шлях»: нагадування, перевірене домашнє, прогрес курсу */
-function TodayArt() {
-  return (
-    <div className="s-art-card">
-      <div className="s-art-row"><b>Сьогодні</b><span className="s-art-pill is-live">17:00</span></div>
-      <div className="s-art-easy is-idea">
-        <div className="s-art-ping"><b>🎮</b><span><small>Заняття о 17:00</small>Своя гра: додаємо рахунок</span></div>
-        <ul className="s-art-lessons">
-          <li><b>Ср</b><span><em>17:00</em>Своя гра: рівні</span></li>
-          <li><b>Пт</b><span><em>16:00</em>Показуємо гру друзям</span></li>
-        </ul>
-      </div>
-    </div>
-  );
-}
+/* «Видно весь шлях»: один живий кабінет учня з вкладками замість карток.
+   Вкладки перемикаються самі, поки кабінет на екрані; після кліку — лише вручну. */
+const CAB_STEP = 4800;
+const WEEK = [['Пн'], ['Вт'], ['Ср', '17:00', 'Своя гра: рівні'], ['Чт'], ['Пт', '16:00', 'Показуємо гру друзям'], ['Сб'], ['Нд']];
+const HOMEWORK = [
+  ['Вгадай число', 'Перевірено, 12/12', 'is-ok'],
+  ['Рахунок у грі', 'Здано, на перевірці', 'is-wait'],
+  ['Рівні гри', "До п'ятниці", 'is-todo'],
+];
+const GRADES = [10, 11, 9, 12, 11, 12, 12, 11];
+const NEWS = [
+  ['17:02', 'Марія прийшла на заняття'],
+  ['18:30', 'Домашнє «Вгадай число» перевірено: 12/12'],
+  ['18:31', 'Олена: «Гра працює! Наступний крок — рахувати спроби»'],
+];
 
-function CheckedArt() {
+function CabWeek() {
   return (
-    <div className="s-art-card">
-      <div className="s-art-row"><b>Домашнє «Вгадай число»</b><span className="s-art-pill is-ok">Перевірено</span></div>
-      <div className="s-art-easy is-idea">
-        <div className="s-art-term">
-          <span>Число? <b>4</b></span>
-          <span>Більше!</span>
-          <span>Число? <b>6</b></span>
-          <span className="is-win">Вгадав! 🎉</span>
-        </div>
-        <TeacherNote>Гра працює! Наступний крок: рахувати спроби</TeacherNote>
-      </div>
-    </div>
-  );
-}
-
-const PATH = [['Основи Python', 1], ['Умови й цикли', 1], ['Своя гра', 0.6], ['Графіка', 0], ['Реліз гри', 0]];
-function PathArt() {
-  return (
-    <div className="s-art-card">
-      <div className="s-art-row"><b>Шлях вашої дитини</b><small><b>52%</b></small></div>
-      <ol className="s-art-path s-art-easy">
-        {PATH.map(([t, v]) => <li key={t} className={v === 1 ? 'is-done' : v > 0 ? 'is-now' : ''} style={{ '--v': v }}><i>{v === 1 && <Tick />}</i>{t}</li>)}
+    <div className="s-cab-pane">
+      <p className="s-cab-sub">Цей тиждень</p>
+      <ol className="s-cab-week">
+        {WEEK.map(([d, t, what]) => (
+          <li key={d} className={t ? 'is-lesson' : ''}><b>{d}</b>{t && <span><em>{t}</em>{what}</span>}</li>
+        ))}
       </ol>
+      <p className="s-cab-note"><Tick />Нагадаємо за годину до заняття</p>
+    </div>
+  );
+}
+
+function CabHomework() {
+  return (
+    <div className="s-cab-pane">
+      <p className="s-cab-sub">Домашні завдання</p>
+      <ul className="s-cab-hw">
+        {HOMEWORK.map(([t, st, cls]) => <li key={t} className={cls}><i>{cls === 'is-ok' && <Tick />}</i><b>{t}</b><span>{st}</span></li>)}
+      </ul>
+      <p className="s-cab-note"><Tick />Викладач перевіряє й пише коментар</p>
+    </div>
+  );
+}
+
+function CabGrades() {
+  const avg = (GRADES.reduce((a, b) => a + b, 0) / GRADES.length).toFixed(1).replace('.', ',');
+  return (
+    <div className="s-cab-pane">
+      <div className="s-cab-avg"><b>{avg}</b><span>середній бал<br />за місяць</span></div>
+      <ol className="s-cab-bars" aria-label={`Останні оцінки: ${GRADES.join(', ')}`}>
+        {GRADES.map((g, k) => <li key={k} style={{ '--g': g / 12, '--k': k }}><span>{g}</span></li>)}
+      </ol>
+    </div>
+  );
+}
+
+function CabParents() {
+  return (
+    <div className="s-cab-pane">
+      <p className="s-cab-sub">Сьогодні</p>
+      <ul className="s-cab-news">
+        {NEWS.map(([t, text], k) => <li key={t} style={{ '--k': k }}><time>{t}</time><span>{text}</span></li>)}
+      </ul>
+      <p className="s-cab-note"><Tick />Батьки бачать усе у своєму кабінеті</p>
+    </div>
+  );
+}
+
+const CAB_TABS = [['Розклад', CabWeek], ['Домашні', CabHomework], ['Оцінки', CabGrades], ['Батькам', CabParents]];
+
+function CabinetDemo() {
+  const ref = useRef(null);
+  const [tab, setTab] = useState(0);
+  const [run, setRun] = useState(false);
+  const [manual, setManual] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined' || prefersCalm()) return undefined;
+    const io = new IntersectionObserver(([e]) => setRun(e.isIntersecting), { threshold: 0.5 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  const auto = run && !manual;
+  useEffect(() => {
+    if (!auto) return undefined;
+    const t = setTimeout(() => setTab((k) => (k + 1) % CAB_TABS.length), CAB_STEP);
+    return () => clearTimeout(t);
+  }, [auto, tab]);
+  const pick = (k) => { setManual(true); setTab(k); };
+  const keys = (e) => {
+    const by = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+    if (!by) return;
+    e.preventDefault();
+    const k = (tab + by + CAB_TABS.length) % CAB_TABS.length;
+    pick(k);
+    e.currentTarget.querySelectorAll('[role="tab"]')[k]?.focus();
+  };
+  const Pane = CAB_TABS[tab][1];
+  return (
+    <div className={`s-cab ${auto ? 'is-auto' : ''}`} ref={ref}>
+      <div className="s-cab-bar">
+        <span className="s-game-dots" aria-hidden="true"><i /><i /><i /></span>
+        <span className="s-cab-who"><span className="s-cab-ava" aria-hidden="true">М</span>Кабінет учня<small>Марія, 11 років</small></span>
+      </div>
+      <div className="s-cab-body">
+        <div className="s-cab-tabs" role="tablist" aria-label="Кабінет учня" onKeyDown={keys}>
+          {CAB_TABS.map(([name], k) => (
+            <button key={name} type="button" role="tab" id={`s-cab-t${k}`} aria-selected={k === tab} aria-controls="s-cab-pane"
+              tabIndex={k === tab ? 0 : -1} className={k === tab ? 'is-on' : ''} onClick={() => pick(k)}>
+              {name}{k === tab && auto && <i key={tab} className="s-cab-timer" style={{ '--t': `${CAB_STEP}ms` }} />}
+            </button>
+          ))}
+        </div>
+        <div className="s-cab-view" role="tabpanel" id="s-cab-pane" aria-labelledby={`s-cab-t${tab}`}>
+          <Pane key={tab} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -213,7 +287,7 @@ function PathArt() {
 const FEATURE_ART = {
   check: [GuessGame],
   quiz: [QuizArt, HintArt, PassArt],
-  cabinet: [TodayArt, CheckedArt, PathArt],
+  cabinet: [CabinetDemo],
 };
 
 /* ───────── Як показувати ───────── */

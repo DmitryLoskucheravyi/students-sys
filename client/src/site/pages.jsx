@@ -35,12 +35,15 @@ function Hero() {
             <p className="s-lead">{HERO.lead}</p>
           </div>
           <HeroArt />
-          <Link to="/courses" className="btn s-big s-hero-courses">Переглянути курси<IconRight size={18} /></Link>
-          <div className="s-hero-actions">
-            {phone
-              ? <a className="btn btn-onred s-big" href={telHref(phone)}><IconPhone size={20} /><span>Зателефонувати</span></a>
-              : <Button className="btn-onred s-big" onClick={() => lead()}>Записатись</Button>}
-            <TrialPeek />
+          {/* Обгортка важить лише на планшеті (дві кнопки рядом, прилиплі до низу); деінде — display: contents */}
+          <div className="s-hero-cta">
+            <Link to="/courses" className="btn s-big s-hero-courses">Переглянути курси<IconRight size={18} /></Link>
+            <div className="s-hero-actions">
+              {phone
+                ? <a className="btn btn-onred s-big" href={telHref(phone)}><IconPhone size={20} /><span>Зателефонувати</span></a>
+                : <Button className="btn-onred s-big" onClick={() => lead()}>Записатись</Button>}
+              <TrialPeek />
+            </div>
           </div>
         </div>
       </div>

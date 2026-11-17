@@ -63,7 +63,8 @@ export function mobileProgress({ roadmapBottom, scrollY, vh }) {
 
 /**
  * Скільки карток роадмапу відкрито (з total) при прогресі p.
- * Компʼютер: навіть «Старт» чекає першої прокрутки. Телефон: «Старт» видно одразу.
+ * Скрізь до першої прокрутки відкритих карток немає: на їх місці плавають плитки «що вчимо».
+ * Телефон: з першою ж прокруткою зʼявляється «Старт», далі решта до кінця хіро.
  */
 export function shownCount(p, total, { wide }) {
   if (wide) {
@@ -71,6 +72,7 @@ export function shownCount(p, total, { wide }) {
     for (let i = 0; i < total; i += 1) if (p >= (i + 1) / (total + 1)) n = i + 1;
     return n;
   }
+  if (p <= 0) return 0;
   let n = 1;
   for (let i = 1; i < total; i += 1) if (p >= (i / (total - 1)) * 0.96) n = i + 1;
   return n;
@@ -81,8 +83,10 @@ export function shownCount(p, total, { wide }) {
 /**
  * Чи можна висувати шторку: кнопка повністю в кадрі й стоїть на своєму місці.
  * На телефоні кнопка спершу прилипла до низу екрана — на місці вона, коли низ хіро вже в кадрі.
+ * Шторка висувається під кнопку, тож під кнопкою має лишатися місце для неї (і для смужки «додому» на iPhone).
  */
+export const PEEK_ROOM = { wide: 48, narrow: 72 };
 export function peekReady({ wide, panelBottom, buttonTop, buttonBottom, vh }) {
   const settled = wide || panelBottom <= vh + 2;
-  return settled && buttonTop >= 0 && buttonBottom <= vh;
+  return settled && buttonTop >= 0 && buttonBottom + PEEK_ROOM[wide ? 'wide' : 'narrow'] <= vh;
 }
