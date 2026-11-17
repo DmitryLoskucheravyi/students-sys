@@ -25,6 +25,22 @@ import {
 
 /* ───────── Головна ───────── */
 
+/** Заголовок хіро: «→» стає «таблеткою» кольору акценту з товстою стрілкою. Для читачів екрана — слово. */
+function HeroTitle({ text }) {
+  const [from, to] = text.split('→');
+  if (to === undefined) return text;
+  return (
+    <>
+      {from.trim()}{' '}
+      <span className="s-arrow">
+        <svg viewBox="0 0 48 24" aria-hidden="true"><path d="M8 12h28m-9-8 9 8-9 8" /></svg>
+        <span className="sr-only">стає</span>
+      </span>
+      {' '}{to.trim()}
+    </>
+  );
+}
+
 function Hero() {
   const lead = useLead();
   const phone = useSite().data?.contacts?.phone;
@@ -35,7 +51,7 @@ function Hero() {
           <Bits />
           <div className="s-hero-text">
             <p className="s-chips">{HERO.chips.map((c, k) => <span key={c} className="s-eyebrow">{c}{k < HERO.chips.length - 1 ? ' ' : ''}</span>)}</p>
-            <h1 className="s-hero-title">{HERO.title}</h1>
+            <h1 className="s-hero-title"><HeroTitle text={HERO.title} /></h1>
             <p className="s-lead">{HERO.lead}</p>
           </div>
           <HeroArt />
