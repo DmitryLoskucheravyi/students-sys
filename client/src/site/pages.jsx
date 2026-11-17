@@ -145,17 +145,22 @@ export function Home() {
         </SliderSection>
       )}
 
-      {data?.projects?.length > 0 && (
-        <section className="s-wrap s-sec">
-          <SectionHead title="Проєкти учнів" to="/projects" more="Усі проєкти" />
-          <div className="s-grid">{data.projects.slice(0, 3).map((p) => <ProjectCard key={p.id} p={p} />)}</div>
-        </section>
-      )}
-
       {data?.plans?.length > 0 && (
         <section className="s-wrap s-sec">
           <SectionHead title="Ціни" to="/prices" more="Усі ціни" />
           <HomePlans plans={data.plans} />
+        </section>
+      )}
+
+      <section className="s-wrap s-sec">
+        <SectionHead title="Часті питання" to="/faq" more="Усі питання" />
+        <FaqList items={faqItems(data).slice(0, 4)} />
+      </section>
+
+      {data?.projects?.length > 0 && (
+        <section className="s-wrap s-sec">
+          <SectionHead title="Проєкти учнів" to="/projects" more="Усі проєкти" />
+          <div className="s-grid">{data.projects.slice(0, 3).map((p) => <ProjectCard key={p.id} p={p} />)}</div>
         </section>
       )}
 
@@ -176,11 +181,6 @@ export function Home() {
             </li>
           ))}
         </ol>
-      </section>
-
-      <section className="s-wrap s-sec">
-        <SectionHead title="Часті питання" to="/faq" more="Усі питання" />
-        <FaqList items={faqItems(data).slice(0, 4)} />
       </section>
 
       <CtaBand />
