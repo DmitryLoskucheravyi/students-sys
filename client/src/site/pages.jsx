@@ -34,9 +34,8 @@ function Hero() {
         <div className="s-hero-panel">
           <Bits />
           <div className="s-hero-text">
-            {/* Чіпи разом — H1 з головним запитом; великий слоган — звичайний текст тим самим стилем */}
-            <h1 className="s-chips">{HERO.chips.map((c, k) => <span key={c} className="s-eyebrow">{c}{k < HERO.chips.length - 1 ? ' ' : ''}</span>)}</h1>
-            <p className="s-hero-title">{HERO.title}</p>
+            <p className="s-chips">{HERO.chips.map((c, k) => <span key={c} className="s-eyebrow">{c}{k < HERO.chips.length - 1 ? ' ' : ''}</span>)}</p>
+            <h1 className="s-hero-title">{HERO.title}</h1>
             <p className="s-lead">{HERO.lead}</p>
           </div>
           <HeroArt />

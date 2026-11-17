@@ -224,7 +224,7 @@ with sync_playwright() as pw:
     html = raw("/faq").text()
     check("сторінка питань зібрана в HTML без JavaScript", "З якого віку" in html and '"@type":"FAQPage"' in html and "<h1" in html)
     html = raw("/").text()
-    check("головна: H1 із запитом, опис, canonical, OG", "Онлайн-школа програмування" in html and 'name="description"' in html and 'rel="canonical"' in html and 'property="og:image"' in html)
+    check("головна: запит у title, опис, canonical, OG", "Онлайн-школа програмування" in html and 'name="description"' in html and 'rel="canonical"' in html and 'property="og:image"' in html)
     check("кабінет закритий від індексації", 'content="noindex' in raw("/cabinet").text())
     g.goto(f"{BASE}/faq"); g.wait_for_load_state("networkidle")
     check("сторінка питань", g.get_by_role("heading", name="Питання й відповіді", level=1).is_visible() and g.locator(".s-faq details").count() >= 5)
