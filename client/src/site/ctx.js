@@ -5,6 +5,15 @@ export const SiteCtx = createContext({ data: null, error: null, reload: () => {}
 export const useSite = () => useContext(SiteCtx);
 
 export const LeadCtx = createContext(() => {});
+
+/**
+ * Лише під час збірки (scripts/prerender.mjs): сюди сторінка кладе свою мету (title, description, JSON-LD),
+ * а збірка вписує її в <head> готового HTML. У браузері — null.
+ */
+export const SeoSinkCtx = createContext(null);
+/** Дані, з якими сторінку зібрано заздалегідь: сайт і, на сторінці курсу, сам курс. Браузер бере їх зі сторінки. */
+export const BootCtx = createContext({});
+export const useBoot = () => useContext(BootCtx);
 /** Відкрити форму заявки; note — підказка в поле «Додатково» (наприклад, обраний курс). */
 export const useLead = () => useContext(LeadCtx);
 

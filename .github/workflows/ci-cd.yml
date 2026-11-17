@@ -100,6 +100,11 @@ jobs:
       - name: Wait for API
         run: node scripts/wait-for-deploy.mjs "${{ vars.BACKEND_URL }}" "$GITHUB_SHA"
       - name: Deploy site to Vercel
+        env:
+          # Пререндер бере курси, ціни й відгуки з живого API (scripts/prerender.mjs)
+          SITE_API: ${{ vars.BACKEND_URL }}/api
+          GOOGLE_SITE_VERIFICATION: ${{ vars.GOOGLE_SITE_VERIFICATION }}
+          BING_SITE_VERIFICATION: ${{ vars.BING_SITE_VERIFICATION }}
         run: |
           npm install --global vercel@latest
           vercel pull --yes --environment=production
@@ -107,3 +112,6 @@ jobs:
           vercel deploy --prebuilt --prod
       - name: Check live site
         run: node scripts/smoke.mjs "${{ vars.PROD_URL }}"
+      - name: Notify search engines (IndexNow)
+        continue-on-error: true
+        run: node scripts/indexnow.mjs "${{ vars.PROD_URL }}"

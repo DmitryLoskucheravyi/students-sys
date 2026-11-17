@@ -37,6 +37,7 @@ npm start        # http://127.0.0.1:3000
 - `client/src/quizImport.js`, `codeHighlight.js`, `fmt.js` — чисті функції без React, їх перевіряють юніт-тести.
   - `setup.ts` і `schema.sql` — схема та міграції, `seed.ts` — демо-дані.
 - Перевірка типів без збірки: `npm run typecheck`.
+- Сайт школи збирається в готовий HTML для пошуковиків і ШІ (`scripts/prerender.mjs`, `client/src/site/seo.js`). Докладно: [docs/SEO.md](docs/SEO.md).
 
 ## Демо-входи
 

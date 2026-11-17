@@ -17,6 +17,14 @@ check('сторінка відкривається', home.status === 200, String
 check('це наш застосунок', html.includes('Be Smart School'));
 check('заголовок CSP на сторінці', (home.headers.get('content-security-policy') ?? '').includes("script-src 'self'"));
 
+check('головна зібрана заздалегідь: текст і JSON-LD у HTML', html.includes('Онлайн-школа програмування') && html.includes('application/ld+json'));
+const robots = await get('/robots.txt');
+check('robots.txt — текст із sitemap', robots.status === 200 && (await robots.text()).includes('Sitemap:'), String(robots.status));
+const sitemap = await get('/sitemap.xml');
+check('sitemap.xml з курсами', sitemap.status === 200 && (await sitemap.text()).includes('/courses/'), String(sitemap.status));
+const missing = await get('/no-such-page-smoke');
+check('неіснуюча сторінка — 404', missing.status === 404, String(missing.status));
+
 const deep = await get('/courses/1');
 check('глибоке посилання віддає застосунок', deep.status === 200 && (await deep.text()).includes('id="root"'));
 

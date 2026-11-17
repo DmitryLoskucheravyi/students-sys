@@ -47,10 +47,20 @@ app.setGlobalPrefix('api');
 app.useGlobalFilters(new ErrorFilter());
 
 // Локально й у тестах сервер віддає ще й зібраний інтерфейс. У проді його роздає Vercel.
+// Так само, як Vercel (vercel.json): зібрані сторінки сайту без «.html», кабінет і нові курси — оболонка застосунку,
+// решта — 404.html зі статусом 404.
 const dist = path.join(ROOT, 'client', 'dist');
 if (existsSync(dist)) {
-  app.use(express.static(dist));
-  http.get(/^(?!\/api).*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+  const APP_SHELL = /^\/(cabinet|q|courses)(\/|$)|^\/(homework|lessons|people|stats|subscriptions|subscription|profile|tests|quizzes)(\/|$)/;
+  app.use(express.static(dist, { redirect: false }));
+  http.get(/^(?!\/api).*/, (req, res) => {
+    let page = '';
+    try { page = path.join(dist, `${decodeURIComponent(req.path).replace(/\/+$/, '') || '/index'}.html`); } catch { /* битий %-код */ }
+    if (page.startsWith(dist + path.sep) && existsSync(page)) return res.sendFile(page);
+    if (APP_SHELL.test(req.path)) return res.sendFile(path.join(dist, existsSync(path.join(dist, 'app.html')) ? 'app.html' : 'index.html'));
+    const notFound = path.join(dist, '404.html');
+    return existsSync(notFound) ? res.status(404).sendFile(notFound) : res.sendFile(path.join(dist, 'index.html'));
+  });
 }
 
 const port = Number(process.env.PORT || 3000);

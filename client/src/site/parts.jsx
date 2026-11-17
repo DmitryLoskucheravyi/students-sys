@@ -1,19 +1,58 @@
 /* Спільні частини сторінок сайту: заголовки секцій, слайдер, картки курсів, проєктів, відгуків, квитки, заклик. */
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CourseIcon, themeClass } from '../courseLook.jsx';
 import { lessonsWord, money } from '../fmt.js';
 import { Button, IconButton } from '../ui.jsx';
 import { IconExternal, IconLeft, IconPhone, IconQuote, IconRight } from '../icons.jsx';
 import { CTA } from './content.js';
-import { prettyPhone, telHref, useLead, useSite } from './ctx.js';
+import { SeoSinkCtx, prettyPhone, telHref, useLead, useSite } from './ctx.js';
+import { abs, directionPath, fullTitle, OG_IMAGE, pageJsonLd, safeJson } from './seo.js';
 import { coursesWord, homePlans, initials, ticketClass, topicsWord } from './logic.js';
 import { prefersCalm, useMedia } from './motion.jsx';
 
 /* ───────── Каркас ───────── */
 
-export function useTitle(title) {
-  useEffect(() => { document.title = title ? `${title} — Be Smart School` : 'Be Smart School — школа програмування'; }, [title]);
+/** Тег у <head>: знайти за селектором або створити. */
+function headTag(selector, create) {
+  let el = document.head.querySelector(selector);
+  if (!el) { el = create(); document.head.append(el); }
+  return el;
+}
+const namedMeta = (name) => headTag(`meta[name="${name}"]`, () => Object.assign(document.createElement('meta'), { name }));
+
+/** Мета сторінки в <head> браузера: після переходу між сторінками все має відповідати новій сторінці. */
+function applyHead(meta, site) {
+  document.title = fullTitle(meta.title);
+  namedMeta('description').content = meta.description;
+  namedMeta('robots').content = meta.noindex ? 'noindex, follow' : 'index, follow, max-image-preview:large, max-snippet:-1';
+  const og = (prop, value) => {
+    const el = headTag(`meta[property="${prop}"]`, () => { const m = document.createElement('meta'); m.setAttribute('property', prop); return m; });
+    el.content = value;
+  };
+  og('og:title', meta.title || fullTitle(null));
+  og('og:description', meta.description);
+  og('og:image', abs(meta.image || OG_IMAGE));
+  const canonical = document.head.querySelector('link[rel="canonical"]');
+  if (meta.path && !meta.noindex) {
+    og('og:url', abs(meta.path));
+    headTag('link[rel="canonical"]', () => Object.assign(document.createElement('link'), { rel: 'canonical' })).href = abs(meta.path);
+  } else canonical?.remove();
+  // JSON-LD не виконується як скрипт, тож CSP його не блокує
+  headTag('script[data-seo]', () => { const sc = document.createElement('script'); sc.type = 'application/ld+json'; sc.dataset.seo = ''; return sc; })
+    .textContent = safeJson(pageJsonLd(meta, site));
+}
+
+/**
+ * Мета сторінки (seo.js: homeMeta, courseMeta…). Під час збірки віддає її в пререндер,
+ * у браузері оновлює <head> при переході між сторінками.
+ */
+export function useSeo(meta) {
+  const sink = useContext(SeoSinkCtx);
+  const site = useSite().data;
+  if (sink) sink.meta = meta;
+  const key = JSON.stringify(meta);
+  useEffect(() => { applyHead(JSON.parse(key), site); }, [key, site]);
 }
 
 export function SectionHead({ title, to, more, children }) {
@@ -95,6 +134,7 @@ export function DirectionIcon({ d, size }) {
 /** Картка «курсу» на сайті — це напрямок: вигляд від першого курсу, під назвою — курси, з яких він складається. */
 export function CourseCard({ c }) {
   const lead = useLead();
+  const href = directionPath(c, useSite().data?.directions);
   const several = c.courses.length > 1;
   return (
     <article className={`s-card s-course ${themeClass(c.theme)} ${c.cover ? 'has-cover' : ''}`}>
@@ -107,11 +147,11 @@ export function CourseCard({ c }) {
           : c.steps > 0 && <span className="s-course-count">{topicsWord(c.steps)}</span>}
       </span>
       <div className="s-course-body">
-        <h3><Link to={`/courses/${c.id}`} className="s-course-link">{c.title}</Link></h3>
+        <h3><Link to={href} className="s-course-link">{c.title}</Link></h3>
         {c.summary && <p>{c.summary}</p>}
         {several && <ol className="s-course-parts">{c.courses.map((x, k) => <li key={x.id}><b>{k + 1}</b>{x.title}</li>)}</ol>}
         <div className="s-course-actions">
-          <Link to={`/courses/${c.id}`} className="btn btn-ghost">Детальніше</Link>
+          <Link to={href} className="btn btn-ghost">Детальніше</Link>
           <Button onClick={() => lead(`Курс: ${c.title}`)}>Записатись</Button>
         </div>
       </div>

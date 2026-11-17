@@ -1,6 +1,8 @@
 /*
  * Сайт школи: головна з превʼю, курси, ціни, відгуки. Курси, ціни, відгуки й контакти — з кабінету наживо.
  * «Записатись» відкриває форму заявки; заявка йде менеджеру в кабінет і, якщо налаштовано, у Telegram.
+ * Під час збірки сторінки рендеряться заздалегідь (ssr.jsx, scripts/prerender.mjs): пошуковики й ШІ-боти
+ * одразу отримують увесь текст. Браузер бере зібрані дані зі сторінки (#site-boot) і тихо оновлює їх з API.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-router-dom';
@@ -9,16 +11,17 @@ import BsLogo from '../BsLogo.jsx';
 import { RouteBoundary } from '../ErrorBoundary.jsx';
 import { Button, IconButton, Input, Modal, Textarea } from '../ui.jsx';
 import { IconRight, IconFacebook, IconInstagram, IconTelegram, IconTiktok, IconSpark, IconClose, IconMenu, IconPhone, IconSend, IconTick, IconUser } from '../icons.jsx';
-import { CoursePage, CoursesPage, Home, NotFound, PricesPage, ProjectsPage, ReviewsPage } from './pages.jsx';
-import { socialLinks, LeadCtx, SiteCtx, prettyPhone, telHref, useSite } from './ctx.js';
+import { CoursePage, CoursesPage, FaqPage, Home, NotFound, PricesPage, PrivacyPage, ProjectsPage, ReviewsPage } from './pages.jsx';
+import { socialLinks, BootCtx, LeadCtx, SiteCtx, prettyPhone, telHref, useSite } from './ctx.js';
+import { directionPath } from './seo.js';
 import '@fontsource-variable/nunito';
 import './themes.css';
 import './site.css';
 
 /* ───────── Дані сайту: один запит на все, кешується на час відвідування ───────── */
 
-function useSiteData() {
-  const [state, setState] = useState({ data: null, error: null });
+function useSiteData(initial) {
+  const [state, setState] = useState({ data: initial ?? null, error: null });
   const load = useCallback(() => {
     setState((s) => ({ ...s, error: null }));
     // Повторне завантаження не вдалося — вже показані дані лишаються, додається лише помилка
@@ -76,6 +79,7 @@ function LeadModal({ note: initialNote, phone, onClose }) {
           </div>
           {error && <p className="form-error" role="alert">{error}</p>}
           <Button type="submit" busy={busy} className="btn-wide" icon={<IconSend size={18} />}>{busy ? 'Надсилаємо…' : 'Надіслати заявку'}</Button>
+          <p className="lead-consent">Надсилаючи заявку, ви погоджуєтеся з <a href="/privacy" target="_blank" rel="noopener">політикою конфіденційності</a>.</p>
         </form>
       )}
       {phone && !done && (
@@ -160,8 +164,8 @@ function Socials({ className = '' }) {
         const Icon = SOCIAL_ICON[key];
         // Поки посилання не задане в кабінеті — іконка-заглушка без переходу
         return href
-          ? <a key={key} href={href} target="_blank" rel="noopener noreferrer" aria-label={label} title={label}><Icon size={20} /></a>
-          : <a key={key} href="#" onClick={(e) => e.preventDefault()} aria-label={label} title={label}><Icon size={20} /></a>;
+          ? <a key={key} href={href} target="_blank" rel="noopener me" aria-label={label} title={label}><Icon size={20} /></a>
+          : <span key={key} className="is-stub" aria-hidden="true"><Icon size={20} /></span>;
       })}
     </div>
   );
@@ -170,19 +174,28 @@ function Socials({ className = '' }) {
 function Footer() {
   const { data } = useSite();
   const c = data?.contacts ?? {};
+  const dirs = data?.directions ?? [];
   return (
     <footer className="s-foot">
       <div className="s-wrap s-foot-top">
         <nav className="s-foot-nav" aria-label="Розділи сайту">
           {NAV.map(([to, label]) => <Link key={to} to={to}>{label}<IconRight size={20} /></Link>)}
+          <Link to="/faq">Питання<IconRight size={20} /></Link>
           <a href="/cabinet">Для учнів<IconRight size={20} /></a>
         </nav>
       </div>
       <div className="s-wrap s-foot-in">
         <div className="s-foot-brand">
           <Link to="/" aria-label="Be Smart School — на головну"><BsLogo className="is-foot" /></Link>
+          <p className="s-foot-about">Онлайн-школа програмування для дітей і підлітків.</p>
           <Socials className="is-foot" />
         </div>
+        {dirs.length > 0 && (
+          <nav className="s-foot-col" aria-label="Курси">
+            <h2>Курси</h2>
+            {dirs.map((d) => <Link key={d.id} to={directionPath(d, dirs)}>{d.title}</Link>)}
+          </nav>
+        )}
         {(c.phone || c.email || c.address) && (
           <div className="s-foot-col">
             <h2>Контакти</h2>
@@ -194,6 +207,7 @@ function Footer() {
       </div>
       <div className="s-wrap s-foot-bottom">
         <span>© {new Date().getFullYear()} Be Smart School</span>
+        <Link to="/privacy">Політика конфіденційності</Link>
       </div>
     </footer>
   );
@@ -206,8 +220,19 @@ function PageEffects() {
   return null;
 }
 
+/** Дані, з якими сторінку зібрано (вписує scripts/prerender.mjs). Не виконується як скрипт, тож CSP не заважає. */
+function readBoot() {
+  try { return JSON.parse(document.getElementById('site-boot')?.textContent || '{}'); } catch { return {}; }
+}
+
 export default function Site() {
-  const site = useSiteData();
+  const [boot] = useState(readBoot);
+  return <SiteApp boot={boot} Router={BrowserRouter} />;
+}
+
+/** Увесь сайт. Router — BrowserRouter у браузері, StaticRouter під час збірки (ssr.jsx). */
+export function SiteApp({ boot = {}, Router, routerProps }) {
+  const site = useSiteData(boot.site);
   const [lead, setLead] = useState(null);
   const openLead = useCallback((note = '') => setLead({ note }), []);
 
@@ -215,9 +240,10 @@ export default function Site() {
   useEffect(() => { document.documentElement.dataset.theme = 'light'; }, []);
 
   return (
+    <BootCtx.Provider value={boot}>
     <SiteCtx.Provider value={site}>
       <LeadCtx.Provider value={openLead}>
-        <BrowserRouter>
+        <Router {...routerProps}>
           <PageEffects />
           <div className="site">
             <Header onLead={openLead} />
@@ -226,10 +252,12 @@ export default function Site() {
                 <Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/courses" element={<CoursesPage />} />
-                  <Route path="/courses/:id" element={<CoursePage />} />
+                  <Route path="/courses/:slug" element={<CoursePage />} />
                   <Route path="/projects" element={<ProjectsPage />} />
                   <Route path="/prices" element={<PricesPage />} />
                   <Route path="/reviews" element={<ReviewsPage />} />
+                  <Route path="/faq" element={<FaqPage />} />
+                  <Route path="/privacy" element={<PrivacyPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </RouteBoundary>
@@ -237,8 +265,9 @@ export default function Site() {
             <Footer />
           </div>
           {lead && <LeadModal note={lead.note} phone={site.data?.contacts?.phone} onClose={() => setLead(null)} />}
-        </BrowserRouter>
+        </Router>
       </LeadCtx.Provider>
     </SiteCtx.Provider>
+    </BootCtx.Provider>
   );
 }

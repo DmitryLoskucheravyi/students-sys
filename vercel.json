@@ -5,9 +5,17 @@
   "buildCommand": "npm run build",
   "outputDirectory": "client/dist",
   "git": { "deploymentEnabled": false },
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/:section(homework|lessons|people|stats|subscriptions|subscription|profile|tests|quizzes)/:rest*", "destination": "/cabinet/:section/:rest*", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://students-sys.onrender.com/api/:path*" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/cabinet", "destination": "/app.html" },
+    { "source": "/cabinet/:path*", "destination": "/app.html" },
+    { "source": "/q/:path*", "destination": "/app.html" },
+    { "source": "/courses/:slug", "destination": "/app.html" }
   ],
   "headers": [
     {
@@ -19,8 +27,16 @@
       ]
     },
     {
+      "source": "/(cabinet|q)(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/(robots.txt|sitemap.xml|llms.txt)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
     }
   ]
 }

@@ -3,20 +3,24 @@
  * секції «як навчаємо» — features.jsx, чисті розрахунки — logic.js.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { CourseIcon, themeClass } from '../courseLook.jsx';
 import { Button } from '../ui.jsx';
-import { IconDown, IconLeft, IconPeople, IconPhone, IconRight, IconTick, IconUser } from '../icons.jsx';
+import { IconDown, IconPeople, IconPhone, IconRight, IconTick, IconUser } from '../icons.jsx';
 import { FEATURES, FORMAT, HERO, PAGES, STEPS } from './content.js';
-import { telHref, useLead, useSite } from './ctx.js';
+import { telHref, useBoot, useLead, useSite } from './ctx.js';
 import { FeatureArt } from './features.jsx';
 import { Bits, HeroArt, TrialPeek } from './hero.jsx';
 import { directionMeta, subtopicsWord, topicsWord } from './logic.js';
 import { Reveal } from './motion.jsx';
 import {
+  SCHOOL, coursesMeta, courseDescription, courseMeta, directionSlug, faqItems, faqMeta, findDirection, homeMeta,
+  notFoundMeta, priceFacts, pricesMeta, privacyMeta, projectsMeta, reviewsMeta,
+} from './seo.js';
+import {
   CourseCard, CtaBand, DirectionIcon, HomePlans, LoadError, Loading, PageHero, PlanTicket, ProjectCard, ReviewCard,
-  SectionHead, SiteData, SliderSection, siteImage, useTitle,
+  SectionHead, SiteData, SliderSection, siteImage, useSeo,
 } from './parts.jsx';
 
 /* ───────── Головна ───────── */
@@ -30,8 +34,9 @@ function Hero() {
         <div className="s-hero-panel">
           <Bits />
           <div className="s-hero-text">
-            <ul className="s-chips">{HERO.chips.map((c) => <li key={c} className="s-eyebrow">{c}</li>)}</ul>
-            <h1>{HERO.title}</h1>
+            {/* Чіпи разом — H1 з головним запитом; великий слоган — звичайний текст тим самим стилем */}
+            <h1 className="s-chips">{HERO.chips.map((c, k) => <span key={c} className="s-eyebrow">{c}{k < HERO.chips.length - 1 ? ' ' : ''}</span>)}</h1>
+            <p className="s-hero-title">{HERO.title}</p>
             <p className="s-lead">{HERO.lead}</p>
           </div>
           <HeroArt />
@@ -109,9 +114,23 @@ function Story() {
   );
 }
 
+/** Питання й відповіді: нативні <details>, тож увесь текст є в HTML і без JavaScript. */
+function FaqList({ items }) {
+  return (
+    <div className="s-faq">
+      {items.map(({ q, a }, k) => (
+        <details key={q} open={k === 0}>
+          <summary><h3>{q}</h3><IconDown size={20} /></summary>
+          <p className="s-faq-a">{a}</p>
+        </details>
+      ))}
+    </div>
+  );
+}
+
 export function Home() {
-  useTitle(null);
   const { data, error, reload } = useSite();
+  useSeo(homeMeta(data));
   return (
     <>
       <Hero />
@@ -159,6 +178,11 @@ export function Home() {
         </ol>
       </section>
 
+      <section className="s-wrap s-sec">
+        <SectionHead title="Часті питання" to="/faq" more="Усі питання" />
+        <FaqList items={faqItems(data).slice(0, 4)} />
+      </section>
+
       <CtaBand />
     </>
   );
@@ -167,11 +191,12 @@ export function Home() {
 /* ───────── Сторінки-списки ───────── */
 
 /** Сторінка-список: шапка, вміст із даних сайту або порожній стан, заклик. */
-function ListPage({ page, cta, list, empty, render }) {
-  useTitle(page.title);
+function ListPage({ page, meta, cta, list, empty, render }) {
+  const { data } = useSite();
+  useSeo(meta(data));
   return (
     <>
-      <PageHero {...page} />
+      <PageHero title={page.title} lead={typeof page.lead === 'function' ? page.lead(data) : page.lead} />
       <section className="s-wrap s-sec is-tight">
         <SiteData>{(data) => (list(data)?.length ? render(list(data)) : <p className="s-empty">{empty}</p>)}</SiteData>
       </section>
@@ -182,7 +207,7 @@ function ListPage({ page, cta, list, empty, render }) {
 
 export function CoursesPage() {
   return (
-    <ListPage page={PAGES.courses} list={(d) => d.directions}
+    <ListPage page={PAGES.courses} meta={coursesMeta} list={(d) => d.directions}
       empty="Список курсів скоро зʼявиться. Залиште заявку — розкажемо, що можемо запропонувати."
       render={(items) => <div className="s-grid">{items.map((c) => <CourseCard key={c.id} c={c} />)}</div>} />
   );
@@ -190,15 +215,21 @@ export function CoursesPage() {
 
 export function ProjectsPage() {
   return (
-    <ListPage page={PAGES.projects} cta={{ title: 'Хочете так само?' }} list={(d) => d.projects}
+    <ListPage page={PAGES.projects} meta={projectsMeta} cta={{ title: 'Хочете так само?' }} list={(d) => d.projects}
       empty="Проєкти учнів скоро зʼявляться тут."
       render={(items) => <div className="s-grid">{items.map((p) => <ProjectCard key={p.id} p={p} />)}</div>} />
   );
 }
 
+/** Вступ сторінки цін: першим реченням — сама ціна з кабінету. */
+function pricesLead(data) {
+  const price = priceFacts(data?.plans);
+  return price ? `Онлайн-заняття з програмування — від ${price.minText} за заняття в абонементі, одне заняття — ${price.maxText}. ${PAGES.prices.lead}` : PAGES.prices.lead;
+}
+
 export function PricesPage() {
   return (
-    <ListPage page={PAGES.prices} list={(d) => d.plans}
+    <ListPage page={{ ...PAGES.prices, lead: pricesLead }} meta={pricesMeta} list={(d) => d.plans}
       empty="Ціни уточнюйте телефоном або залиште заявку — ми зателефонуємо."
       render={(items) => <div className="s-tickets">{items.map((p) => <PlanTicket key={p.id} p={p} />)}</div>} />
   );
@@ -206,7 +237,7 @@ export function PricesPage() {
 
 export function ReviewsPage() {
   return (
-    <ListPage page={PAGES.reviews} list={(d) => d.reviews}
+    <ListPage page={PAGES.reviews} meta={reviewsMeta} list={(d) => d.reviews}
       empty="Відгуків тут ще немає."
       render={(items) => <div className="s-masonry">{items.map((r) => <ReviewCard key={r.id} r={r} />)}</div>} />
   );
@@ -251,42 +282,79 @@ function Program({ course, index, total, last }) {
   );
 }
 
-/** Завантажує напрямок; відповідь для попередньої адреси (швидкий перехід між курсами) відкидається. */
-function useDirection(id) {
-  const [state, setState] = useState({ course: null, error: null });
+const sameCourse = (course, id) => course != null && id != null && String(course.id) === String(id);
+
+/**
+ * Завантажує напрямок; відповідь для попередньої адреси (швидкий перехід між курсами) відкидається.
+ * initial — курс, з яким сторінку зібрано: його видно одразу, а свіжі дані тихо підтягуються з API.
+ */
+function useDirection(id, initial) {
+  const [state, setState] = useState(() => ({ course: sameCourse(initial, id) ? initial : null, error: null, id }));
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    if (id == null) return undefined;
     let current = true;
-    setState({ course: null, error: null });
+    setState((s) => (sameCourse(s.course, id) ? s : { course: null, error: null, id }));
     api(`/site/courses/${encodeURIComponent(id)}`)
-      .then((course) => { if (current) setState({ course, error: null }); })
-      .catch((error) => { if (current) setState({ course: null, error }); });
+      .then((course) => { if (current) setState({ course, error: null, id }); })
+      // Оновлення не вдалося, а курс уже показано — лишаємо його
+      .catch((error) => { if (current) setState((s) => (sameCourse(s.course, id) ? s : { course: null, error, id })); });
     return () => { current = false; };
   }, [id, attempt]);
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
-  return { ...state, retry };
+  // Стан для попередньої адреси не показуємо, поки не прийде відповідь для нової
+  return state.id === id ? { course: state.course, error: state.error, retry } : { course: null, error: null, retry };
 }
 
-/** Сторінка «курсу» на сайті — напрямку: шапка, програми його курсів по черзі, відгуки. */
+/**
+ * Сторінка «курсу» на сайті — напрямку. Адреса — /courses/<slug з назви>; старі числові адреси /courses/3
+ * переходять на slug. Прихований напрямок відповідає «не знайдено».
+ */
 export function CoursePage() {
-  const { id } = useParams();
-  const { course, error, retry } = useDirection(id);
-  useTitle(course?.title ?? (error ? 'Курс не знайдено' : ''));
-  const lead = useLead();
+  const { slug } = useParams();
+  const { data, error: siteError, reload } = useSite();
+  const boot = useBoot();
+  const navigate = useNavigate();
+  const dirs = data?.directions;
+  const found = dirs ? findDirection(dirs, slug) : undefined;
+  const id = !dirs ? null : found ? found.id : /^\d+$/.test(slug) ? Number(slug) : null;
+  const { course, error, retry } = useDirection(id, boot.course);
+  const canonical = found ? directionSlug(found, dirs) : null;
 
+  useEffect(() => {
+    if (canonical && canonical !== slug) navigate(`/courses/${canonical}`, { replace: true });
+  }, [canonical, slug, navigate]);
+
+  if (!dirs) return siteError ? <LoadError onRetry={reload} /> : <Loading />;
+  if (id == null) return <NotFound title="Курс не знайдено" />;
   // 404 — такого курсу немає, 400 — адреса взагалі не схожа на курс: обидва «не знайдено», а не збій
   if (error) return error.status === 404 || error.status === 400 ? <NotFound title="Курс не знайдено" /> : <LoadError onRetry={retry} />;
   if (!course) return <Loading />;
+  return <CourseView course={course} />;
+}
+
+/** Курс: крихти, шапка, програми його курсів по черзі, відгуки, інші курси. */
+function CourseView({ course }) {
+  const { data } = useSite();
+  useSeo(courseMeta(course, data));
+  const lead = useLead();
   const withSteps = course.courses.filter((c) => c.steps.length > 0);
   const meta = directionMeta(course);
+  const others = (data?.directions ?? []).filter((d) => d.id !== course.id).slice(0, 3);
   return (
     <>
       <section className={`s-course-hero ${themeClass(course.theme)}`}>
         <div className="s-wrap s-course-hero-in">
-          <Link to="/courses" className="s-back"><IconLeft size={18} />Усі курси</Link>
+          <nav className="s-crumbs" aria-label="Хлібні крихти">
+            <ol>
+              <li><Link to="/">Головна</Link></li>
+              <li><Link to="/courses">Курси</Link></li>
+              <li aria-current="page">{course.title}</li>
+            </ol>
+          </nav>
           <DirectionIcon d={course} size={34} />
-          <h1>{course.title}</h1>
-          {course.summary && <p className="s-lead">{course.summary}</p>}
+          <h1>{course.title}{' '}<span className="s-h1-sub">онлайн-курс для дітей і підлітків</span></h1>
+          <p className="s-lead">{courseDescription(course)}</p>
           <div className="s-course-hero-actions">
             <Button className="btn-onred s-big" onClick={() => lead(`Курс: ${course.title}`)}>Записатись на курс</Button>
             {meta && <span className="s-course-hero-meta">{meta}</span>}
@@ -303,18 +371,81 @@ export function CoursePage() {
         </SliderSection>
       )}
 
+      {others.length > 0 && (
+        <SliderSection title="Інші курси" to="/courses" more="Усі курси" label="Інші курси">
+          {others.map((c) => <CourseCard key={c.id} c={c} />)}
+        </SliderSection>
+      )}
+
       <CtaBand title="Хочете на цей курс?" note={`Курс: ${course.title}`} />
     </>
   );
 }
 
+/* ───────── Питання й відповіді, політика ───────── */
+
+export function FaqPage() {
+  const { data } = useSite();
+  useSeo(faqMeta(data));
+  return (
+    <>
+      <PageHero title={PAGES.faq.title} lead={PAGES.faq.lead} />
+      <section className="s-wrap s-sec is-tight">
+        <FaqList items={faqItems(data)} />
+      </section>
+      <CtaBand title="Не знайшли відповіді?" text="Залиште заявку — ми зателефонуємо й відповімо на всі питання." />
+    </>
+  );
+}
+
+/**
+ * Політика конфіденційності: що збирає форма заявки і як із цим поводимося.
+ * Описує те, як справді працює система (server/modules/site): правте разом зі змінами в коді.
+ */
+export function PrivacyPage() {
+  useSeo(privacyMeta());
+  const c = useSite().data?.contacts ?? {};
+  const contact = [c.phone && <a key="p" href={telHref(c.phone)}>{c.phone}</a>, c.email && <a key="e" href={`mailto:${c.email}`}>{c.email}</a>].filter(Boolean);
+  return (
+    <>
+      <PageHero title={PAGES.privacy.title} />
+      <section className="s-wrap s-sec is-tight">
+        <div className="s-doc">
+          <p>Ця політика пояснює, які персональні дані {SCHOOL} отримує через сайт, навіщо і як їх захищає. Ми діємо відповідно до Закону України «Про захист персональних даних».</p>
+          <h2>Які дані ми збираємо</h2>
+          <ul>
+            <li>Ім'я і номер телефону, які ви вказуєте у формі заявки.</li>
+            <li>Текст із поля «Додатково», якщо ви його заповнили.</li>
+          </ul>
+          <p>Дані надає дорослий: батьки або інший законний представник дитини. Ми не просимо у формі прізвище, фото чи документи дитини.</p>
+          <h2>Навіщо</h2>
+          <p>Лише щоб зв'язатися з вами щодо навчання: розповісти про курси, записати на пробне заняття і підібрати час. Ми не продаємо ваші дані і не передаємо їх для реклами.</p>
+          <h2>Де зберігаються і хто їх бачить</h2>
+          <p>Заявка зберігається в захищеній базі даних школи, і її бачить лише менеджер школи. Вона також може надходити менеджеру в службовий чат Telegram. Сайт працює на хмарних сервісах (хостинг і база даних), які обробляють дані лише для роботи сайту.</p>
+          <h2>Як довго</h2>
+          <p>Доки заявка потрібна, щоб домовитися про навчання, або доки ви не попросите її видалити.</p>
+          <h2>Cookies</h2>
+          <p>Сайт школи не використовує рекламних і аналітичних cookies. Кабінет учня зберігає лише технічний cookie входу, без якого кабінет не працює.</p>
+          <h2>Ваші права</h2>
+          <p>Ви можете дізнатися, які ваші дані ми зберігаємо, виправити їх або попросити видалити.{contact.length > 0 && <> Напишіть або зателефонуйте нам: {contact.flatMap((el, k) => (k ? [', ', el] : [el]))}.</>}</p>
+        </div>
+      </section>
+    </>
+  );
+}
+
 export function NotFound({ title = 'Сторінку не знайдено' }) {
-  useTitle(title);
+  useSeo(notFoundMeta(title));
   return (
     <section className="s-wrap s-notfound">
       <p className="s-404" aria-hidden="true">404</p>
       <h1>{title}</h1>
       <Link to="/" className="btn btn-primary s-big">На головну</Link>
+      <nav className="s-notfound-links" aria-label="Корисні сторінки">
+        <Link to="/courses">Курси</Link>
+        <Link to="/prices">Ціни</Link>
+        <Link to="/faq">Питання й відповіді</Link>
+      </nav>
     </section>
   );
 }

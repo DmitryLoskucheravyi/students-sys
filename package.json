@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "npm run build:server && concurrently -n tsc,api,web -c blue,red,gray \"tsc -p tsconfig.server.json --watch --preserveWatchOutput\" \"node --watch-path=dist/server dist/server/main.js\" \"vite\"",
-    "build": "vite build && npm run build:server",
+    "build": "vite build && npm run build:site && npm run build:server",
+    "build:site": "vite build --ssr src/site/ssr.jsx --outDir ../dist/site-ssr && node scripts/prerender.mjs",
     "build:server": "tsc -p tsconfig.server.json",
     "start": "node dist/server/main.js",
     "typecheck": "tsc -p tsconfig.server.json --noEmit",
