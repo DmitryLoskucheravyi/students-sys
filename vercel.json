@@ -12,10 +12,10 @@
   ],
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://students-sys.onrender.com/api/:path*" },
-    { "source": "/cabinet", "destination": "/app.html" },
-    { "source": "/cabinet/:path*", "destination": "/app.html" },
-    { "source": "/q/:path*", "destination": "/app.html" },
-    { "source": "/courses/:slug", "destination": "/app.html" }
+    { "source": "/cabinet", "destination": "/app" },
+    { "source": "/cabinet/:path*", "destination": "/app" },
+    { "source": "/q/:path*", "destination": "/app" },
+    { "source": "/courses/:slug", "destination": "/app" }
   ],
   "headers": [
     {
