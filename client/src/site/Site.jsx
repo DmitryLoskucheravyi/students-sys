@@ -58,7 +58,7 @@ function LeadModal({ note: initialNote, phone, onClose }) {
   };
 
   return (
-    <Modal title={done ? 'Заявку надіслано' : 'Записатись'} onClose={onClose} narrow
+    <Modal title={done ? 'Заявку надіслано' : 'Запис'} onClose={onClose} narrow
       badge={!done && <><IconSpark size={18} /><span>Пробне заняття <b>безкоштовно</b></span></>}>
       {done ? (
         <div className="lead-done" role="status">

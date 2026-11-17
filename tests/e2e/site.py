@@ -235,7 +235,7 @@ with sync_playwright() as pw:
     tg_messages(clear=True)
     g.goto(BASE); g.wait_for_load_state("networkidle")
     g.locator(".s-head").get_by_role("button", name="Записатись").click()
-    d = g.get_by_role("dialog", name="Записатись")
+    d = g.get_by_role("dialog", name="Запис", exact=True)
     check("у формі ім'я, телефон і необов'язкове «Додатково»", d.get_by_label("Ім'я").is_visible() and d.get_by_label("Телефон").is_visible() and d.get_by_label("Додатково").is_visible())
     check("під формою «або» і «Зателефонувати»", d.locator(".or-line").inner_text().strip() == "або" and d.locator("a.call-btn[href='tel:+380671234567']").count() == 1)
     shot(g, "site-lead-phone")
