@@ -815,7 +815,17 @@
 .s-cab-timer { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--red-fill); transform-origin: left; animation: s-cab-timer var(--t) linear both; }
 @keyframes s-cab-timer { from { transform: scaleX(0); } }
 .s-cab-view { padding: 16px 16px 20px; }
-.s-cab-pane { display: grid; gap: 14px; animation: s-term-line 0.45s var(--ease) both; }
+.s-cab-view { display: grid; }
+.s-cab-slot { grid-area: 1 / 1; display: grid; visibility: hidden; }
+.s-cab-slot.is-on { visibility: visible; }
+/* Кожна вкладка розтягується на висоту найвищої: заголовок, вміст на все, що лишилось, підпис унизу */
+.s-cab-pane { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 14px; }
+.s-cab-hw, .s-cab-news { grid-auto-rows: 1fr; align-content: stretch; }
+.s-cab-week { align-content: space-between; }
+.s-cab-hw li { align-content: center; }
+
+.s-cab-pane:has(.s-cab-bars) { grid-template-rows: auto minmax(150px, 1fr); }
+.s-cab-slot.is-on .s-cab-pane { animation: s-term-line 0.45s var(--ease) both; }
 .s-cab-sub { margin: 0; color: var(--muted); font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
 .s-cab-note { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--muted); font-size: 14px; font-weight: 700; }
 .s-cab-note svg { flex: none; width: 18px; height: 18px; padding: 2px; border-radius: 6px; background: #e3f5e8; color: #1d6b37; }
@@ -843,17 +853,19 @@
 .s-cab-avg { display: flex; align-items: center; gap: 14px; }
 .s-cab-avg b { color: var(--red); font: 900 56px/1 'Nunito Variable', var(--body); letter-spacing: -0.03em; }
 .s-cab-avg span { color: var(--muted); font-size: 14px; font-weight: 700; line-height: 1.3; }
-.s-cab-bars { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); align-items: end; gap: 8px; height: 150px; margin: 0; padding: 0; list-style: none; }
-.s-cab-bars li { position: relative; height: calc(var(--g) * 100%); border-radius: 8px 8px 4px 4px; background: var(--red-fill); transform-origin: bottom; animation: s-cab-bar 0.6s calc(var(--k) * 60ms) var(--ease) both; }
+.s-cab-bars { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); align-items: end; gap: 8px; min-height: 150px; margin: 0; padding: 0; list-style: none; }
+.s-cab-bars li { position: relative; height: calc(var(--g) * 100%); border-radius: 8px 8px 4px 4px; background: var(--red-fill); transform-origin: bottom; }
+.s-cab-slot.is-on .s-cab-bars li { animation: s-cab-bar 0.6s calc(var(--k) * 60ms) var(--ease) both; }
 .s-cab-bars li:last-child { background: var(--hl); }
 .s-cab-bars span { position: absolute; top: 6px; left: 0; right: 0; color: var(--on-red); font-size: 12.5px; font-weight: 800; text-align: center; }
 .s-cab-bars li:last-child span { color: var(--dark); }
 @keyframes s-cab-bar { from { transform: scaleY(0); } }
 /* батькам */
 .s-cab-news { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.s-cab-news li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 12px 14px; border-radius: 14px 14px 14px 4px; background: var(--wash); font-size: 14.5px; font-weight: 700; animation: s-term-line 0.4s calc(var(--k) * 140ms) var(--ease) both; }
+.s-cab-news li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; padding: 12px 14px; border-radius: 14px 14px 14px 4px; background: var(--wash); font-size: 14.5px; font-weight: 700; }
+.s-cab-slot.is-on .s-cab-news li { animation: s-term-line 0.4s calc(var(--k) * 140ms) var(--ease) both; }
 .s-cab-news time { color: var(--red); font-size: 13px; font-weight: 800; }
-@media (prefers-reduced-motion: reduce) { .s-cab-pane, .s-cab-bars li, .s-cab-news li { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .s-cab-slot .s-cab-pane, .s-cab-slot .s-cab-bars li, .s-cab-slot .s-cab-news li { animation: none !important; } }
 @media (min-width: 600px) {
   .s-cab-view { padding: 20px 24px 24px; }
 }
@@ -862,7 +874,7 @@
   .s-cab-tabs { display: flex; flex-direction: column; gap: 4px; padding: 18px 12px; border-right: 1px solid var(--line); }
   .s-cab-tabs button { text-align: left; padding: 13px 14px; font-size: 15px; }
   .s-cab-view { padding: 24px 28px 28px; }
-  .s-cab-week { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .s-cab-week { grid-template-columns: repeat(7, minmax(0, 1fr)); align-content: stretch; }
   .s-cab-week li, .s-cab-week li:not(.is-lesson) { flex-direction: column; align-items: stretch; gap: 8px; min-height: 124px; padding: 10px; background: var(--wash); }
   .s-cab-week b { width: auto; }
   .s-cab-week span { display: grid; gap: 4px; font-size: 13px; line-height: 1.3; }

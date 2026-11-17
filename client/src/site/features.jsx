@@ -259,7 +259,6 @@ function CabinetDemo() {
     pick(k);
     e.currentTarget.querySelectorAll('[role="tab"]')[k]?.focus();
   };
-  const Pane = CAB_TABS[tab][1];
   return (
     <div className={`s-cab ${auto ? 'is-auto' : ''}`} ref={ref}>
       <div className="s-cab-bar">
@@ -269,14 +268,19 @@ function CabinetDemo() {
       <div className="s-cab-body">
         <div className="s-cab-tabs" role="tablist" aria-label="Кабінет учня" onKeyDown={keys}>
           {CAB_TABS.map(([name], k) => (
-            <button key={name} type="button" role="tab" id={`s-cab-t${k}`} aria-selected={k === tab} aria-controls="s-cab-pane"
+            <button key={name} type="button" role="tab" id={`s-cab-t${k}`} aria-selected={k === tab} aria-controls={`s-cab-p${k}`}
               tabIndex={k === tab ? 0 : -1} className={k === tab ? 'is-on' : ''} onClick={() => pick(k)}>
               {name}{k === tab && auto && <i key={tab} className="s-cab-timer" style={{ '--t': `${CAB_STEP}ms` }} />}
             </button>
           ))}
         </div>
-        <div className="s-cab-view" role="tabpanel" id="s-cab-pane" aria-labelledby={`s-cab-t${tab}`}>
-          <Pane key={tab} />
+        {/* Усі вкладки лежать в одній клітинці: висота — за найвищою, тож перемикання нічого не смикає */}
+        <div className="s-cab-view">
+          {CAB_TABS.map(([name, Pane], k) => (
+            <div key={name} className={`s-cab-slot ${k === tab ? 'is-on' : ''}`} role="tabpanel" id={`s-cab-p${k}`} aria-labelledby={`s-cab-t${k}`}>
+              <Pane />
+            </div>
+          ))}
         </div>
       </div>
     </div>
