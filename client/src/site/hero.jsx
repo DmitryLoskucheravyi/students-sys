@@ -51,15 +51,15 @@ function measureShown(root, total) {
 function roadStops(root) {
   const W = root.offsetWidth;
   const cards = [...root.querySelectorAll('.s-rm-card')];
+  // Маскот стоїть НА картці, на тому краї, над яким немає сусідньої (картки йдуть зигзагом)
   const pts = cards.map((el) => {
-    const left = el.offsetLeft;
-    const right = left + el.offsetWidth;
-    const free = el.classList.contains('is-r') ? left / 2 : (right + W) / 2;
-    return { x: free, y: el.offsetTop + el.offsetHeight / 2 };
+    const w = el.offsetWidth;
+    const x = el.offsetLeft + (el.classList.contains('is-r') ? w * 0.8 : w * 0.2);
+    return { x: Math.max(30, Math.min(W - 30, x)), y: el.offsetTop + 3 };
   });
   const fin = root.querySelector('.s-rm-finish');
-  // фініш — на вільному від останньої картки боці (вона праворуч), на верхньому краї блоку
-  if (fin) pts.push({ x: fin.offsetLeft + Math.min(70, fin.offsetWidth * 0.18), y: fin.offsetTop + 8 });
+  // фініш — на верхньому краї блоку, з боку, вільного від останньої картки (вона праворуч)
+  if (fin) pts.push({ x: fin.offsetLeft + fin.offsetWidth * 0.2, y: fin.offsetTop + 3 });
   return pts;
 }
 
@@ -75,8 +75,8 @@ function lengthAt(path, total, pt) {
   return best;
 }
 
-const RUN_SPEED = 0.55; // px за мс
-const ROAD_AHEAD = 70; // наскільки дорога «розкручена» попереду маскота
+const HOP_MS = 420; // стрибок на наступну картку: швидко, щоб не відставати від прокрутки
+const ROAD_AHEAD = 0; // дорога розкручується рівно до маскота
 
 /**
  * Роадмап — одна історія з першим екраном: маскот стоїть біля першої точки пунктирної дороги й питає «Урок 1 — погнали?».
@@ -135,24 +135,26 @@ export function HeroArt() {
       target = pos;
       if (big) placeBig(); else place(pos);
     };
+    // Стрибок дугою одразу до цілі (не бігом уздовж дороги): дорога розкручується слідом
     const runTo = (l) => {
       if (l === target) return;
       target = l;
       cancelAnimationFrame(anim);
-      const from = pos;
-      const dur = Math.max(450, Math.abs(l - from) / RUN_SPEED);
+      const fromL = pos;
+      const a = road.getPointAtLength(Math.max(0, Math.min(total, fromL)));
+      const b = road.getPointAtLength(Math.max(0, Math.min(total, l)));
+      const arc = 46 + Math.hypot(b.x - a.x, b.y - a.y) * 0.2;
       const t0 = performance.now();
       cat.classList.add('is-run');
-      let lastX = road.getPointAtLength(from).x;
+      cat.classList.toggle('is-left', b.x < a.x - 1);
       const step = (t) => {
-        const k = Math.min(1, (t - t0) / dur);
+        const k = Math.min(1, (t - t0) / HOP_MS);
         const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
-        pos = from + (l - from) * e;
-        const x = road.getPointAtLength(pos).x;
-        place(pos, Math.abs(x - lastX) > 0.3 ? x - lastX : 0);
-        lastX = x;
+        pos = fromL + (l - fromL) * e;
+        cat.style.translate = `${a.x + (b.x - a.x) * e}px ${a.y + (b.y - a.y) * e - arc * Math.sin(Math.PI * k)}px`;
+        reveal.style.strokeDashoffset = String(Math.max(0, total - pos - ROAD_AHEAD));
         if (k < 1) anim = requestAnimationFrame(step);
-        else cat.classList.remove('is-run');
+        else { cat.classList.remove('is-run'); place(l); }
       };
       anim = requestAnimationFrame(step);
     };

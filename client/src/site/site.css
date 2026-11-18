@@ -979,7 +979,7 @@
   margin: calc(var(--h) * var(--z) * -0.965) 0 0 calc(var(--w) * var(--z) * -0.5); pointer-events: none; }
 .s-mascot.is-big { --z: 3.7; }
 /* бігун — під картками: дорогою проходить за ними й не перекриває текст; на зупинках стоїть на вільному боці */
-.s-mascot:not(.is-big):not(.is-jump) { z-index: 0; }
+/* на картках маскот стоїть поверх них (на вільному від сусідніх картинок краї) */
 .s-mascot.is-jump { transition: translate 0.6s cubic-bezier(0.3, 1.25, 0.45, 1), width 0.6s var(--ease), height 0.6s var(--ease), margin 0.6s var(--ease); }
 .s-mascot-art { position: absolute; inset: 0; transform-origin: 50% 100%; transition: scale 0.25s var(--ease); }
 .s-mascot.is-left .s-mascot-art { scale: -1 1; }
@@ -1007,7 +1007,9 @@
 
 .s-mascot-eyes { transform-origin: 60px 46px; animation: s-mascot-blink 4.2s infinite; }
 .s-mascot-arm { transform-origin: 111px 56px; animation: s-mascot-wave 1.6s 2.4s ease-in-out infinite; }
-.s-mascot.is-run .bk3d, .s-mascot.is-run .bk-face, .s-mascot.is-run .s-mascot-arm { animation: s-mascot-hop 0.32s ease-in-out infinite; }
+/* у стрибку підтягує ніжки й трохи присідає перед приземленням */
+.s-mascot.is-run .bk3d, .s-mascot.is-run .bk-face { animation: s-mascot-squash 0.42s ease-in-out; }
+@keyframes s-mascot-squash { 0% { transform: scale(1.04, 0.94); } 25% { transform: scale(0.96, 1.05); } 85% { transform: none; } 100% { transform: scale(1.05, 0.95); } }
 .s-mascot.is-run .s-mascot-foot.is-l { animation: s-mascot-step 0.32s ease-in-out infinite; }
 .s-mascot.is-run .s-mascot-foot.is-r { animation: s-mascot-step 0.32s 0.16s ease-in-out infinite; }
 @keyframes s-mascot-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
