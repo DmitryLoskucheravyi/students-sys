@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  coursesWord, desktopProgress, directionMeta, homePlans, initials, mobileProgress, peekReady, shownCount, stackPos, ticketClass, topicsWord,
+  catStop, smoothPath, coursesWord, desktopProgress, directionMeta, homePlans, initials, mobileProgress, peekReady, shownCount, stackPos, ticketClass, topicsWord,
 } from '../../client/src/site/logic.js';
 
 test('слова з числами', () => {
@@ -74,4 +74,20 @@ test('шторка: кнопка в кадрі і на своєму місці',
   assert.equal(peekReady({ ...base, wide: false, panelBottom: 780 }), true);
   assert.equal(peekReady({ ...base, wide: true, buttonBottom: 820 }), false, 'кнопка обрізана знизу');
   assert.equal(peekReady({ ...base, wide: false, panelBottom: 780, buttonBottom: 760 }), false, 'під кнопкою немає місця для шторки');
+});
+
+test('дорога маскота: плавна лінія через усі точки', () => {
+  const d = smoothPath([{ x: 0, y: 0 }, { x: 100, y: 50 }, { x: 0, y: 100 }]);
+  assert.ok(d.startsWith('M0 0 C'));
+  assert.ok(d.endsWith(', 100 50 C') === false && d.includes(', 100 50') && d.endsWith(', 0 100'));
+  assert.equal((d.match(/C/g) || []).length, 2);
+  assert.equal(smoothPath([{ x: 1, y: 1 }]), '');
+});
+
+test('маскот біжить до відкритого кроку, але не далі фінішу', () => {
+  assert.equal(catStop(0, 5), 0);
+  assert.equal(catStop(1, 5), 0);
+  assert.equal(catStop(2, 5), 1);
+  assert.equal(catStop(5, 5), 4);
+  assert.equal(catStop(8, 5), 4);
 });

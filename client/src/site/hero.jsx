@@ -1,12 +1,12 @@
 /*
- * Перший екран: роадмап карток і шторка «пробне заняття».
+ * Перший екран: маскот на пунктирній дорозі, роадмап карток і шторка «пробне заняття».
  * Розрахунки (скільки карток відкрито, чи можна висувати шторку) — чисті функції з logic.js;
  * тут лише читаємо розміри з DOM і перемикаємо класи, без React-рендеру на кожен кадр прокрутки.
  */
 import { useEffect, useRef, useState } from 'react';
-import { COURSE_ICONS } from '../courseLook.jsx';
 import { IconRight, IconSpark } from '../icons.jsx';
-import { desktopProgress, mobileProgress, peekReady, shownCount } from './logic.js';
+import { catStop, desktopProgress, mobileProgress, peekReady, shownCount, smoothPath } from './logic.js';
+import { Book } from './mascot.jsx';
 import { prefersCalm } from './motion.jsx';
 
 const WIDE = '(min-width: 900px)';
@@ -45,9 +45,43 @@ function measureShown(root, total) {
 }
 
 /**
- * Роадмап без дороги: картки кроків зʼявляються по черзі з прокруткою, далі «Фініш», і до нього
- * по одному підкріплюються пункти зі смайликами. Що відкрилось, лишається: прокрутка вгору нічого не ховає.
- * Компʼютер: хіро прилипає, поки йде анімація. Телефон: «Старт» видно одразу.
+ * Точки дороги (у системі координат роадмапу, без урахування zoom і зсувів анімації):
+ * біля кожної картки — посередині вільного боку, остання — на фініші.
+ */
+function roadStops(root) {
+  const W = root.offsetWidth;
+  const cards = [...root.querySelectorAll('.s-rm-card')];
+  const pts = cards.map((el) => {
+    const left = el.offsetLeft;
+    const right = left + el.offsetWidth;
+    const free = el.classList.contains('is-r') ? left / 2 : (right + W) / 2;
+    return { x: free, y: el.offsetTop + el.offsetHeight / 2 };
+  });
+  const fin = root.querySelector('.s-rm-finish');
+  // фініш — на вільному від останньої картки боці (вона праворуч), на верхньому краї блоку
+  if (fin) pts.push({ x: fin.offsetLeft + Math.min(70, fin.offsetWidth * 0.18), y: fin.offsetTop + 8 });
+  return pts;
+}
+
+/** Довжина вздовж path, на якій лінія найближче до точки (грубий перебір, точок мало). */
+function lengthAt(path, total, pt) {
+  let best = 0;
+  let bestD = Infinity;
+  for (let l = 0; l <= total; l += 4) {
+    const q = path.getPointAtLength(l);
+    const d = (q.x - pt.x) ** 2 + (q.y - pt.y) ** 2;
+    if (d < bestD) { bestD = d; best = l; }
+  }
+  return best;
+}
+
+const RUN_SPEED = 0.55; // px за мс
+const ROAD_AHEAD = 70; // наскільки дорога «розкручена» попереду маскота
+
+/**
+ * Роадмап — одна історія з першим екраном: маскот стоїть біля першої точки пунктирної дороги й питає «Урок 1 — погнали?».
+ * З прокруткою картки кроків відкриваються по черзі, дорога розкручується, а маскот біжить нею до фінішу.
+ * Що відкрилось, лишається: прокрутка вгору нічого не ховає. Компʼютер: хіро прилипає, поки йде анімація.
  */
 export function HeroArt() {
   const ref = useRef(null);
@@ -57,12 +91,97 @@ export function HeroArt() {
     const items = [...root.querySelectorAll('[data-step]')];
     const finish = root.querySelector('.s-rm-finish');
     const art = root.closest('.s-hero-art');
+    const svg = root.querySelector('.s-road');
+    const road = root.querySelector('.s-road-line');
+    const reveal = root.querySelector('.s-road-reveal');
+    const cat = root.querySelector('.s-mascot');
+    const say = root.querySelector('.s-mascot-say');
+    let stops = [];
+    let lens = [];
+    let total = 0;
+    let pos = 0; // де зараз маскот, довжина вздовж дороги
+    let target = 0;
+    let anim = 0;
+
+    const place = (l, dir) => {
+      const q = road.getPointAtLength(Math.max(0, Math.min(total, l)));
+      cat.style.translate = `${q.x}px ${q.y}px`;
+      if (dir) cat.classList.toggle('is-left', dir < 0);
+      reveal.style.strokeDashoffset = String(Math.max(0, total - l - ROAD_AHEAD));
+    };
+    // Великий маскот до прокрутки: стоїть справа знизу видимої частини роадмапу (картки ще сховані)
+    const placeBig = () => {
+      const w = cat.offsetWidth;
+      const h = cat.offsetHeight;
+      const zoom = root.getBoundingClientRect().height / (root.offsetHeight || 1) || 1;
+      // низ видимої частини: над кнопкою, що прилипла до низу екрана на телефоні
+      const seen = (window.innerHeight - (isWide() ? 40 : 120) - root.getBoundingClientRect().top) / zoom;
+      const y = Math.max(h + 6, Math.min(root.offsetHeight - 6, seen));
+      cat.style.translate = `${root.offsetWidth - w / 2 - 6}px ${y}px`;
+      cat.classList.remove('is-left');
+      reveal.style.strokeDashoffset = String(total); // дорога ще не почалась
+    };
+    const layout = () => {
+      stops = roadStops(root);
+      svg.setAttribute('viewBox', `0 0 ${root.offsetWidth} ${root.offsetHeight}`);
+      const d = smoothPath(stops);
+      road.setAttribute('d', d);
+      reveal.setAttribute('d', d);
+      total = road.getTotalLength();
+      reveal.style.strokeDasharray = `${total} ${total}`;
+      lens = stops.map((p) => lengthAt(road, total, p));
+      pos = lens[catStop(shownNow, stops.length)] ?? 0;
+      target = pos;
+      if (big) placeBig(); else place(pos);
+    };
+    const runTo = (l) => {
+      if (l === target) return;
+      target = l;
+      cancelAnimationFrame(anim);
+      const from = pos;
+      const dur = Math.max(450, Math.abs(l - from) / RUN_SPEED);
+      const t0 = performance.now();
+      cat.classList.add('is-run');
+      let lastX = road.getPointAtLength(from).x;
+      const step = (t) => {
+        const k = Math.min(1, (t - t0) / dur);
+        const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+        pos = from + (l - from) * e;
+        const x = road.getPointAtLength(pos).x;
+        place(pos, Math.abs(x - lastX) > 0.3 ? x - lastX : 0);
+        lastX = x;
+        if (k < 1) anim = requestAnimationFrame(step);
+        else cat.classList.remove('is-run');
+      };
+      anim = requestAnimationFrame(step);
+    };
+
+    let shownNow = 0;
+    let big = true;
+    let jump = 0;
     const apply = (n) => {
+      shownNow = n;
       art?.classList.toggle('is-started', n > 0);
       items.forEach((el, i) => el.classList.toggle('is-on', i < n));
       finish.classList.toggle('is-done', n === items.length);
+      say.dataset.say = n === 0 ? 'start' : n === items.length ? 'done' : '';
+      if (n === 0) return;
+      const go = () => runTo(lens[catStop(n, stops.length)] ?? 0);
+      if (big) {
+        // Перша прокрутка: маскот зменшується і стрибає на початок дороги, далі біжить нею
+        big = false;
+        cat.classList.remove('is-big');
+        cat.classList.add('is-jump');
+        pos = lens[0] ?? 0;
+        target = pos;
+        place(pos);
+        jump = setTimeout(() => { cat.classList.remove('is-jump'); runTo(lens[catStop(shownNow, stops.length)] ?? 0); }, 650);
+        return;
+      }
+      if (!cat.classList.contains('is-jump')) go();
     };
-    if (prefersCalm()) { apply(items.length); return undefined; }
+    layout();
+    if (prefersCalm()) { big = false; cat.classList.remove('is-big'); apply(items.length); layout(); return undefined; }
     let raf = 0;
     let shown = 0; // лише росте: вгору роадмап не відмотується
     const update = () => {
@@ -72,20 +191,30 @@ export function HeroArt() {
       shown = n;
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    const onResize = () => { cancelAnimationFrame(anim); cat.classList.remove('is-run'); layout(); onScroll(); };
     update();
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('resize', onResize);
     return () => {
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(anim);
+      clearTimeout(jump);
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('resize', onResize);
     };
   }, []);
 
   return (
     <div className="s-hero-art">
-      <HeroIntro />
       <div className="s-roadmap" ref={ref} aria-hidden="true">
+        <svg className="s-road">
+          <defs>
+            <mask id="s-road-mask" maskUnits="userSpaceOnUse">
+              <path className="s-road-reveal" />
+            </mask>
+          </defs>
+          <path className="s-road-line" mask="url(#s-road-mask)" />
+        </svg>
         <ol className="s-rm-steps">
           {ROAD.map((st, k) => (
             <li key={st.title} data-step className={`s-rm-card ${k % 2 ? 'is-r' : 'is-l'}`}>
@@ -108,57 +237,11 @@ export function HeroArt() {
             ))}
           </ul>
         </div>
+        <div className="s-mascot is-big">
+          <span className="s-mascot-say" data-say="start"><b className="is-start">Готові? Поїхали!</b></span>
+          <Book />
+        </div>
       </div>
-    </div>
-  );
-}
-
-/** Плаваючі плитки: що саме вчать у школі — код, сайти, ігри, ШІ. [вигляд, ліво %, верх %, нахил°]. */
-const FLOAT = [['code', 0, 4, -6], ['web', 52, 0, 5], ['game', 14, 54, 5], ['ai', 64, 50, -7]];
-
-const iconOf = (id, size) => COURSE_ICONS.find((i) => i.id === id)?.render(size);
-
-function FloatTile({ kind }) {
-  if (kind === 'code') {
-    return (
-      <span className="s-ft s-ft-code">
-        <i className="s-ft-dots"><b /><b /><b /></i>
-        <code><u className="k">for</u> n <u className="k">in</u> <u className="f">range</u>(<u className="n">3</u>):</code>
-        <code>{'  '}<u className="f">print</u>(<u className="s">"Привіт!"</u>)<em /></code>
-        <small>Python</small>
-      </span>
-    );
-  }
-  if (kind === 'web') {
-    return (
-      <span className="s-ft s-ft-web">
-        <i className="s-ft-dots"><b /><b /><b /></i>
-        <span className="s-ft-page"><i /><i /><i /><b>Мій сайт</b></span>
-        <small>Сайти</small>
-      </span>
-    );
-  }
-  return (
-    <span className={`s-ft s-ft-icon s-ft-${kind}`}>
-      {iconOf(kind, 52)}
-      <small>{kind === 'game' ? 'Ігри' : 'ШІ'}</small>
-    </span>
-  );
-}
-
-/**
- * Компʼютер, хіро ще не гортали: на місці роадмапу плавають плитки «що вчимо» і підказка гортати.
- * З першою прокруткою розлітаються, і починається роадмап. На телефоні не показується: там «Старт» видно одразу.
- */
-function HeroIntro() {
-  return (
-    <div className="s-rm-intro" aria-hidden="true">
-      <ul className="s-float">
-        {FLOAT.map(([kind, x, y, r], k) => (
-          <li key={kind} style={{ '--x': `${x}%`, '--y': `${y}%`, '--r': `${r}deg`, '--k': k }}><FloatTile kind={kind} /></li>
-        ))}
-      </ul>
-      <p className="s-rm-intro-hint"><span className="s-mouse" />Гортайте, щоб побачити шлях учня</p>
     </div>
   );
 }

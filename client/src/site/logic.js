@@ -90,3 +90,32 @@ export function peekReady({ wide, panelBottom, buttonTop, buttonBottom, vh }) {
   const settled = wide || panelBottom <= vh + 2;
   return settled && buttonTop >= 0 && buttonBottom + PEEK_ROOM[wide ? 'wide' : 'narrow'] <= vh;
 }
+
+/* ───────── Дорога маскота в хіро ───────── */
+
+/**
+ * Плавна лінія через точки (Catmull-Rom → кубічні Безьє), рядок для SVG path d.
+ * points — [{x, y}], щонайменше дві.
+ */
+export function smoothPath(points, tension = 0.5) {
+  if (points.length < 2) return '';
+  const r = (v) => Math.round(v * 10) / 10;
+  let d = `M${r(points[0].x)} ${r(points[0].y)}`;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p0 = points[i - 1] ?? points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] ?? p2;
+    const k = tension / 3;
+    d += ` C${r(p1.x + (p2.x - p0.x) * k)} ${r(p1.y + (p2.y - p0.y) * k)}, ${r(p2.x - (p3.x - p1.x) * k)} ${r(p2.y - (p3.y - p1.y) * k)}, ${r(p2.x)} ${r(p2.y)}`;
+  }
+  return d;
+}
+
+/**
+ * До якої точки дороги бігти маскоту, коли відкрито n кроків роадмапу.
+ * Точки: картки кроків по черзі, остання — фініш. Поки нічого не відкрито і поки видно лише «Старт» — перша точка.
+ */
+export function catStop(n, stops) {
+  return Math.max(0, Math.min(stops - 1, n - 1));
+}
