@@ -259,61 +259,61 @@ function Medal() {
 
 /* ───────── Шторка «пробне заняття» ───────── */
 
-const PEEK_KEY = 'bs.trialPeek';
 const PEEK_DELAY = 700; // кнопка має пробути на місці мить
-const PEEK_HOLD = 12000;
-const PEEK_OUT = 700;
-
-function peekSeen() {
-  try { return sessionStorage.getItem(PEEK_KEY) === '1'; } catch { return false; } // приватний режим
-}
-function markPeekSeen() {
-  try { sessionStorage.setItem(PEEK_KEY, '1'); } catch { /* приватний режим */ }
-}
+const PEEK_SHOW = 5000; // скільки шторку видно
+const PEEK_GAP = 3000; // перерва між показами
+const PEEK_OUT = 500; // анімація, з якою вона ховається
 
 /**
- * Шторка під кнопкою в хіро: висувається, коли кнопка стоїть на своєму місці в кадрі,
- * висить 12 с і ховається. Лише раз за сесію.
+ * Шторка під кнопкою в хіро: висувається, коли кнопка стоїть на своєму місці в кадрі (і є місце під нею),
+ * висить 5 с, ховається, за 3 с знову. Поки кнопка не на місці — чекає.
  */
 export function TrialPeek() {
   const ref = useRef(null);
-  const [state, setState] = useState('hidden'); // hidden → open → closing → done
+  const [state, setState] = useState('hidden'); // hidden → open → closing → hidden …
   useEffect(() => {
     const anchor = ref.current?.parentElement;
-    if (!anchor || peekSeen()) return undefined;
+    if (!anchor) return undefined;
     const panel = anchor.closest('.s-hero-panel');
-    let wait = 0;
     const timers = [];
-    const open = () => {
-      stop();
-      markPeekSeen();
-      setState('open');
-      timers.push(setTimeout(() => setState('closing'), PEEK_HOLD), setTimeout(() => setState('done'), PEEK_HOLD + PEEK_OUT));
-    };
-    const check = () => {
+    let waiting = false;
+    let wait = 0;
+    const ready = () => {
       const r = anchor.getBoundingClientRect();
-      const ready = peekReady({
+      return peekReady({
         wide: isWide(),
         panelBottom: panel?.getBoundingClientRect().bottom ?? 0,
         buttonTop: r.top,
         buttonBottom: r.bottom,
         vh: window.innerHeight,
       });
-      clearTimeout(wait);
-      if (ready) wait = setTimeout(open, PEEK_DELAY);
     };
-    const io = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver(check, { threshold: 1 });
-    function stop() {
-      io?.disconnect();
-      window.removeEventListener('scroll', check);
+    const show = () => {
+      waiting = false;
+      setState('open');
+      timers.push(
+        setTimeout(() => setState('closing'), PEEK_SHOW),
+        setTimeout(() => { setState('hidden'); timers.push(setTimeout(next, PEEK_GAP)); }, PEEK_SHOW + PEEK_OUT),
+      );
+    };
+    // Наступний показ — щойно кнопка на місці; якщо ні, чекаємо прокрутки
+    function next() { if (ready()) show(); else waiting = true; }
+    const check = () => {
+      if (!waiting) return;
       clearTimeout(wait);
-    }
-    io?.observe(anchor);
+      if (ready()) wait = setTimeout(() => { if (waiting && ready()) show(); }, PEEK_DELAY);
+    };
+    waiting = true;
     window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
     check();
-    return () => { stop(); timers.forEach(clearTimeout); };
+    return () => {
+      window.removeEventListener('scroll', check);
+      window.removeEventListener('resize', check);
+      clearTimeout(wait);
+      timers.forEach(clearTimeout);
+    };
   }, []);
-  if (state === 'done') return null;
   return (
     <div ref={ref} className="s-peek-wrap" role="status" hidden={state === 'hidden'}>
       <div className={`s-peek ${state === 'closing' ? 'is-out' : ''}`}><IconSpark size={18} /><span>Перше пробне заняття <b>безкоштовно</b></span></div>

@@ -637,11 +637,13 @@
 .s-peek-wrap { position: absolute; z-index: 1; top: calc(100% - 14px); left: 0; right: 0; overflow: hidden; padding-bottom: 24px; pointer-events: none; }
 .s-peek {
   display: flex; justify-content: center; align-items: center; gap: 8px; padding: 24px 16px 11px; border-radius: 0 0 14px 14px;
-  background: var(--trial); color: var(--on-trial); font-size: 14.5px; font-weight: 600; white-space: nowrap;
+  background: var(--trial); color: var(--on-trial); font-size: 14.5px; font-weight: 600; line-height: 1.25; text-align: center;
   box-shadow: 0 12px 22px -14px color-mix(in srgb, var(--tint) 55%, transparent);
   animation: s-peek-in 0.6s cubic-bezier(0.2, 1.2, 0.4, 1) both;
 }
 .s-peek svg { flex: none; color: #15803d; }
+/* Текст завжди в межах зеленого тла: де колонка вузька (дві кнопки рядом на планшеті), шрифт менший */
+@media (min-width: 600px) and (max-width: 899.98px) { .s-peek { gap: 6px; padding-left: 10px; padding-right: 10px; font-size: 12.5px; } .s-peek svg { width: 15px; height: 15px; } }
 /* поки шторка відкрита, тінь кнопки лягає на зелене — легша й зеленувата, щоб не бруднила */
 .s-hero-actions > .btn { transition: box-shadow 0.4s var(--ease); }
 .s-hero-actions:has(.s-peek:not(.is-out)) > .btn { box-shadow: 0 8px 16px -10px color-mix(in srgb, var(--tint) 45%, transparent); }
@@ -976,6 +978,8 @@
 .s-mascot { --w: 84px; --h: 81px; --z: 1; position: absolute; z-index: 3; left: 0; top: 0; width: calc(var(--w) * var(--z)); height: calc(var(--h) * var(--z));
   margin: calc(var(--h) * var(--z) * -0.965) 0 0 calc(var(--w) * var(--z) * -0.5); pointer-events: none; }
 .s-mascot.is-big { --z: 3.7; }
+/* бігун — під картками: дорогою проходить за ними й не перекриває текст; на зупинках стоїть на вільному боці */
+.s-mascot:not(.is-big):not(.is-jump) { z-index: 0; }
 .s-mascot.is-jump { transition: translate 0.6s cubic-bezier(0.3, 1.25, 0.45, 1), width 0.6s var(--ease), height 0.6s var(--ease), margin 0.6s var(--ease); }
 .s-mascot-art { position: absolute; inset: 0; transform-origin: 50% 100%; transition: scale 0.25s var(--ease); }
 .s-mascot.is-left .s-mascot-art { scale: -1 1; }
@@ -989,14 +993,15 @@
 .bk-face-in { animation: s-mascot-face-in 0.25s ease-out; }
 /* Поява: книжка залітає й розгортається в book3d.js (~1,9 с від is-ready), далі обличчя, ручки й ніжки, потім бульбашка */
 .bk-face, .bk-line, .s-mascot-ground { opacity: 0; }
-.s-mascot-art.is-ready .bk-face { animation: bk-fade 0.35s 1.75s ease-out both; }
-.s-mascot-art.is-ready .bk-line { opacity: 1; stroke-dasharray: 1; animation: bk-draw 0.35s 1.8s ease-out both; }
-.s-mascot-art.is-ready .s-mascot-ground { animation: bk-ground 0.6s 0.9s both; }
+/* після появи обличчя видно завжди: інші анімації (біг, радість на фініші) не повертають його до прозорості */
+.s-mascot-art.is-ready .bk-face { opacity: 1; animation: bk-fade 0.4s 2.15s ease-out both; }
+.s-mascot-art.is-ready .bk-line { opacity: 1; stroke-dasharray: 1; animation: bk-draw 0.4s 2.2s ease-out both; }
+.s-mascot-art.is-ready .s-mascot-ground { animation: bk-ground 0.8s 0.7s both; }
 @keyframes bk-ground { from { opacity: 0; } to { opacity: 0.22; } }
 @keyframes bk-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes bk-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 .s-mascot:has(.s-mascot-art:not(.is-ready)) .s-mascot-say { opacity: 0; scale: 0.6; transition: none; }
-.s-mascot.is-big .s-mascot-say[data-say='start'] { transition-delay: 2.1s; }
+.s-mascot.is-big .s-mascot-say[data-say='start'] { transition-delay: 2.6s; }
 
 /* дихає, кліпає, махає ручкою; на бігу підстрибує й перебирає ніжками */
 
@@ -1070,4 +1075,8 @@
 @media (min-width: 600px) {
   .s-faq summary { padding: 22px 24px; font-size: 19px; }
   .s-faq-a { padding: 0 24px 22px; }
+}
+@media (min-width: 900px) {
+  /* дві колонки, щоб праворуч не лишалось порожнечі */
+  .s-faq { max-width: none; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; }
 }
