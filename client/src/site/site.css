@@ -973,7 +973,7 @@
 .s-road-reveal { fill: none; stroke: #fff; stroke-width: 40; stroke-linecap: round; transition: stroke-dashoffset 0.1s linear; }
 .s-rm-steps, .s-rm-finish { position: relative; z-index: 1; }
 /* Маскот (книжка): --z — у скільки разів більший за бігуна. До прокрутки він великий (чверть екрана), далі зменшується */
-.s-mascot { --w: 84px; --h: 78px; --z: 1; position: absolute; z-index: 3; left: 0; top: 0; width: calc(var(--w) * var(--z)); height: calc(var(--h) * var(--z));
+.s-mascot { --w: 84px; --h: 81px; --z: 1; position: absolute; z-index: 3; left: 0; top: 0; width: calc(var(--w) * var(--z)); height: calc(var(--h) * var(--z));
   margin: calc(var(--h) * var(--z) * -0.965) 0 0 calc(var(--w) * var(--z) * -0.5); pointer-events: none; }
 .s-mascot.is-big { --z: 2.6; }
 .s-mascot.is-jump { transition: translate 0.6s cubic-bezier(0.3, 1.25, 0.45, 1), width 0.6s var(--ease), height 0.6s var(--ease), margin 0.6s var(--ease); }
@@ -982,9 +982,9 @@
 .s-mascot-ground { fill: #000; opacity: 0.22; }
 .s-mascot-cover { fill: var(--hl); }
 /* дихає, кліпає, махає ручкою; на бігу підстрибує й перебирає ніжками */
-.s-mascot-body { transform-origin: 60px 104px; animation: s-mascot-breathe 2.6s ease-in-out infinite; }
-.s-mascot-eyes { transform-origin: 60px 47px; animation: s-mascot-blink 4.2s infinite; }
-.s-mascot-arm { transform-origin: 112px 48px; animation: s-mascot-wave 1.6s ease-in-out infinite; }
+.s-mascot-body { transform-origin: 60px 110px; animation: s-mascot-breathe 2.6s ease-in-out infinite; }
+.s-mascot-eyes { transform-origin: 60px 46px; animation: s-mascot-blink 4.2s infinite; }
+.s-mascot-arm { transform-origin: 100px 52px; animation: s-mascot-wave 1.6s ease-in-out infinite; }
 .s-mascot.is-run .s-mascot-body, .s-mascot.is-run .s-mascot-arm { animation: s-mascot-hop 0.32s ease-in-out infinite; }
 .s-mascot.is-run .s-mascot-foot.is-l { animation: s-mascot-step 0.32s ease-in-out infinite; }
 .s-mascot.is-run .s-mascot-foot.is-r { animation: s-mascot-step 0.32s 0.16s ease-in-out infinite; }
@@ -1007,7 +1007,7 @@
 .s-mascot:has([data-say='done']) .s-mascot-body, .s-mascot:has([data-say='done']) .s-mascot-arm { animation: s-mascot-cheer 0.45s ease-in-out 0.5s 4; }
 @keyframes s-mascot-cheer { 50% { transform: translateY(-10px); } }
 @media (min-width: 900px) {
-  .s-mascot { --w: 100px; --h: 93px; }
+  .s-mascot { --w: 100px; --h: 97px; }
   .s-mascot.is-big { --z: 2.5; }
   .s-mascot.is-big .s-mascot-say { max-width: none; white-space: nowrap; font-size: 18px; padding: 12px 16px; }
 }
