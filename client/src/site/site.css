@@ -1543,3 +1543,40 @@
 }
 /* PRO на телефоні: книжка — у верхньому правому куті ілюстрації, не над кнопками */
 @media (max-width: 599.98px) { .s-dir-book.is-cool { top: -4px; right: -6px; left: auto; bottom: auto; width: 46px; rotate: 10deg; } }
+
+/* ───────── Телефон і планшет: фон карток напрямків — акуратно по кутах ─────────
+   Правило: не більше двох фонових елементів, кожен у своєму куті, наполовину за краєм картки,
+   не один на одному й не за заголовком; решта ховається. Ці правила йдуть останніми й перекривають попередні. */
+@media (max-width: 899.98px) {
+  /* PRO: книжки немає, щоб не налазила на теги */
+  .s-dir-book.is-cool { display: none; }
+  /* Frontend: книжка над вікном коду справа, вікно трохи нижче */
+  .s-dir-art:not(.is-pro):not(.is-py):not(.is-be):not(.is-ai):not(.is-pc):not(.is-scratch) { padding-top: 38px; }
+  .s-dir-art:not(.is-pro):not(.is-py):not(.is-be):not(.is-ai):not(.is-pc):not(.is-scratch) .s-dir-book { top: -6px; right: 8px; width: 52px; }
+
+  /* Python: знак — верхній правий кут, змійка — нижній правий кут (обидва за краєм) */
+  .s-dir.is-py .s-dir-pylogo { top: -26px; right: -30px; width: 130px; opacity: 0.16; }
+  .s-dir.is-py .s-dir-snake { bottom: -30px; right: -70px; width: 230px; opacity: 0.16; }
+
+  /* ШІ: картинка — верхній правий кут, відео — нижній лівий кут; книжки, зірочок і великої зірки немає */
+  .s-dir.is-bg-dots .s-ai-bg { opacity: 1; }
+  .s-dir.is-bg-dots .s-ai-pic { top: -34px; right: -70px; left: auto; bottom: auto; width: 160px; opacity: 0.16; rotate: 8deg; animation: none; }
+  .s-dir.is-bg-dots .s-ai-video { top: auto; bottom: 64px; left: -70px; right: auto; width: 170px; opacity: 0.16; rotate: -6deg; animation: none; }
+  .s-dir.is-bg-dots .s-ai-spark, .s-dir.is-bg-dots .s-dir-art .s-dir-book, .s-dir-deco.is-ai { display: none; }
+
+  /* Backend: лише клас Student — верхній правий кут; бази, SQL і стрілки немає */
+  .s-dir.is-light .s-be-rest { opacity: 1; }
+  .s-dir.is-light .s-be-class { top: -30px; right: -80px; left: auto; opacity: 0.14; rotate: 8deg; }
+  .s-dir.is-light .s-be-db, .s-dir.is-light .s-be-sql, .s-dir.is-light .s-be-down { display: none; }
+
+  /* Комп'ютерна грамотність: клавіатура — верхній правий кут; мишки, підставки й книжки немає */
+  .s-dir.is-bg-keys .s-pc-bg { opacity: 1; }
+  .s-dir.is-bg-keys .s-pc-kb { top: -20px; right: -110px; width: 260px; opacity: 0.16; rotate: -10deg; }
+  .s-dir.is-bg-keys .s-pc-mouse, .s-dir.is-bg-keys .s-pc-stand, .s-dir.is-bg-keys .s-pc-bg .s-dir-book { display: none; }
+  .s-dir-deco.is-keys i:nth-child(2), .s-dir-deco.is-keys i:nth-child(3) { display: none; }
+
+  /* Програмуємо граючись: сцена — нижній лівий кут за краєм; без зайвого відступу під блоками */
+  .s-dir-art.is-scratch { padding-bottom: 0; }
+  .s-sc-stage { top: auto; bottom: -80px; left: -90px; right: auto; width: 220px; opacity: 0.14; }
+  .s-dir-deco.is-play .is-blk { display: none; }
+}
