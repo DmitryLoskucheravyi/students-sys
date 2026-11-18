@@ -975,7 +975,7 @@
 /* Маскот (книжка): --z — у скільки разів більший за бігуна. До прокрутки він великий (чверть екрана), далі зменшується */
 .s-mascot { --w: 84px; --h: 81px; --z: 1; position: absolute; z-index: 3; left: 0; top: 0; width: calc(var(--w) * var(--z)); height: calc(var(--h) * var(--z));
   margin: calc(var(--h) * var(--z) * -0.965) 0 0 calc(var(--w) * var(--z) * -0.5); pointer-events: none; }
-.s-mascot.is-big { --z: 2.6; }
+.s-mascot.is-big { --z: 3.7; }
 .s-mascot.is-jump { transition: translate 0.6s cubic-bezier(0.3, 1.25, 0.45, 1), width 0.6s var(--ease), height 0.6s var(--ease), margin 0.6s var(--ease); }
 .s-mascot-svg { display: block; width: 100%; height: 100%; overflow: visible; transform-origin: 50% 100%; transition: scale 0.25s var(--ease); }
 .s-mascot.is-left .s-mascot-svg { scale: -1 1; }
@@ -984,6 +984,11 @@
 /* дихає, кліпає, махає ручкою; на бігу підстрибує й перебирає ніжками */
 .s-mascot-body { transform-origin: 60px 110px; animation: s-mascot-breathe 2.6s ease-in-out infinite; }
 .s-mascot-eyes { transform-origin: 60px 46px; animation: s-mascot-blink 4.2s infinite; }
+/* перегортання сторінки: права сторінка переїжджає через корінець на ліву і зникає */
+.s-mascot-flip { fill: #fbf8f2; transform-origin: 60px 50px; animation: s-mascot-flip 0.6s ease-in-out forwards; }
+@keyframes s-mascot-flip { 0% { transform: scaleX(1); fill: #fbf8f2; } 50% { fill: #e2d9cb; } 90% { opacity: 1; } 100% { transform: scaleX(-1); fill: #f1ebe1; opacity: 0; } }
+.s-mascot-face { animation: s-mascot-face-in 0.25s ease-out; transform-origin: 60px 50px; }
+@keyframes s-mascot-face-in { from { opacity: 0; transform: scale(0.85); } }
 .s-mascot-arm { transform-origin: 100px 52px; animation: s-mascot-wave 1.6s ease-in-out infinite; }
 .s-mascot.is-run .s-mascot-body, .s-mascot.is-run .s-mascot-arm { animation: s-mascot-hop 0.32s ease-in-out infinite; }
 .s-mascot.is-run .s-mascot-foot.is-l { animation: s-mascot-step 0.32s ease-in-out infinite; }
@@ -997,9 +1002,13 @@
 .s-mascot-say { position: absolute; bottom: calc(100% + 8px); right: 30%; padding: 9px 14px; border-radius: 16px 16px 4px 16px; background: #fff; color: var(--ink);
   font: 800 15px/1.2 'Nunito Variable', var(--body); white-space: nowrap; box-shadow: 0 14px 28px -14px rgb(0 0 0 / 0.6);
   opacity: 0; scale: 0.6; transform-origin: 100% 100%; transition: opacity 0.25s, scale 0.35s cubic-bezier(0.2, 1.4, 0.4, 1); }
-.s-mascot.is-big .s-mascot-say { bottom: 62%; right: calc(100% + 4px); width: max-content; max-width: 104px; white-space: normal; border-radius: 16px 16px 4px 16px; transform-origin: 100% 100%; font-size: 16px; }
+/* телефон: книжка майже на всю ширину — бульбашка над нею зліва; ширше — збоку зліва */
+.s-mascot.is-big .s-mascot-say { bottom: 88%; right: 62%; width: max-content; border-radius: 16px 16px 4px 16px; transform-origin: 100% 100%; font-size: 16px; }
 .s-mascot-say::after { content: ''; position: absolute; top: 100%; right: 10px; border: 7px solid transparent; border-top-color: #fff; border-bottom: 0; }
-.s-mascot.is-big .s-mascot-say::after { top: auto; bottom: 6px; right: -10px; border: 7px solid transparent; border-left: 10px solid #fff; border-right: 0; }
+@media (min-width: 600px) {
+  .s-mascot.is-big .s-mascot-say { bottom: 62%; right: calc(100% + 4px); }
+  .s-mascot.is-big .s-mascot-say::after { top: auto; bottom: 6px; right: -10px; border: 7px solid transparent; border-left: 10px solid #fff; border-right: 0; }
+}
 .s-mascot-say b { display: none; }
 .s-mascot-say[data-say='start'] { opacity: 1; scale: 1; }
 .s-mascot-say[data-say='start'] .is-start { display: block; }
@@ -1008,12 +1017,12 @@
 @keyframes s-mascot-cheer { 50% { transform: translateY(-10px); } }
 @media (min-width: 900px) {
   .s-mascot { --w: 100px; --h: 97px; }
-  .s-mascot.is-big { --z: 2.5; }
-  .s-mascot.is-big .s-mascot-say { max-width: none; white-space: nowrap; font-size: 18px; padding: 12px 16px; }
+  .s-mascot.is-big { --z: 3.75; }
+  .s-mascot.is-big .s-mascot-say { font-size: 18px; padding: 12px 16px; }
 }
 @keyframes s-caret { 50% { opacity: 0; } }
 @keyframes s-intro-in { from { opacity: 0; translate: 0 16px; } }
-@media (prefers-reduced-motion: reduce) { .s-mascot * { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .s-mascot * { animation: none !important; } .s-mascot-flip { display: none; } }
 
 /* ───────── SEO-частини: крихти, підзаголовок курсу, питання, політика, згода ───────── */
 .s-crumbs ol { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; list-style: none; margin: 0 0 10px; padding: 0; font-size: 14.5px; font-weight: 600; }
