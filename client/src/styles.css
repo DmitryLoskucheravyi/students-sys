@@ -1639,25 +1639,6 @@ button.stop:active { transform: scale(0.94); }
 @media (prefers-reduced-motion: reduce) { .modal-badge { animation: none; } }
 
 /* Напрямки сайту: курси по черзі з номерами, нижче — кнопки «+ курс» */
-.direction-row > svg, .direction-row > .course-ico { flex: none; }
-.dir-courses { display: grid; gap: 10px; }
 /* Своя іконка напрямку: картинка замість намальованої, без кольорової плашки */
 .course-ico.is-own { overflow: hidden; padding: 0; background: #fff; box-shadow: inset 0 0 0 1px var(--line); }
 .course-ico.is-own img { width: 100%; height: 100%; object-fit: cover; }
-/* Картинки напрямку у формі: тло картки (широке) і своя іконка (квадрат) */
-.dir-image { display: flex; align-items: center; gap: 14px; }
-.dir-image-box { display: grid; flex: none; place-items: center; overflow: hidden; border-radius: 14px; background: var(--wash); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
-.dir-image.is-cover .dir-image-box { width: 132px; aspect-ratio: 16 / 10; }
-.dir-image.is-icon .dir-image-box { width: 64px; height: 64px; }
-.dir-image-box img { width: 100%; height: 100%; object-fit: cover; }
-.dir-image-tools { display: grid; gap: 4px; min-width: 0; }
-.dir-image-tools .label, .dir-image-tools p { margin: 0; }
-.dir-image-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-.dir-courses .label { font-weight: 600; font-size: 14px; }
-.dir-picked { display: grid; gap: 6px; }
-.dir-picked li { display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 10px; border-radius: 10px; background: var(--wash); }
-.dir-picked b { flex: none; display: grid; place-items: center; width: 24px; height: 24px; margin-right: 6px; border-radius: 8px; background: var(--red-soft); color: var(--red); font-size: 12px; }
-.dir-picked .showcase-item { flex: 1; min-width: 0; }
-.dir-add { display: flex; flex-wrap: wrap; gap: 6px; }
-.dir-add-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--grid-strong); font-size: 14px; font-weight: 500; }
-@media (hover: hover) and (pointer: fine) { .dir-add-btn:hover { background: var(--wash); } }

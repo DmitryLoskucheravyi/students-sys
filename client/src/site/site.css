@@ -983,36 +983,37 @@
 .s-mascot.is-jump { transition: translate 0.6s cubic-bezier(0.3, 1.25, 0.45, 1), width 0.6s var(--ease), height 0.6s var(--ease), margin 0.6s var(--ease); }
 .s-mascot-art { position: absolute; inset: 0; transform-origin: 50% 100%; transition: scale 0.25s var(--ease); }
 .s-mascot.is-left .s-mascot-art { scale: -1 1; }
-.bk-limbs, .bk-face { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.bk-face { z-index: 2; }
+.bk-body { position: absolute; inset: 0; }
+.bk-limbs, .bk-ground { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .s-mascot-ground { fill: #000; opacity: 0.22; }
 
-/* Книжка — полотно three.js на всю площу маскота; обличчя й кінцівки — SVG поверх і позаду */
-.bk3d { position: absolute; inset: 0; }
+/* Книжка з обличчям на сторінках — полотно three.js; кінцівки — SVG позаду.
+   Полотно ширше за маскота (ліворуч, угору й униз): книжка залітає здалеку знизу зліва, як на вході.
+   transform-origin — центр маскота всередині полотна (для присідання на бігу) */
+.bk3d { position: absolute; inset: -45% 0 -25% -70%; transform-origin: 70.6% 55.9%; pointer-events: none; }
 .bk3d canvas { display: block; width: 100% !important; height: 100% !important; }
-.bk-face-in { animation: s-mascot-face-in 0.25s ease-out; }
-/* Поява: книжка залітає й розгортається в book3d.js (~1,9 с від is-ready), далі обличчя, ручки й ніжки, потім бульбашка */
-.bk-face, .bk-line, .s-mascot-ground { opacity: 0; }
-/* після появи обличчя видно завжди: інші анімації (біг, радість на фініші) не повертають його до прозорості */
-.s-mascot-art.is-ready .bk-face { opacity: 1; animation: bk-fade 0.4s 2.15s ease-out both; }
-.s-mascot-art.is-ready .bk-line { opacity: 1; stroke-dasharray: 1; animation: bk-draw 0.4s 2.2s ease-out both; }
-.s-mascot-art.is-ready .s-mascot-ground { animation: bk-ground 0.8s 0.7s both; }
+/* Поява: книжка залітає, розгортається й гортає сторінки в book3d.js (~3,2 с від is-ready); кінцівки — коли розгорнулась */
+.bk-line, .s-mascot-ground { opacity: 0; }
+.s-mascot-art.is-ready .bk-line { opacity: 1; stroke-dasharray: 1; animation: bk-draw 0.4s 1.8s ease-out both; }
+.s-mascot-art.is-ready .s-mascot-ground { animation: bk-ground 0.8s 0.9s both; }
 @keyframes bk-ground { from { opacity: 0; } to { opacity: 0.22; } }
-@keyframes bk-fade { from { opacity: 0; } to { opacity: 1; } }
+/* Після появи ширяє в повітрі: книжка з ручками й ніжками легенько піднімається й опускається, тінь дихає слідом */
+.s-mascot-art.is-ready .bk-body { animation: bk-float 3.2s 3.2s ease-in-out infinite; }
+.s-mascot-art.is-ready .bk-ground { transform-origin: 50% 97%; animation: bk-float-shadow 3.2s 3.2s ease-in-out infinite; }
+@keyframes bk-float { 50% { transform: translateY(-4%); } }
+@keyframes bk-float-shadow { 50% { transform: scale(0.82); opacity: 0.6; } }
 @keyframes bk-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 .s-mascot:has(.s-mascot-art:not(.is-ready)) .s-mascot-say { opacity: 0; scale: 0.6; transition: none; }
-.s-mascot.is-big .s-mascot-say[data-say='start'] { transition-delay: 2.6s; }
+.s-mascot.is-big .s-mascot-say[data-say='start'] { transition-delay: 3.2s; }
 
 /* дихає, кліпає, махає ручкою; на бігу підстрибує й перебирає ніжками */
 
-.s-mascot-eyes { transform-origin: 60px 46px; animation: s-mascot-blink 4.2s infinite; }
-.s-mascot-arm { transform-origin: 111px 56px; animation: s-mascot-wave 1.6s 2.4s ease-in-out infinite; }
+.s-mascot-arm { transform-origin: 111px 56px; animation: s-mascot-wave 1.6s 3.4s ease-in-out infinite; }
 /* у стрибку підтягує ніжки й трохи присідає перед приземленням */
-.s-mascot.is-run .bk3d, .s-mascot.is-run .bk-face { animation: s-mascot-squash 0.42s ease-in-out; }
+.s-mascot.is-run .bk3d { animation: s-mascot-squash 0.42s ease-in-out; }
 @keyframes s-mascot-squash { 0% { transform: scale(1.04, 0.94); } 25% { transform: scale(0.96, 1.05); } 85% { transform: none; } 100% { transform: scale(1.05, 0.95); } }
 .s-mascot.is-run .s-mascot-foot.is-l { animation: s-mascot-step 0.32s ease-in-out infinite; }
 .s-mascot.is-run .s-mascot-foot.is-r { animation: s-mascot-step 0.32s 0.16s ease-in-out infinite; }
-@keyframes s-mascot-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
 @keyframes s-mascot-wave { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-16deg); } 50% { transform: rotate(6deg); } 75% { transform: rotate(-12deg); } }
 @keyframes s-mascot-hop { 50% { transform: translateY(-6px); } }
 @keyframes s-mascot-step { 50% { transform: translateY(-5px); } }
@@ -1031,7 +1032,7 @@
 .s-mascot-say[data-say='start'] { opacity: 1; scale: 1; }
 .s-mascot-say[data-say='start'] .is-start { display: block; }
 /* на фініші маскот радіє: кілька підстрибів */
-.s-mascot:has([data-say='done']) .bk3d, .s-mascot:has([data-say='done']) .bk-face { animation: s-mascot-cheer 0.45s ease-in-out 0.5s 4; }
+.s-mascot:has([data-say='done']) .bk3d { animation: s-mascot-cheer 0.45s ease-in-out 0.5s 4; }
 @keyframes s-mascot-cheer { 50% { transform: translateY(-10px); } }
 @media (min-width: 900px) {
   .s-mascot { --w: 100px; --h: 97px; }
@@ -1040,7 +1041,7 @@
 }
 @keyframes s-caret { 50% { opacity: 0; } }
 @keyframes s-intro-in { from { opacity: 0; translate: 0 16px; } }
-@media (prefers-reduced-motion: reduce) { .s-mascot * { animation: none !important; transition-delay: 0s !important; } .bk-face, .bk-line { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .s-mascot * { animation: none !important; transition-delay: 0s !important; } .bk-line { opacity: 1; } }
 
 /* ───────── SEO-частини: крихти, підзаголовок курсу, питання, політика, згода ───────── */
 .s-crumbs ol { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; list-style: none; margin: 0 0 10px; padding: 0; font-size: 14.5px; font-weight: 600; }
@@ -1081,3 +1082,464 @@
 /* Питання — одна колонка по центру; заголовок секції над нею тієї ж ширини */
 .s-faq-sec .s-faq { margin-inline: auto; }
 .s-faq-sec > .s-sec-head { max-width: 820px; margin-inline: auto; }
+
+/* ───────── Напрямок: картка як у макеті і слайдер по одній на всю ширину ───────── */
+.s-dir-track { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; }
+.s-dir-track::-webkit-scrollbar { display: none; }
+.s-dir-slide { scroll-snap-align: start; min-width: 0; }
+.s-dir-nav { display: flex; gap: 10px; }
+.s-dir-list { display: grid; gap: 18px; }
+/* стрілка-«таблетка»: помаранчева, з товстою темною стрілкою */
+.s-pill-arrow { display: grid; place-items: center; width: 58px; height: 36px; padding: 0; border-radius: 999px; background: var(--hl); color: var(--dark);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--hl) 60%, #000); transition: translate 0.15s, box-shadow 0.15s, opacity 0.2s; }
+.s-pill-arrow svg { width: 26px; height: auto; overflow: visible; }
+.s-pill-arrow path { fill: none; stroke: currentColor; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.s-pill-arrow:active:not(:disabled) { translate: 0 2px; box-shadow: 0 1px 0 color-mix(in srgb, var(--hl) 60%, #000); }
+.s-pill-arrow:disabled { opacity: 0.35; cursor: default; }
+.s-pill-arrow:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+@media (hover: hover) { .s-pill-arrow:hover:not(:disabled) { translate: 0 -1px; } }
+
+.s-dir { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; padding: 24px 20px 28px; border-radius: 28px; overflow: hidden; background: #ece6ff; color: var(--ink); }
+/* телефон і планшет: текст, під ним ілюстрація, кнопки — у самому низу картки; від 900px текст із кнопками — окремою колонкою */
+.s-dir-text { display: contents; }
+.s-dir-text > * { position: relative; z-index: 1; justify-self: start; }
+.s-dir > .s-dir-art { order: 1; }
+.s-dir-actions { order: 2; }
+.s-dir-text > .s-dir-actions { justify-self: end; justify-content: flex-end; }
+.s-dir:has(.s-dir-text) { row-gap: 10px; }
+.s-dir > .s-dir-art { margin: 4px 0; }
+.s-dir-title { font: 800 clamp(30px, 8vw, 54px)/1.05 'Nunito Variable', var(--body); letter-spacing: -0.03em; }
+.s-dir-title em { color: var(--red); font-style: normal; }
+.s-dir-lead { max-width: 40ch; color: var(--muted); font-size: 16px; line-height: 1.5; }
+.s-dir-path { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 15px; margin: 2px 0 4px; padding: 0; list-style: none; }
+.s-dir-path li { position: relative; padding: 6px 8px; border-radius: 999px; background: #fff; font: 800 11.5px/1 'Nunito Variable', var(--body);
+  box-shadow: 0 6px 14px -10px rgb(23 21 30 / 0.5); }
+/* стрілка між кроками — посередині проміжку */
+.s-dir-path li + li::before { content: '→'; position: absolute; right: calc(100% + 2px); font-size: 11px; top: 50%; translate: 0 -50%; color: var(--muted); font-weight: 700; }
+.s-dir-path li.is-goal { background: var(--red-fill); color: var(--on-red); }
+.s-dir-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.s-dir-actions .btn { min-height: 52px; padding: 0 26px; border-radius: 14px; font-size: 16px; font-weight: 800; }
+.btn.s-dir-more { background: #9c87f5; color: #fff; }
+.btn.s-dir-go { background: var(--red-fill); color: var(--on-red); }
+@media (hover: hover) { .btn.s-dir-more:hover { background: #8b74f0; } .btn.s-dir-go:hover { background: var(--red-hover); } }
+
+/* ілюстрація: вікно з кодом, сторінка «Привіт!», книжка в кутку */
+.s-dir-art { position: relative; min-height: 250px; padding: 18px 8px 40px 0; }
+.s-dir-code { position: relative; width: min(100%, 440px); margin-left: auto; border-radius: 16px; overflow: hidden; background: #191629; color: #e9e6f5;
+  box-shadow: 0 24px 40px -22px rgb(23 21 30 / 0.7); }
+.s-dir-code-bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: #221e36; }
+.s-dir-code-bar i { width: 10px; height: 10px; border-radius: 50%; background: #ff5f57; }
+.s-dir-code-bar i:nth-child(2) { background: #febc2e; } .s-dir-code-bar i:nth-child(3) { background: #28c840; }
+.s-dir-code-bar span { margin-left: 8px; color: rgb(255 255 255 / 0.7); font: 700 12px ui-monospace, Consolas, monospace; }
+.s-dir-code code { display: grid; gap: 6px; padding: 16px 18px 22px; font: 600 clamp(11px, 3vw, 13.5px)/1.45 ui-monospace, Consolas, monospace; white-space: pre; overflow: hidden; }
+.s-dir-code u { text-decoration: none; }
+.s-dir-code .c { color: #8a83a6; } .s-dir-code .t { color: #ff8fa3; } .s-dir-code .a { color: #a7d4ff; } .s-dir-code .s { color: #a3e6b0; }
+.s-dir-code .n { color: #ff9a55; } .s-dir-code .f { color: #ffd479; }
+.s-dir-page { position: absolute; left: 0; bottom: 6px; display: grid; justify-items: start; gap: 8px; width: 46%; max-width: 190px; padding: 14px 16px 16px;
+  border-radius: 14px; background: #fffaf2; box-shadow: 0 22px 34px -18px rgb(23 21 30 / 0.6); rotate: -4deg; }
+.s-dir-page b { color: var(--red); font: 900 20px/1 'Nunito Variable', var(--body); }
+.s-dir-page i { width: 80%; height: 6px; border-radius: 3px; background: #e6dccd; }
+.s-dir-page span { padding: 6px 12px; border-radius: 8px; background: var(--hl); color: #fff; font: 800 12px/1 'Nunito Variable', var(--body); }
+.s-dir-book { position: absolute; top: 0; right: -6px; width: 64px; height: auto; rotate: 14deg; filter: drop-shadow(0 10px 12px rgb(23 21 30 / 0.35)); }
+@media (min-width: 600px) {
+  .s-dir { padding: 36px 36px 40px; }
+  .s-dir-book { width: 78px; right: 4px; }
+}
+@media (min-width: 900px) {
+  .s-dir-text { display: grid; align-content: center; justify-items: start; gap: 14px; }
+  .s-dir > .s-dir-art { order: 0; margin: 0; }
+  .s-dir-actions { order: 0; }
+  .s-dir-text > .s-dir-actions { justify-self: start; justify-content: flex-start; }
+  .s-dir { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); align-items: center; gap: 32px; padding: 48px 48px 52px; min-height: 380px; }
+  .s-dir-art { min-height: 300px; padding: 30px 30px 40px 20px; }
+  .s-pill-arrow { width: 64px; height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .s-dir-track { scroll-behavior: auto; } }
+
+@media (min-width: 420px) { .s-dir-path { gap: 8px 20px; } .s-dir-path li { padding: 8px 11px; font-size: 13px; } .s-dir-path li + li::before { right: calc(100% + 4px); font-size: 13px; } }
+@media (min-width: 600px) { .s-dir-path { gap: 8px 26px; } .s-dir-path li { padding: 8px 14px; font-size: 14px; } .s-dir-path li + li::before { right: calc(100% + 6px); } }
+
+/* Темна картка напрямку (Frontend PRO): ілюстрація ліворуч, текст праворуч, три блоки замість шляху */
+.s-dir.is-dark { background: radial-gradient(120% 90% at 0% 100%, #2b2357 0%, transparent 55%), #17151e; color: #f5f0e9; }
+.s-dir.is-dark .s-dir-title em { color: #b3a4ff; }
+.s-dir.is-dark .s-dir-lead { color: rgb(245 240 233 / 0.75); }
+.s-dir-badge { padding: 6px 14px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px #6d5ae0; background: rgb(109 90 224 / 0.18); color: #c9bfff; font: 800 13px/1 'Nunito Variable', var(--body); }
+/* на телефоні блоків технологій немає; від 600px — усі рядом */
+.s-dir-feats { display: none; justify-items: center; width: 100%; margin: 0; padding: 0; list-style: none; }
+.s-dir-feats li { grid-area: 1 / 1; min-width: 200px; text-align: center; opacity: 0; translate: 24px 0; transition: opacity 0.4s, translate 0.5s var(--ease); pointer-events: none; }
+.s-dir-feats li.is-on { opacity: 1; translate: 0 0; }
+@media (min-width: 600px) {
+  .s-dir-feats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); justify-items: stretch; gap: 8px; }
+  .s-dir-feats li { grid-area: auto; min-width: 0; text-align: left; opacity: 1; translate: none; transition: none; }
+}
+@media (prefers-reduced-motion: reduce) { .s-dir-feats li { transition: none; } }
+.s-dir-feats li { display: grid; align-content: start; gap: 4px; padding: 12px 14px; border-radius: 12px; background: rgb(255 255 255 / 0.05); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1); color: rgb(245 240 233 / 0.7); font-size: 13px; line-height: 1.35; }
+.s-dir-feats b { color: #b3a4ff; font: 800 15px/1.1 'Nunito Variable', var(--body); }
+.s-dir.is-dark .btn.s-dir-more { background: transparent; color: #fff; box-shadow: inset 0 0 0 1.5px #b3a4ff; }
+.s-dir.is-dark .btn.s-dir-go { background: var(--hl); color: #17151e; }
+@media (hover: hover) { .s-dir.is-dark .btn.s-dir-more:hover { background: rgb(179 164 255 / 0.15); } .s-dir.is-dark .btn.s-dir-go:hover { background: #f26b22; } }
+/* ілюстрація PRO */
+.s-dir-art.is-pro { min-height: 0; padding: 46px 0 34px; }
+.s-dir-art.is-pro .s-dir-code { margin: 0 auto 0 0; width: min(100%, 470px); background: #1f1b33; }
+.s-dir-code-bar span.is-on { padding: 3px 8px; border-radius: 6px; background: rgb(255 255 255 / 0.08); color: #fff; }
+.s-dir-code .k { color: #b3a4ff; }
+.s-dir-tag { position: absolute; z-index: 1; padding: 7px 14px; border-radius: 12px; font: 800 14px/1 'Nunito Variable', var(--body); box-shadow: 0 10px 18px -10px rgb(0 0 0 / 0.6); }
+.s-dir-tag.is-react { top: 6px; left: 2%; background: #6d5ae0; color: #fff; rotate: -6deg; }
+.s-dir-tag.is-ts { top: 0; left: 28%; background: #fff; color: #2f2172; rotate: 3deg; }
+.s-dir-tag.is-next { top: 10px; left: 56%; background: #b3a4ff; color: #17151e; rotate: -3deg; }
+.s-dir-comp { position: absolute; z-index: 2; right: 0; bottom: 10px; display: grid; gap: 6px; padding: 9px 12px; border-radius: 14px; background: #fffaf2; color: var(--ink); box-shadow: 0 22px 34px -18px rgb(0 0 0 / 0.7); rotate: 2deg; }
+.s-dir-comp b { display: flex; align-items: center; gap: 8px; color: #2f2172; font: 800 15px/1 ui-monospace, Consolas, monospace; }
+.s-dir-comp em { padding: 3px 7px; border-radius: 999px; background: #2f2172; color: #fff; font: 900 10px/1 'Nunito Variable', var(--body); font-style: normal; }
+.s-dir-comp small { color: var(--muted); font-size: 11.5px; font-weight: 700; }
+.s-dir-book.is-cool { top: auto; right: auto; left: -6px; bottom: -26px; width: 54px; rotate: -10deg; z-index: 2; }
+/* декор темної картки */
+.s-dir-deco { position: absolute; inset: 0; pointer-events: none; }
+.s-dir-deco i { position: absolute; font-style: normal; }
+.s-dir-deco .is-plus { top: 14px; left: 46%; color: var(--hl); font: 900 22px/1 var(--body); }
+.s-dir-deco .is-ring { top: 18px; right: 22px; width: 28px; height: 28px; border-radius: 50%; box-shadow: inset 0 0 0 3px #6d5ae0; }
+.s-dir-deco .is-dot { bottom: 22px; left: 44%; width: 8px; height: 8px; border-radius: 50%; background: #3ddc6f; }
+.s-dir-deco .is-code { right: 22px; bottom: 16px; color: rgb(255 255 255 / 0.18); font: 800 22px/1 ui-monospace, Consolas, monospace; }
+.s-dir.is-dark > .s-dir-text, .s-dir.is-dark > .s-dir-art { position: relative; z-index: 1; }
+@media (min-width: 900px) {
+  /* ілюстрація ліворуч */
+  .s-dir.is-dark { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+  .s-dir.is-dark .s-dir-art { order: -1; }
+  .s-dir-art.is-pro { min-height: 0; padding: 50px 10px 40px 0; }
+}
+/* 900–1199: картка вже у дві колонки, текстова колонка вузька — чипи шляху компактніші, щоб стояли в ряд */
+@media (min-width: 900px) and (max-width: 1199.98px) { .s-dir-path { gap: 8px 18px; } .s-dir-path li { padding: 7px 10px; font-size: 13px; } .s-dir-path li + li::before { right: calc(100% + 3px); } }
+
+/* Картка «Python з нуля»: фіолетова, на тлі — рядки Python-коду, жовтий акцент */
+.s-dir.is-py { background: radial-gradient(60% 50% at 50% 100%, rgb(255 140 120 / 0.25), transparent 70%), linear-gradient(160deg, #3a2a9a, #2a1f73); color: #fff; }
+.s-dir-pybg { position: absolute; inset: 0; display: grid; align-content: start; gap: 14px; padding: 18px 20px; overflow: hidden; pointer-events: none;
+  color: rgb(255 255 255 / 0.07); font: 600 15px/1.5 ui-monospace, Consolas, monospace; white-space: pre; }
+.s-dir-pybg span:nth-child(even) { padding-left: 38px; }
+.s-dir.is-py > .s-dir-text, .s-dir.is-py > .s-dir-art { position: relative; z-index: 1; }
+.s-dir.is-py .s-dir-title { font-family: var(--display); font-size: clamp(30px, 8.6vw, 58px); letter-spacing: -0.05em; }
+.s-dir.is-py .s-dir-title em { color: #ffd43b; font-family: 'Nunito Variable', var(--body); letter-spacing: -0.02em; }
+.s-dir.is-py .s-dir-lead { color: rgb(255 255 255 / 0.85); }
+.s-dir-badges { display: inline-flex; align-items: center; gap: 10px; }
+.s-dir-badges small { color: #c9bfff; font: 700 14px/1 ui-monospace, Consolas, monospace; }
+.s-dir.is-py .s-dir-badge { background: #ffd43b; box-shadow: none; color: #1d1733; }
+.s-dir-wrap { color: #b3a4ff; font: 700 clamp(18px, 4.6vw, 24px)/1 ui-monospace, Consolas, monospace; }
+.s-dir-codeline { display: block; max-width: 100%; padding: 10px 14px; border-radius: 10px; background: #17151e; color: #fff; font: 600 clamp(11.5px, 3.2vw, 14px)/1.4 ui-monospace, Consolas, monospace; white-space: normal; }
+.s-dir-codeline u { color: #ffd43b; text-decoration: none; }
+.s-dir.is-py .btn.s-dir-more { background: transparent; color: #fff; box-shadow: inset 0 0 0 1.5px #c9bfff; }
+.s-dir.is-py .btn.s-dir-go { background: #ffd43b; color: #1d1733; }
+@media (hover: hover) { .s-dir.is-py .btn.s-dir-more:hover { background: rgb(255 255 255 / 0.1); } .s-dir.is-py .btn.s-dir-go:hover { background: #ffcb12; } }
+/* ілюстрація: змійка, знак Python, термінал */
+.s-dir-art.is-py { min-height: 250px; }
+.s-dir-pylogo { position: absolute; z-index: 2; top: 0; left: 36%; width: 56px; height: auto; rotate: 10deg; filter: drop-shadow(0 10px 14px rgb(0 0 0 / 0.35)); }
+.s-dir-snake { position: absolute; z-index: 1; top: 18px; right: 0; width: min(48%, 230px); height: auto; filter: drop-shadow(0 18px 20px rgb(0 0 0 / 0.35)); }
+.s-dir-term { position: absolute; z-index: 2; left: 0; bottom: 0; width: min(70%, 320px); border-radius: 14px; overflow: hidden; background: #17151e; box-shadow: 0 24px 40px -22px rgb(0 0 0 / 0.8); }
+.s-dir-term code { display: grid; gap: 8px; padding: 14px 18px 18px; color: #fff; font: 600 13.5px/1.3 ui-monospace, Consolas, monospace; white-space: pre; }
+.s-dir-term u { text-decoration: none; }
+.s-dir-term .p { color: #b3a4ff; } .s-dir-term .k { color: #ff9a55; } .s-dir-term .f { color: #ffd43b; } .s-dir-term .s { color: #86efac; }
+.s-dir-caret { display: inline-block; width: 9px; height: 16px; vertical-align: -3px; background: #ffd43b; animation: s-caret 1s steps(1) infinite; }
+@media (min-width: 900px) {
+  .s-dir.is-py { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+  /* ілюстрація зібрана щільно біля тексту, а не розкидана по колонці */
+  .s-dir.is-py { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .s-dir-art.is-py { justify-self: center; width: 100%; max-width: 520px; min-height: 340px; }
+  .s-dir-pylogo { left: 44%; width: 80px; }
+  .s-dir-snake { top: 30px; width: 220px; }
+  .s-dir-term { bottom: 10px; width: 320px; }
+}
+@media (prefers-reduced-motion: reduce) { .s-dir-caret { animation: none; } }
+
+/* Картка «Backend»: світла персикова, у клітинку; блоки з іконками, останній підсвічений */
+.s-dir.is-light { background-color: #fdf1e6; background-image: linear-gradient(rgb(47 33 114 / 0.05) 1px, transparent 1px), linear-gradient(90deg, rgb(47 33 114 / 0.05) 1px, transparent 1px); background-size: 28px 28px; }
+.s-dir.is-light .s-dir-badge { background: #17151e; box-shadow: none; color: #fff; }
+.s-dir.is-light .s-dir-feats li { background: #fff; box-shadow: inset 0 0 0 1px #eadfd1; color: var(--muted); }
+.s-dir.is-light .s-dir-feats li:last-child { background: #2f2172; box-shadow: none; color: rgb(255 255 255 / 0.75); }
+.s-dir.is-light .s-dir-feats b { color: var(--ink); }
+.s-dir.is-light .s-dir-feats li:last-child b { color: #fff; }
+.s-dir-feats svg { width: 22px; height: 22px; margin-bottom: 4px; fill: none; stroke: #2f2172; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.s-dir.is-light .s-dir-feats li:last-child svg { stroke: var(--hl); }
+.s-dir.is-dark .s-dir-feats svg { stroke: #b3a4ff; }
+.s-dir.is-light .btn.s-dir-more { background: #17151e; color: #fff; }
+.s-dir.is-light .btn.s-dir-go { background: var(--hl); color: #17151e; }
+@media (hover: hover) { .s-dir.is-light .btn.s-dir-more:hover { background: #2a2733; } .s-dir.is-light .btn.s-dir-go:hover { background: #f26b22; } }
+/* ілюстрація: схема бекенду */
+.s-dir-art.is-be { min-height: 330px; font-family: ui-monospace, Consolas, monospace; }
+.s-be-status { position: absolute; top: 0; left: 12%; color: #b9a48c; font-size: 12px; font-weight: 700; }
+.s-be-client { position: absolute; top: 26px; left: 0; display: grid; gap: 6px; width: 34%; max-width: 140px; padding: 0 0 12px; border-radius: 10px; overflow: hidden; background: #fff; box-shadow: 0 12px 22px -14px rgb(23 21 30 / 0.5); }
+.s-be-client .s-dir-code-bar { padding: 7px 10px; background: #f3ede4; }
+.s-be-client b { padding: 0 12px; color: var(--ink); font: 800 12px/1 'Nunito Variable', var(--body); }
+.s-be-client > i { height: 5px; margin: 0 12px; border-radius: 3px; background: #e9e1d5; }
+.s-be-arrow { position: absolute; top: 58px; left: calc(34% + 6px); width: 12%; border-top: 2.5px dashed #2f2172; }
+.s-be-arrow::after { content: ''; position: absolute; right: -2px; top: -6px; border: 5px solid transparent; border-left: 7px solid #2f2172; }
+.s-be-api { position: absolute; top: 6px; right: 0; display: grid; gap: 8px; width: 44%; max-width: 210px; padding: 12px; border-radius: 12px; background: #17151e; color: #e9e6f5; box-shadow: 0 18px 30px -18px rgb(23 21 30 / 0.8); font-size: 11.5px; }
+.s-be-api p { display: flex; justify-content: space-between; margin: 0; color: #b8b2cc; }
+.s-be-api em { color: #3ddc6f; font-style: normal; font-weight: 700; }
+.s-be-api > i { height: 16px; border-radius: 6px; background: #221e33; }
+.s-be-api code { overflow: hidden; white-space: nowrap; font-size: 11px; }
+.s-be-api u { color: #b3a4ff; text-decoration: none; font-weight: 800; } .s-be-api u.is-post { color: var(--hl); } .s-be-api b { color: #3ddc6f; margin-right: 6px; }
+.s-be-class { position: absolute; top: 116px; left: 4%; z-index: 1; width: 46%; max-width: 190px; border: 2px solid #2f2172; border-radius: 10px; overflow: hidden; background: #fff; rotate: -3deg; box-shadow: 0 14px 22px -14px rgb(23 21 30 / 0.5); font-size: 11.5px; }
+.s-be-class b { display: block; padding: 8px 10px; background: #2f2172; color: #fff; font: 800 13px/1 'Nunito Variable', var(--body); }
+.s-be-class p { display: grid; gap: 4px; margin: 0; padding: 8px 10px; color: var(--ink); }
+.s-be-class p + p { border-top: 1px solid #e7e1d8; }
+.s-be-class em { color: var(--hl); font-style: normal; margin-right: 4px; } .s-be-class em.is-pub { color: #2f2172; }
+.s-be-down { position: absolute; top: 140px; right: 20%; height: 40px; border-left: 2.5px dashed #2f2172; }
+.s-be-down::after { content: ''; position: absolute; left: -6px; bottom: -4px; border: 5px solid transparent; border-top: 7px solid #2f2172; }
+.s-be-db { position: absolute; top: 190px; right: 8%; display: grid; place-items: end center; width: 30%; max-width: 130px; height: 96px; padding-bottom: 14px;
+  border-radius: 50% / 18%; background: #2f2172; color: #fff; font: 800 13px/1 'Nunito Variable', var(--body); box-shadow: inset 0 18px 0 -6px #3e2c8f, 0 16px 22px -14px rgb(23 21 30 / 0.6); }
+.s-be-sql { position: absolute; z-index: 1; left: 2%; bottom: 0; padding: 10px 14px; border-radius: 10px; background: #17151e; color: #e9e6f5; font-size: 11.5px; line-height: 1.5; white-space: pre; box-shadow: 0 18px 30px -18px rgb(23 21 30 / 0.8); }
+.s-be-sql u { color: #b3a4ff; text-decoration: none; font-weight: 800; } .s-be-sql b { color: #ffd479; }
+.s-dir-book.is-happy { top: auto; right: -4px; bottom: -8px; width: 52px; rotate: 12deg; z-index: 2; }
+@media (max-width: 599.98px) { .s-be-db { top: 176px; } .s-be-down { height: 30px; } }
+@media (min-width: 600px) { .s-dir-art.is-be { min-height: 360px; } .s-be-api { font-size: 12px; } .s-dir-book.is-happy { right: 0; bottom: 4px; width: 80px; } }
+@media (min-width: 900px) { .s-dir-art.is-be { min-height: 380px; } }
+/* Python на телефоні й планшеті: змійка і знак — фоном картки (за текстом), під текстом лишається лише термінал */
+@media (max-width: 899.98px) {
+  .s-dir.is-py > .s-dir-art.is-py { position: static; min-height: 0; padding: 0; }
+  /* фон: знак — великий угорі праворуч, змійка — велика внизу праворуч (за терміналом і кнопками) */
+  .s-dir.is-py .s-dir-pylogo { top: -14px; bottom: auto; left: auto; right: -18px; width: 150px; opacity: 0.18; z-index: 0; rotate: 14deg; }
+  .s-dir.is-py .s-dir-snake { top: auto; bottom: -10px; right: -40px; width: 290px; opacity: 0.2; z-index: 0; }
+  .s-dir.is-py .s-dir-term { position: relative; z-index: 1; width: 100%; max-width: 340px; }
+}
+
+/* Картка «ШІ з нуля»: бузкове тло в крапку, ілюстрація ліворуч (від 900px) */
+.s-dir.is-bg-dots { background-color: #ece6ff; background-image: radial-gradient(rgb(47 33 114 / 0.14) 1.2px, transparent 1.4px); background-size: 22px 22px; }
+.s-dir.is-bg-dots .s-dir-badge { background: #2f2172; color: #fff; }
+.s-dir.is-bg-dots .s-dir-title { font-family: var(--display); letter-spacing: -0.05em; }
+@media (min-width: 900px) {
+  .s-dir.is-art-left { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .s-dir.is-art-left > .s-dir-art { order: -1; }
+}
+.s-dir-deco.is-ai .is-star { top: -30px; right: -30px; width: 150px; height: 150px; background: none; border: 0;
+  -webkit-mask: none; box-shadow: none; }
+.s-dir-deco.is-ai .is-star::before { content: '✦'; position: absolute; inset: 0; display: grid; place-items: center; color: rgb(109 90 224 / 0.25); font-size: 150px; line-height: 1; }
+.s-dir-deco.is-ai .is-ring { top: auto; bottom: 20px; right: 120px; width: 80px; height: 80px; box-shadow: none; border: 2px dashed rgb(109 90 224 / 0.35); border-radius: 50%; }
+.s-dir-deco.is-ai .is-dot { bottom: 50px; left: auto; right: 160px; background: var(--hl); width: 10px; height: 10px; }
+.s-dir.is-bg-dots > .s-dir-text, .s-dir.is-bg-dots > .s-dir-art { position: relative; z-index: 1; }
+/* ілюстрація ШІ */
+.s-dir-art.is-ai { min-height: 340px; }
+.s-ai-prompt { position: absolute; z-index: 3; top: 0; left: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px;
+  width: min(76%, 300px); padding: 12px 12px 12px 16px; border-radius: 16px; background: #fff; box-shadow: 0 16px 30px -18px rgb(23 21 30 / 0.5); }
+.s-ai-prompt small { grid-column: 1; color: var(--muted); font-size: 11px; font-weight: 700; }
+.s-ai-prompt p { grid-column: 1; margin: 0; color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.35; }
+.s-ai-prompt .s-dir-caret { width: 2px; height: 15px; margin-left: 2px; background: var(--ink); }
+.s-ai-send { grid-column: 2; grid-row: 1 / 3; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #2f2172; }
+.s-ai-send svg { width: 18px; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.s-ai-pic { position: absolute; z-index: 1; top: 64px; left: 30%; width: min(54%, 250px); aspect-ratio: 1 / 0.95; border: 7px solid #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 22px 34px -20px rgb(23 21 30 / 0.6); rotate: 2deg; }
+.s-ai-pic svg { display: block; width: 100%; height: 100%; }
+.s-ai-chip { position: absolute; top: 10px; right: 10px; padding: 5px 10px; border-radius: 999px; background: #fff; color: #2f2172; font: 800 11px/1 'Nunito Variable', var(--body); }
+.s-ai-video { position: absolute; z-index: 2; left: 0; bottom: 30px; width: min(54%, 230px); border-radius: 12px; overflow: hidden; background: #17151e; box-shadow: 0 20px 30px -18px rgb(23 21 30 / 0.7); rotate: -3deg; }
+.s-ai-frame { display: grid; place-items: center; aspect-ratio: 16 / 7; background: linear-gradient(170deg, #ff9a55 0%, #b17ad6 60%, #4935a5 100%); }
+.s-ai-play { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #fff; }
+.s-ai-play svg { width: 18px; fill: #17151e; }
+.s-ai-video p { display: flex; align-items: center; gap: 10px; margin: 0; padding: 8px 10px; color: #c9c3dd; font: 600 11px/1 ui-monospace, Consolas, monospace; }
+.s-ai-video p i { flex: 1; height: 4px; border-radius: 2px; background: #3a3550; }
+.s-ai-video p b { display: block; width: 45%; height: 100%; border-radius: inherit; background: var(--hl); }
+.s-ai-spark { position: absolute; z-index: 2; width: 26px; height: 26px; }
+.s-ai-spark path { fill: #2f2172; }
+.s-ai-spark.is-a { top: 30px; left: 78%; width: 34px; height: 34px; } .s-ai-spark.is-a path { fill: var(--hl); }
+.s-ai-spark.is-b { top: 150px; left: 22%; width: 20px; height: 20px; }
+.s-ai-spark.is-c { bottom: 14px; left: 40%; } .s-ai-spark.is-c path { fill: #9c87f5; }
+.s-ai-spark.is-d { bottom: 0; left: 64%; width: 44px; height: 44px; } .s-ai-spark.is-d path { fill: #fff; }
+.s-dir-art.is-ai .s-dir-book.is-happy { right: 6%; bottom: 0; }
+@media (min-width: 900px) { .s-dir-art.is-ai { min-height: 400px; } .s-ai-pic { top: 74px; } .s-ai-video { bottom: 40px; } }
+
+/* Картка «Комп'ютерна грамотність»: кремова, клавіші-декор, бейдж «Для дітей» стриманий */
+.s-dir.is-bg-keys { background: #f3eee7; }
+.s-dir.is-bg-keys .s-dir-badge { background: #fff; box-shadow: inset 0 0 0 1.5px #e3d9cc; color: var(--ink); }
+.s-dir-kicker { color: var(--muted); font: 800 15px/1.2 'Nunito Variable', var(--body); }
+.s-dir.is-bg-keys .s-dir-title { font-family: var(--display); letter-spacing: -0.05em; }
+.s-dir.is-bg-keys .s-dir-feats li { align-content: center; min-height: 76px; }
+.s-dir.is-bg-keys > .s-dir-text, .s-dir.is-bg-keys > .s-dir-art { position: relative; z-index: 1; }
+.s-dir-deco.is-keys i { padding: 6px 12px; border-radius: 8px; background: rgb(255 255 255 / 0.5); box-shadow: 0 3px 0 rgb(0 0 0 / 0.08), inset 0 0 0 1px rgb(0 0 0 / 0.06);
+  color: rgb(23 21 30 / 0.3); font: 800 12px/1 'Nunito Variable', var(--body); }
+.s-dir-deco.is-keys i:nth-child(1) { top: 18px; left: 18px; rotate: -12deg; }
+.s-dir-deco.is-keys i:nth-child(2) { top: 26px; left: 44%; rotate: 8deg; }
+.s-dir-deco.is-keys i:nth-child(3) { top: 14px; right: 30px; rotate: 10deg; }
+.s-dir-deco.is-keys i:nth-child(4) { bottom: 14px; left: 40%; padding: 8px 30px; rotate: -6deg; }
+/* монітор */
+.s-dir-art.is-pc { min-height: 320px; padding: 20px 0 0; }
+.s-pc-screen { position: relative; width: min(100%, 360px); margin: 0 auto; padding: 10px; border-radius: 16px; background: #17151e; box-shadow: 0 22px 34px -20px rgb(23 21 30 / 0.6); }
+.s-pc-desk { position: relative; height: 190px; border-radius: 8px; overflow: hidden; background: linear-gradient(160deg, #ece6ff, #c9bcff); }
+.s-pc-ico { position: absolute; left: 14px; display: grid; justify-items: center; gap: 3px; color: #2f2172; font: 700 10px/1 'Nunito Variable', var(--body); }
+.s-pc-ico i { width: 28px; height: 22px; border-radius: 4px; }
+.s-pc-ico.is-folder { top: 12px; } .s-pc-ico.is-folder i { background: #ffa45a; }
+.s-pc-ico.is-file { top: 60px; } .s-pc-ico.is-file i { width: 20px; height: 26px; background: #fff; box-shadow: inset 0 0 0 1px #d6cff0; }
+.s-pc-ico.is-paint { top: 108px; } .s-pc-ico.is-paint i { width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ff8fa3 0 3px, #ffd479 3px 6px, #3ddc6f 6px 9px, #2f2172 9px); }
+.s-pc-win { position: absolute; top: 18px; left: 34%; right: 14px; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: 0 10px 20px -12px rgb(23 21 30 / 0.5); }
+.s-pc-win p { display: flex; align-items: center; gap: 5px; margin: 0; padding: 6px 8px; background: #2f2172; }
+.s-pc-win p b { flex: 1; color: #fff; font: 700 10px/1 'Nunito Variable', var(--body); }
+.s-pc-win p i { width: 7px; height: 7px; border-radius: 50%; background: #3ddc6f; } .s-pc-win p i + i { background: #ffd479; }
+.s-pc-win span { display: block; padding: 12px 10px; color: var(--ink); font: 900 clamp(12px, 3.6vw, 16px)/1 'Nunito Variable', var(--body); }
+.s-pc-win em { display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -2px; background: var(--hl); animation: s-caret 1s steps(1) infinite; }
+.s-pc-cursor { position: absolute; top: 74px; left: 22%; width: 26px; fill: var(--hl); stroke: #fff; stroke-width: 1.6; stroke-linejoin: round; }
+.s-pc-bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #2f2172; }
+.s-pc-bar i { width: 11px; height: 11px; border-radius: 3px; background: var(--hl); } .s-pc-bar i:nth-child(2) { background: #9c87f5; } .s-pc-bar i:nth-child(3) { background: #fff; }
+.s-pc-bar span { margin-left: auto; color: #fff; font: 600 10px/1 ui-monospace, Consolas, monospace; }
+.s-pc-stand { display: block; width: 60px; height: 22px; margin: 0 auto; background: #17151e; }
+.s-pc-stand::after { content: ''; display: block; width: 130px; height: 9px; margin: 21px 0 0 -35px; border-radius: 6px; background: #17151e; }
+.s-pc-kb { display: grid; grid-template-columns: repeat(11, 1fr); gap: 4px; width: min(80%, 290px); margin: 22px auto 0 4%; padding: 10px; border-radius: 12px; background: #fff; box-shadow: 0 12px 20px -14px rgb(23 21 30 / 0.5); }
+.s-pc-kb i { aspect-ratio: 1.2; border-radius: 3px; background: #efe8de; } .s-pc-kb i.is-lit { background: var(--hl); }
+.s-pc-kb b { grid-column: span 2; height: 12px; border-radius: 3px; background: #efe8de; }
+.s-pc-kb b.is-space { grid-column: span 6; } .s-pc-kb b.is-dark { grid-column: span 3; background: #2f2172; }
+.s-pc-mouse { position: absolute; right: 6%; bottom: 20px; width: 34px; height: 50px; border-radius: 18px; background: #fff; box-shadow: 0 10px 16px -10px rgb(23 21 30 / 0.5); }
+.s-pc-mouse::after { content: ''; position: absolute; top: 8px; left: 50%; width: 3px; height: 10px; margin-left: -1.5px; border-radius: 2px; background: var(--hl); }
+.s-dir-art.is-pc .s-dir-book.is-happy { top: 0; right: 0; bottom: auto; width: 60px; rotate: 14deg; }
+@media (min-width: 600px) { .s-pc-desk { height: 210px; } .s-dir-art.is-pc .s-dir-book.is-happy { width: 80px; } }
+@media (min-width: 900px) { .s-dir-art.is-pc { min-height: 400px; } .s-pc-screen { width: 380px; } }
+@media (prefers-reduced-motion: reduce) { .s-pc-win em { animation: none; } }
+
+/* ───────── Живі ілюстрації напрямків ───────── */
+/* Книжка в кутку — 3D, як на заставці входу: обкладинка повертається навколо корінця, сторінка гортається туди й назад.
+   Темп (--lb-t) і зсув (--lb-d) у кожної книжки свої */
+.lb { display: block; aspect-ratio: 70 / 80; height: auto; perspective: 320px; transform-style: preserve-3d; }
+.lb > i, .lb > span { position: absolute; display: block; }
+.lb-block { left: 12%; top: 7%; width: 80%; height: 89%; border-radius: 3px 7px 7px 3px;
+  background: linear-gradient(90deg, #efe5d6 0 88%, #e2d6c3 88% 89%, #efe5d6 89% 93%, #e2d6c3 93% 94%, #efe5d6 94%); }
+.lb-page, .lb-flip { left: 6%; top: 5%; width: 74%; height: 87%; }
+.lb-page { border-radius: 2px 6px 6px 2px; background: repeating-linear-gradient(180deg, transparent 0 16%, #e8dece 16% 18%) 14% 22% / 72% 50% no-repeat, #f8f3ea; }
+.lb-flip, .lb-cover { transform-origin: 0 50%; transform-style: preserve-3d; }
+.lb-flip > i, .lb-cover > i { position: absolute; inset: 0; display: block; backface-visibility: hidden; border-radius: 2px 6px 6px 2px; }
+.lb-face-f { background: #fbf7f0; }
+.lb-face-b { background: #f3ece1; transform: rotateY(180deg); }
+.lb-cover { left: 6%; top: 5%; width: 74%; height: 88%; }
+.lb-cover-f { background: #f47a2e; box-shadow: inset 6px 0 0 #d65f1d; }
+.lb-cover-f svg { display: block; width: 100%; height: 100%; }
+.lb-cover-b { background: #f3ece1; box-shadow: inset 0 0 0 3px #f47a2e; transform: rotateY(180deg); }
+.lb-cover { animation: lb-cover var(--lb-t, 7s) var(--lb-d, 0s) ease-in-out infinite; }
+.lb-flip { animation: lb-flip var(--lb-t, 7s) var(--lb-d, 0s) ease-in-out infinite; }
+@keyframes lb-cover { 0%, 28% { transform: rotateY(0); } 40%, 78% { transform: rotateY(-176deg); } 90%, 100% { transform: rotateY(0); } }
+@keyframes lb-flip { 0%, 44% { transform: rotateY(0); } 54%, 60% { transform: rotateY(-174deg); } 70%, 100% { transform: rotateY(0); } }
+
+/* Python: знак злегка парить, змійка похитується шиєю, водить очима й висуває язик */
+.s-dir-pylogo { animation: py-float 4s ease-in-out infinite; }
+@keyframes py-float { 0%, 100% { translate: 0 0; rotate: 10deg; } 50% { translate: 0 -10px; rotate: 6deg; } }
+.sn-head { transform-origin: 140px 92px; animation: sn-sway 3.6s ease-in-out infinite; }
+@keyframes sn-sway { 0%, 100% { transform: rotate(0) translate(0, 0); } 30% { transform: rotate(-8deg) translate(-3px, 0); } 70% { transform: rotate(7deg) translate(3px, 0); } }
+.sn-body { transform-origin: 120px 240px; animation: sn-breathe 3.6s ease-in-out infinite; }
+@keyframes sn-breathe { 50% { transform: scale(1.015, 0.985); } }
+.sn-eyes { animation: sn-look 5s ease-in-out infinite; }
+@keyframes sn-look { 0%, 20% { transform: translate(0, 0); } 30%, 45% { transform: translate(-3px, 0); } 55%, 70% { transform: translate(3px, -1px); } 80%, 100% { transform: translate(0, 0); } }
+.sn-tongue { transform-origin: 144px 78px; transform: scaleY(0); animation: sn-tongue 2.8s ease-in-out infinite; }
+@keyframes sn-tongue { 0%, 60% { transform: scaleY(0); } 66%, 72% { transform: scaleY(1); } 76% { transform: scaleY(0.3); } 80% { transform: scaleY(1); } 86%, 100% { transform: scaleY(0); } }
+@media (min-width: 900px) {
+  /* щільніше: термінал ліворуч знизу, змійка поруч праворуч, знак — більший, над ними */
+  .s-dir-art.is-py { max-width: 600px; min-height: 400px; }
+  .s-dir-pylogo { top: -6px; left: 26%; width: 160px; }
+  .s-dir-snake { top: auto; bottom: -6px; right: -10px; width: 320px; }
+  .s-dir-term { bottom: 26px; width: 320px; }
+}
+
+/* ШІ: зірочки мерехтять, картинка й відео злегка пливуть, у відео біжить прогрес, кнопка надсилання пульсує */
+.s-ai-spark { animation: ai-twinkle 2.4s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+.s-ai-spark.is-b { animation-delay: -0.6s; } .s-ai-spark.is-c { animation-delay: -1.2s; } .s-ai-spark.is-d { animation-delay: -1.8s; }
+@keyframes ai-twinkle { 0%, 100% { scale: 1; rotate: 0deg; opacity: 1; } 50% { scale: 0.7; rotate: 25deg; opacity: 0.7; } }
+.s-ai-pic { animation: ai-float 6s ease-in-out infinite; }
+.s-ai-video { animation: ai-float 6s ease-in-out -3s infinite; }
+@keyframes ai-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
+.s-ai-video p b { animation: ai-progress 8s linear infinite; }
+@keyframes ai-progress { from { width: 0; } to { width: 100%; } }
+.s-ai-send { animation: ai-pulse 2s ease-in-out infinite; }
+@keyframes ai-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgb(47 33 114 / 0.4); } 50% { box-shadow: 0 0 0 8px rgb(47 33 114 / 0); } }
+.s-ai-chip { animation: ai-chip 4s ease-in-out infinite; }
+@keyframes ai-chip { 0%, 70%, 100% { scale: 1; } 78% { scale: 1.12; } 86% { scale: 1; } }
+
+/* клавіатура: підсвічена клавіша плавно гасне */
+.s-pc-kb i { transition: background-color 0.25s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-cover, .lb-flip, .s-dir-pylogo, .sn-head, .sn-body, .sn-eyes, .sn-tongue,
+  .s-ai-spark, .s-ai-pic, .s-ai-video, .s-ai-video p b, .s-ai-send, .s-ai-chip { animation: none !important; }
+}
+
+/* бейджі: «гарячий» (помаранчевий) і простий (білий з обводкою) */
+.s-dir .s-dir-badge.is-hot { background: var(--hl); box-shadow: none; color: #17151e; }
+.s-dir .s-dir-badge.is-plain { background: #fff; box-shadow: inset 0 0 0 1.5px #e7e1d8; color: var(--ink); }
+
+/* Картка «Програмуємо граючись»: кремова з бузковим колом і кольоровими фігурами */
+.s-dir.is-bg-play { background: #fdf1e6; }
+.s-dir.is-bg-play .s-dir-title { font-family: 'Nunito Variable', var(--body); font-weight: 900; letter-spacing: -0.03em; }
+.s-dir.is-bg-play > .s-dir-text, .s-dir.is-bg-play > .s-dir-art { position: relative; z-index: 1; }
+.s-dir.is-bg-play .s-dir-feats li { align-content: center; min-height: 76px; }
+.s-dir-deco.is-play .is-circle { top: -60px; right: -60px; width: 260px; height: 260px; border-radius: 50%; background: #e7defd; }
+.s-dir-deco.is-play .is-blk { top: 20px; left: 46%; width: 70px; height: 34px; border-radius: 8px; background: #fbd3b2; rotate: -8deg; opacity: 0.8; }
+.s-dir-deco.is-play .is-blk.is-2 { top: auto; bottom: 30px; left: 3%; background: #fbd3b2; rotate: 8deg; }
+.s-dir-deco.is-play .is-blk.is-3 { top: auto; bottom: 24px; left: auto; right: 6%; width: 90px; background: none; box-shadow: inset 0 0 0 2px #c9b8f7; border-radius: 6px; rotate: -4deg; }
+.s-dir-deco.is-play .is-dot { bottom: 50px; left: 50%; width: 12px; height: 12px; border-radius: 50%; background: #3ddc6f; }
+/* блоки-команди */
+.s-dir-art.is-scratch { min-height: 400px; font-family: 'Nunito Variable', var(--body); }
+.s-sc-stack { position: relative; z-index: 1; display: grid; justify-items: start; width: min(78%, 300px); }
+.s-sc-b { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; color: #fff; font-size: 13.5px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 0 rgb(0 0 0 / 0.12); }
+.s-sc-b em { padding: 3px 9px; border-radius: 999px; background: #fff; color: var(--ink); font-style: normal; }
+.s-sc-b.is-event { background: var(--hl); border-radius: 18px 18px 10px 10px; color: #17151e; }
+.s-sc-b.is-ctrl { background: #ffcf3f; color: #17151e; }
+.s-sc-b.is-motion { margin-left: 14px; background: #2f2172; }
+.s-sc-b.is-looks { margin-left: 14px; background: #8a73f0; }
+.s-sc-b.is-sound { background: #4ee08a; color: #17151e; }
+.s-sc-loop { display: grid; justify-items: start; padding-bottom: 0; border-left: 14px solid #ffcf3f; border-radius: 10px 0 0 10px; }
+.s-sc-loop > .s-sc-b.is-ctrl { margin-left: -14px; border-radius: 10px 10px 10px 0; }
+.s-sc-loop-end { display: block; width: 150px; height: 16px; margin-left: -14px; border-radius: 0 0 10px 10px; background: #ffcf3f; }
+.s-sc-flag { display: inline-block; width: 14px; height: 14px; background: linear-gradient(#4ee08a, #4ee08a) 2px 0 / 2px 100% no-repeat, linear-gradient(135deg, #4ee08a 50%, transparent 50%) 4px 0 / 10px 8px no-repeat; }
+.s-sc-stop { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--hl); }
+.s-sc-drag { position: absolute; z-index: 2; top: 20px; right: 4%; rotate: 6deg; animation: sc-drag 3.6s ease-in-out infinite; }
+@keyframes sc-drag { 0%, 100% { translate: 0 0; } 50% { translate: -6px 6px; } }
+.s-sc-cursor { position: absolute; z-index: 3; top: 46px; right: 2%; width: 30px; fill: #17151e; stroke: #fff; stroke-width: 1.4; stroke-linejoin: round; animation: sc-drag 3.6s ease-in-out infinite; }
+/* сцена */
+.s-sc-stage { position: absolute; z-index: 2; right: 0; bottom: 0; width: min(64%, 270px); border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 22px 34px -20px rgb(23 21 30 / 0.55); rotate: 2deg; }
+.s-sc-stage p { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 12px; border-bottom: 1px solid #eee7dc; }
+.s-sc-stage p span { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 800; }
+.s-sc-scene { position: relative; height: 170px; background: linear-gradient(#f3efff, #e9e2ff); overflow: hidden; }
+.s-sc-scene::after { content: ''; position: absolute; left: -10%; right: -10%; bottom: -30px; height: 60px; border-radius: 50%; background: #c9b8f7; }
+.s-sc-cloud { position: absolute; top: 18px; left: 12%; width: 40px; height: 14px; border-radius: 8px; background: #fff; }
+.s-sc-cloud.is-2 { top: 34px; left: auto; right: 14%; width: 30px; }
+.s-sc-arc { position: absolute; left: 10%; bottom: 30px; width: 46%; fill: none; stroke: var(--hl); stroke-width: 2; stroke-dasharray: 4 4; }
+.s-sc-hero { position: absolute; z-index: 1; left: 44%; bottom: 26px; width: 52px; animation: sc-jump 2.4s ease-in-out infinite; }
+.s-sc-hero .s-dir-book { position: static; width: 100%; rotate: -6deg; filter: drop-shadow(0 6px 6px rgb(23 21 30 / 0.25)); }
+@keyframes sc-jump { 0%, 60%, 100% { translate: 0 0; } 75% { translate: 0 -22px; } 88% { translate: 0 0; } }
+.s-sc-say { position: absolute; z-index: 1; right: 8%; bottom: 72px; padding: 6px 10px; border-radius: 10px; background: #fff; box-shadow: inset 0 0 0 2px #2f2172; color: #2f2172; font-size: 13px; font-weight: 900; }
+@media (min-width: 900px) { .s-dir-art.is-scratch { min-height: 420px; } .s-sc-stage { width: 300px; } .s-sc-scene { height: 190px; } }
+@media (prefers-reduced-motion: reduce) { .s-sc-drag, .s-sc-cursor, .s-sc-hero { animation: none; } }
+
+/* Компʼютер: шари-обгортки нічого не міняють — елементи позиціонуються відносно ілюстрації */
+.s-be-top, .s-be-rest, .s-ai-bg { display: contents; }
+/* Телефон і планшет: частина ілюстрації — фоном картки (вище й правіше, напівпрозора), картка нижча */
+@media (max-width: 899.98px) {
+  /* ШІ: картинка, відео й зірочки — фоном угорі праворуч; лишається промпт і книжка */
+  .s-dir.is-bg-dots > .s-dir-art.is-ai { position: static; min-height: 0; padding: 0; }
+  .s-dir.is-bg-dots .s-ai-bg { display: block; position: absolute; z-index: 0; inset: 0; opacity: 0.16; pointer-events: none; }
+  .s-dir.is-bg-dots .s-ai-pic { top: 64px; left: auto; right: -26px; width: 180px; }
+  .s-dir.is-bg-dots .s-ai-video { top: 196px; bottom: auto; left: auto; right: 70px; width: 160px; }
+  .s-dir.is-bg-dots .s-ai-prompt { position: relative; width: 100%; max-width: 360px; }
+  .s-dir.is-bg-dots .s-dir-art .s-dir-book.is-happy { position: absolute; top: 18px; right: 18px; bottom: auto; width: 60px; opacity: 0.3; }
+  /* Backend: клас, база й SQL — фоном; лишається «Клієнт → api-server» */
+  .s-dir.is-light > .s-dir-art.is-be { position: static; min-height: 0; padding: 0; }
+  .s-dir.is-light .s-be-top { display: block; position: relative; z-index: 1; height: 150px; }
+  .s-dir.is-light .s-be-rest { display: block; position: absolute; z-index: 0; inset: 0; opacity: 0.14; pointer-events: none; }
+  .s-dir.is-light .s-be-class { top: 30px; left: auto; right: -30px; }
+  .s-dir.is-light .s-be-db { top: 150px; right: 18px; }
+  .s-dir.is-light .s-be-down { display: none; }
+  .s-dir.is-light .s-be-sql { top: 268px; bottom: auto; left: auto; right: -40px; }
+  .s-dir.is-light .s-dir-art.is-be .s-dir-book.is-happy { position: absolute; top: 18px; right: 18px; bottom: auto; width: 60px; opacity: 0.3; }
+  /* Програмуємо граючись: сцена не налазить на блоки й кнопки */
+  /* Програмуємо граючись: сцена — фоном позаду блоків, картка нижча */
+  .s-dir-art.is-scratch { min-height: 0; }
+  .s-sc-stage { z-index: 0; top: -40px; bottom: auto; right: -40px; width: 240px; opacity: 0.18; pointer-events: none; }
+}
+
+/* книжка-актор на сцені не розгортається — лише стрибає */
+.lb.is-still .lb-cover, .lb.is-still .lb-flip { animation: none; }
+.s-pc-bg { display: contents; }
+@media (max-width: 899.98px) {
+  /* Комп'ютерна грамотність: клавіатура, мишка й книжка — фоном; лишається монітор */
+  .s-dir.is-bg-keys > .s-dir-art.is-pc { position: static; min-height: 0; padding: 0; }
+  .s-dir.is-bg-keys .s-pc-bg { display: block; position: absolute; z-index: 0; inset: 0; opacity: 0.16; pointer-events: none; }
+  .s-dir.is-bg-keys .s-pc-kb { position: absolute; top: 96px; right: -50px; width: 250px; margin: 0; rotate: -8deg; }
+  .s-dir.is-bg-keys .s-pc-mouse { top: 40px; bottom: auto; right: 22px; }
+  .s-dir.is-bg-keys .s-pc-bg .s-dir-book.is-happy { top: 210px; right: 24px; bottom: auto; width: 70px; }
+}
+
+@media (max-width: 899.98px) {
+  /* Backend: книжки на телефоні й планшеті немає */
+  .s-dir.is-light .s-dir-art.is-be .s-dir-book.is-happy { display: none; }
+  /* Комп'ютерна грамотність: підставка монітора — теж фоном */
+  .s-dir.is-bg-keys .s-pc-stand { position: absolute; z-index: 0; top: 70px; right: 30px; opacity: 0.14; }
+}
+/* PRO на телефоні: книжка — у верхньому правому куті ілюстрації, не над кнопками */
+@media (max-width: 599.98px) { .s-dir-book.is-cool { top: -4px; right: -6px; left: auto; bottom: auto; width: 46px; rotate: 10deg; } }

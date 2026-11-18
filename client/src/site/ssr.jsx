@@ -9,6 +9,7 @@ import { SeoSinkCtx } from './ctx.js';
 import { SiteApp } from './Site.jsx';
 
 export * from './seo.js';
+export { SITE_DIRECTIONS } from './directions.js';
 
 /** HTML сторінки за адресою url і її мета (title, description, JSON-LD), яку сторінка віддала через useSeo. */
 export function render(url, boot) {

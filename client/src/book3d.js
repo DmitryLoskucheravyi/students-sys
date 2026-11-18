@@ -145,15 +145,67 @@ function shadowTexture() {
   });
 }
 
-/** Чиста сторінка маскота: папір і тінь біля корінця. */
-function blankPage(gutter) {
-  return texture(256, 366, (g, w, h) => {
-    g.fillStyle = PAPER; g.fillRect(0, 0, w, h);
-    const gx = gutter === 'left' ? 0 : w;
-    const sh = g.createLinearGradient(gx, 0, gutter === 'left' ? 48 : w - 48, 0);
+/* ───────── Обличчя маскота: малюється прямо на сторінках ─────────
+ * Обличчя лежить на розвороті: ліве око й половина рота на лівій сторінці, решта — на правій.
+ * Координати — як у колишньому SVG (viewBox 120×116, сторінки від y=16 до y=88, розворот від x=9 до x=111).
+ */
+const INK = '#1d1733';
+const FACES = ['smile', 'wink', 'surprised', 'happy'];
+const FW = 512; const FH = 732; // полотно однієї сторінки (пропорції W:H)
+const FK = (2 * FW) / 102;      // одиниця SVG → пікселі полотна: розворот 102 одиниці на дві сторінки
+
+/** Вираз kind у координатах SVG. blink: очі-крапки на мить заплющені. */
+function drawFace(g, kind, blink) {
+  const line = (d, width = 2.6) => {
+    g.lineWidth = width; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = INK; g.stroke(new Path2D(d));
+  };
+  const dot = (x, y, r) => {
+    if (blink) { line(`M${x - r} ${y} L${x + r} ${y}`); return; }
+    g.fillStyle = INK; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+  };
+  if (kind === 'happy') { line('M45 47 Q49 42 53 47'); line('M67 47 Q71 42 75 47'); }
+  else if (kind === 'surprised') { dot(49, 46, 4.6); dot(71, 46, 4.6); line('M44 37 Q49 34 54 37 M66 37 Q71 34 76 37', 2.2); }
+  else if (kind === 'wink') { dot(49, 46, 3.8); line('M67 46.5 Q71 43.5 75 46.5'); }
+  else { dot(49, 46, 3.8); dot(71, 46, 3.8); }
+  g.globalAlpha = 0.6; g.fillStyle = '#ff8fa3';
+  [40, 80].forEach((x) => { g.beginPath(); g.arc(x, 57, 3.6, 0, Math.PI * 2); g.fill(); });
+  g.globalAlpha = 1;
+  if (kind === 'surprised') line('M56.6 59 A3.4 4 0 1 0 63.4 59 A3.4 4 0 1 0 56.6 59');
+  else if (kind === 'happy') { g.fillStyle = INK; g.fill(new Path2D('M51 55 Q60 66 69 55 Z')); }
+  else line('M53 56 Q60 63 67 56');
+}
+
+/**
+ * Сторінка маскота — полотно, яке можна перемальовувати: папір, тінь біля корінця й половина обличчя.
+ * gutter: де корінець; mirror: зворотний бік сторінки (текстура дзеркалиться, тож малюємо як бачить глядач).
+ * tex.paint(kind, blink): kind — вираз або null (чиста сторінка).
+ */
+function facePage(gutter, mirror = false) {
+  const c = document.createElement('canvas');
+  c.width = FW; c.height = FH;
+  const g = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  tex.paint = (kind, blink = false) => {
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    if (mirror) { g.translate(FW, 0); g.scale(-1, 1); }
+    g.fillStyle = PAPER; g.fillRect(0, 0, FW, FH);
+    const gx = gutter === 'left' ? 0 : FW;
+    const sh = g.createLinearGradient(gx, 0, gutter === 'left' ? 96 : FW - 96, 0);
     sh.addColorStop(0, 'rgba(120, 90, 70, 0.3)'); sh.addColorStop(1, 'rgba(120, 90, 70, 0)');
-    g.fillStyle = sh; g.fillRect(0, 0, w, h);
-  });
+    g.fillStyle = sh; g.fillRect(0, 0, FW, FH);
+    if (kind) {
+      // Ліва сторінка показує x від 9 до 60, права — від 60 до 111
+      g.translate(gutter === 'right' ? 0 : -FW, 0);
+      g.scale(FK, FK);
+      g.translate(-9, -16);
+      drawFace(g, kind, blink);
+    }
+    tex.needsUpdate = true;
+  };
+  tex.paint(null);
+  return tex;
 }
 
 /** Помаранчева обкладинка маскота сайту: тканина, темніша смуга біля корінця, світлий знак. */
@@ -183,9 +235,9 @@ function buildBook({ mascot = false } = {}) {
   const front = new THREE.MeshStandardMaterial({ map: mascot ? mascotCover(true) : coverTexture(true), roughness: 0.7 });
   const back = new THREE.MeshStandardMaterial({ map: mascot ? mascotCover(false) : coverTexture(false), roughness: 0.7 });
   const spineMat = new THREE.MeshStandardMaterial({ color: mascot ? '#d65f1d' : RED, roughness: 0.6 });
-  // Сторінки: у маскота чисті (на них обличчя), на заставці входу — з кодом
+  // Сторінки: у маскота — полотна, на яких малюється обличчя (paint), на заставці входу — з кодом
   const pageMat = (lines, gutter, n, mirror) => new THREE.MeshStandardMaterial({
-    map: mascot ? blankPage(mirror ? 'right' : gutter) : pageTexture(lines, gutter, n, mirror), color: PAGE_TINT, roughness: 0.9 });
+    map: mascot ? facePage(mirror ? 'right' : gutter, mirror) : pageTexture(lines, gutter, n, mirror), color: PAGE_TINT, roughness: 0.9 });
 
   const book = new THREE.Group();     // корінець у (0, 0, 0), сторінки лежать у площині XY, обличчям до камери (+z)
   const pivotZ = T / 2;               // вісь, навколо якої обертаються ліва половина й сторінки
@@ -196,8 +248,8 @@ function buildBook({ mascot = false } = {}) {
   backCover.position.set((W + O) / 2, 0, -C / 2);
   const blockGeo = new THREE.BoxGeometry(W, H, T / 2);
   // Порядок граней Box: +x, -x, +y, -y, +z, -z
-  const rightBlock = new THREE.Mesh(blockGeo, [edgeU, paper, edgeV, edgeV,
-    pageMat(PAGE_TEXT[3], 'left', 8), paper]);
+  const rightPage = pageMat(PAGE_TEXT[3], 'left', 8);
+  const rightBlock = new THREE.Mesh(blockGeo, [edgeU, paper, edgeV, edgeV, rightPage, paper]);
   rightBlock.position.set(W / 2, 0, T / 4);
   book.add(backCover, rightBlock);
 
@@ -206,8 +258,8 @@ function buildBook({ mascot = false } = {}) {
   left.position.z = pivotZ;
   const frontCover = new THREE.Mesh(coverGeo, [cloth, cloth, cloth, cloth, endpaper, front]);
   frontCover.position.set(-(W + O) / 2, 0, -C / 2 - pivotZ);
-  const leftBlock = new THREE.Mesh(blockGeo, [paper, edgeU, edgeV, edgeV,
-    pageMat(PAGE_TEXT[0], 'right', 1), paper]);
+  const leftPage = pageMat(PAGE_TEXT[0], 'right', 1);
+  const leftBlock = new THREE.Mesh(blockGeo, [paper, edgeU, edgeV, edgeV, leftPage, paper]);
   leftBlock.position.set(-W / 2, 0, T / 4 - pivotZ);
   left.add(frontCover, leftBlock);
   book.add(left);
@@ -231,13 +283,18 @@ function buildBook({ mascot = false } = {}) {
     g.position.z = pivotZ;
     g.add(new THREE.Mesh(geo, frontMat), new THREE.Mesh(geo, backMat));
     book.add(g);
-    pages.push({ geo, base, offset: 0.006 * (PAGES - i) });
+    // Праворуч верхня — перша сторінка, ліворуч вона ж лягає найнижче
+    pages.push({ geo, base, group: g, front: frontMat.map, back: backMat.map, offR: 0.006 * (PAGES - i), offL: 0.006 * (i + 1) });
   }
 
-  /** Вигин сторінки: кут θ від 0 (праворуч) до π (ліворуч), край відстає від корінця. */
-  const bendPage = (p, theta) => {
+  /**
+   * Вигин сторінки: f — перегорнутість 0..1, кут θ = π·o·f (ліва половина розгорнута на π·o,
+   * тож сторінка лягає саме на неї, а не провалюється в лівий блок). Край відстає від корінця.
+   */
+  const bendPage = (p, f, o) => {
+    const theta = Math.PI * o * f;
     const pos = p.geo.attributes.position;
-    const curl = 0.95 * Math.sin(theta);
+    const curl = 0.95 * Math.sin(Math.PI * f);
     const ds = W / SEG;
     let x = 0; let z = 0;
     const xs = [0]; const zs = [0];
@@ -246,8 +303,10 @@ function buildBook({ mascot = false } = {}) {
       x += ds * Math.cos(phi); z += ds * Math.sin(phi);
       xs.push(x); zs.push(z);
     }
-    // Зсув по нормалі: верхня сторінка праворуч стає нижньою ліворуч
-    const nx = -Math.sin(theta) * p.offset; const nz = Math.cos(theta) * p.offset;
+    // Зсув по нормалі: праворуч — над правим блоком, ліворуч — над лівим (нормаль сторінки там дивиться вниз,
+    // тому знак міняється). Раніше зсув лишався «вниз» і перегорнута сторінка ховалась у лівому блоці.
+    const off = lerp(p.offR, -p.offL, f);
+    const nx = -Math.sin(theta) * off; const nz = Math.cos(theta) * off;
     for (let v = 0; v < pos.count; v++) {
       const col = Math.round((p.base[v * 3] / W) * SEG);
       pos.setXYZ(v, xs[col] + nx, p.base[v * 3 + 1], zs[col] + nz);
@@ -263,7 +322,7 @@ function buildBook({ mascot = false } = {}) {
     const depth = lerp(0.02, T + 2 * C, closed);
     spine.scale.z = depth;
     spine.position.z = -C + depth / 2;
-    pages.forEach((p, i) => bendPage(p, Math.PI * flips[i] * 0.985));
+    pages.forEach((p, i) => bendPage(p, flips[i], o));
   };
 
   const dispose = () => book.traverse((m) => {
@@ -271,7 +330,8 @@ function buildBook({ mascot = false } = {}) {
     m.geometry.dispose();
     (Array.isArray(m.material) ? m.material : [m.material]).forEach((mat) => { mat.map?.dispose(); mat.dispose(); });
   });
-  return { book, pose, dispose };
+  const sheets = { left: leftPage.map, right: rightPage.map, pages };
+  return { book, pose, dispose, sheets };
 }
 
 /*
@@ -427,14 +487,18 @@ export function mountBook(el, { still = false, startAt = performance.now() } = {
 /* ───────── Маскот сайту ───────── */
 
 const MASCOT_OPEN = 0.8; // не до кінця: стоїть розгорнута «галочкою» до глядача
-const ENTER_MS = 2400;
-const FLIP_MS = 650;
+const ENTER_MS = 3200;
+const FLIP_MS = 700;     // як одна сторінка на заставці входу
+const BLINK_EVERY = 4200;
+const BLINK_MS = 130;
 
 /**
- * Та сама книжка в ролі маскота сайту: на всю площу елемента, без шляху через екран.
- * Поява як на заставці входу: закрита залітає з-за краю, крутиться й осідає на місце, розгортається.
- * Далі стоїть розгорнута; flip() перегортає верхню сторінку туди й назад (під зміну міміки).
- * Повертає { flip, destroy }. still: одразу розгорнута, без руху.
+ * Та сама книжка в ролі маскота сайту. Полотно ширше за маскота (.bk3d виходить за його межі ліворуч, угору й униз),
+ * щоб книжка залітала здалеку, а не вигулькувала з невидимого краю.
+ * Поява як на заставці входу: закрита вилітає знизу зліва з обертом, розгортається, гортає три сторінки —
+ * на останній зʼявляється обличчя. Далі ширяє (CSS) і кожним flip() перегортає сторінку: під нею вже намальований
+ * наступний вираз, тож міміка міняється разом зі сторінкою, а не поверх неї. Очі час від часу кліпають.
+ * Повертає { flip, destroy }. still: одразу розгорнута з обличчям, без руху.
  */
 export function mountMascot(el, { still = false } = {}) {
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'low-power' });
@@ -453,79 +517,135 @@ export function mountMascot(el, { still = false } = {}) {
   rim.position.set(6, -3, 4);
   scene.add(rim);
 
-  const { book, pose, dispose } = buildBook({ mascot: true });
+  const { book, pose, dispose, sheets } = buildBook({ mascot: true });
   const holder = new THREE.Group();
   const turn = new THREE.Group();
   const center = new THREE.Group();
   center.add(book); turn.add(center); holder.add(turn);
   scene.add(holder);
 
-  let halfH = 1;
+  // Де маскот на полотні: полотно більше за обгортку, тож міряємо зсув обгортки всередині нього
+  let box = { k: 1, cx: 0, cy: 0, artH: 1 };
   const resize = () => {
     const w = el.clientWidth || 1; const h = el.clientHeight || 1;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    halfH = camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const halfH = camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const art = el.parentElement;
+    const artW = art?.clientWidth || w; const artH = art?.clientHeight || h;
+    const k = (2 * halfH) / h; // пікселі → одиниці сцени
+    // Центр книжки — на 45 % висоти маскота згори (під це підігнано ручки й ніжки)
+    box = { k, artH, cx: (-el.offsetLeft + artW / 2 - w / 2) * k, cy: (h / 2 - (-el.offsetTop + 0.45 * artH)) * k };
   };
-  // Сторінки займають 62 % висоти елемента, центр книжки — на 45 % згори (під це підігнано обличчя й ручки)
-  const restY = () => (1 - 2 * 0.45) * halfH;
-  const scale = () => (0.62 * 2 * halfH) / H;
+  const scale = () => (0.62 * box.artH * box.k) / H; // сторінки — 62 % висоти маскота
 
-  /** Кадр: e — поява 0..1, p — верхня сторінка 0..1 (0 праворуч, 1 перегорнута ліворуч). */
-  const draw = (e, p) => {
-    // Відкривається, коли вже осіла на місці
-    const v = smoother(span(e, 0.5, 0.86));
+  /* Обличчя. Поки сторінка лежить праворуч: ліва сторінка й лице верхньої — поточний вираз,
+   * зворот верхньої й сторінка під нею — наступний. */
+  const [p0, p1, p2] = sheets.pages;
+  let face = 0;
+  const next = () => (face + 1) % FACES.length;
+  const paintIdle = (blink = false) => {
+    sheets.left.paint(FACES[face], blink);
+    p0.front.paint(FACES[face], blink);
+    p0.back.paint(FACES[next()]);
+    sheets.right.paint(FACES[next()]);
+  };
+  const toIdle = () => {
+    p1.group.visible = false; p2.group.visible = false;
+    paintIdle();
+  };
+
+  let mode = 'enter';
+  let enter = 0;
+  let pageF = 0;
+
+  /** Кадр появи: e 0..1. Хореографія й нахили — із заставки входу. */
+  const drawEnter = (e) => {
+    const v = smoother(span(e, 0.2, 0.52));
     const o = MASCOT_OPEN * v;
-    pose(o, [p, 0, 0]);
+    // Три сторінки одна за одною, як на вході
+    pose(o, [0, 1, 2].map((i) => smoother(span(e, 0.46 + 0.08 * i, 0.68 + 0.08 * i))));
     center.position.x = -(W / 2) * (1 - v);
-    // Закрита піднімається знизу справа з обертом (як на заставці входу), зависає трохи вище, осідає;
-    // розгорнувшись, легенько пружинить
+    // x, y — у висотах маскота від місця спокою; повороти й масштаб — як на вході, далі осідає
     const [x, y, rx, ry, rz, sc] = keyed([
-      [0, 0.55, -0.95, -1.05, -1.15, -0.75, 0.6],
-      [0.3, 0.02, 0.07, -0.42, -0.5, -0.14, 1.04],
-      [0.44, 0, -0.01, -0.28, -0.32, 0.02, 1],
-      [0.86, 0, 0, -0.2, 0, 0, 1],
-      [0.93, 0, 0.012, -0.2, 0, 0, 1.035],
+      [0, -0.85, -0.75, -1.05, -1.15, -0.75, 0.72],
+      [0.2, -0.36, -0.22, -0.7, -0.6, -0.4, 0.92],
+      [0.46, -0.03, -0.06, -0.42, -0.12, -0.1, 1.08],
+      [0.78, 0, -0.03, -0.3, -0.04, -0.03, 1.03],
       [1, 0, 0, -0.2, 0, 0, 1],
     ], e);
-    holder.position.set(x * 2 * halfH, restY() + y * 2 * halfH, 0);
+    holder.position.set(box.cx + x * box.artH * box.k, box.cy - y * box.artH * box.k, 0);
     // Розгорнута «галочкою»: обидві половини однаково повернуті до глядача
     turn.rotation.set(rx, ry - ((Math.PI * (1 - o)) / 2) * v, rz);
     holder.scale.setScalar(sc * scale());
+    el.style.opacity = String(smooth(e / 0.1));
     renderer.render(scene, camera);
   };
 
+  /** Спокій: розгорнута, верхня сторінка перегорнута на f. */
+  const drawIdle = (f) => {
+    pose(MASCOT_OPEN, [f, 0, 0]);
+    center.position.x = 0;
+    holder.position.set(box.cx, box.cy, 0);
+    turn.rotation.set(-0.2, -(Math.PI * (1 - MASCOT_OPEN)) / 2, 0); // «галочкою»: обидві половини рівно
+    holder.scale.setScalar(scale());
+    renderer.render(scene, camera);
+  };
+  const draw = () => (mode === 'enter' ? drawEnter(enter) : drawIdle(pageF));
+
   let raf = 0;
-  let enter = still ? 1 : 0;
-  let page = 0;
-  let pageNow = 0;
-  const ro = new ResizeObserver(() => { resize(); draw(enter, pageNow); });
+  let blinkTimer = 0;
+  const ro = new ResizeObserver(() => { resize(); draw(); });
   ro.observe(el);
   resize();
 
-  if (still) draw(1, 0);
+  const blink = () => {
+    // Лише в спокої, коли видно (інакше марно перемальовувати), і не для «щасливого» — там очі вже дужками
+    const r = el.getBoundingClientRect();
+    if (mode !== 'idle' || document.hidden || r.bottom < 0 || r.top > innerHeight || FACES[face] === 'happy') return;
+    paintIdle(true); draw();
+    setTimeout(() => { if (mode === 'idle') { paintIdle(); draw(); } }, BLINK_MS);
+  };
+  const idle = () => {
+    mode = 'idle';
+    toIdle(); draw();
+    if (!still) blinkTimer = setInterval(blink, BLINK_EVERY);
+  };
+
+  if (still) idle();
   else {
+    // Під час появи всі сторінки чисті, крім звороту останньої й сторінки під нею: там перший вираз
+    p2.back.paint(FACES[0]);
+    sheets.right.paint(FACES[0]);
+    el.style.opacity = '0';
     const t0 = performance.now();
     const tick = (now) => {
       enter = clamp01((now - t0) / ENTER_MS);
-      draw(enter, 0);
-      if (enter < 1) raf = requestAnimationFrame(tick);
+      if (enter < 1) { drawEnter(enter); raf = requestAnimationFrame(tick); return; }
+      el.style.opacity = '';
+      idle();
     };
     raf = requestAnimationFrame(tick);
   }
 
   const flip = () => {
-    if (still || enter < 1) return;
-    const from = page;
-    const to = 1 - page;
-    page = to;
+    if (mode !== 'idle') return;
+    mode = 'flip';
+    paintIdle(); // якщо саме кліпнув — розплющити
     const t0 = performance.now();
     const tick = (now) => {
       const k = clamp01((now - t0) / FLIP_MS);
-      pageNow = lerp(from, to, smooth(k));
-      draw(1, pageNow);
-      if (k < 1) raf = requestAnimationFrame(tick);
+      pageF = smoother(k);
+      drawIdle(pageF);
+      if (k < 1) { raf = requestAnimationFrame(tick); return; }
+      // Сторінка лягла ліворуч: тепер увесь розворот — наступний вираз. Непомітно повертаємо її праворуч
+      // з тим самим малюнком і готуємо під нею ще наступний
+      face = next();
+      pageF = 0;
+      mode = 'idle';
+      paintIdle();
+      drawIdle(0);
     };
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(tick);
@@ -533,10 +653,13 @@ export function mountMascot(el, { still = false } = {}) {
 
   const destroy = () => {
     cancelAnimationFrame(raf);
+    clearInterval(blinkTimer);
+    mode = 'gone';
     ro.disconnect();
     dispose();
     renderer.dispose();
     renderer.domElement.remove();
+    el.style.opacity = '';
   };
   return { flip, destroy };
 }

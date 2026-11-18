@@ -47,6 +47,7 @@ export function slugify(text) {
  * з меншим id — додається id. all — усі опубліковані напрямки (для перевірки збігів).
  */
 export function directionSlug(d, all = []) {
+  if (d.slug) return d.slug;
   const base = slugify(d.title);
   if (!base) return String(d.id);
   const taken = all.some((x) => x.id !== d.id && x.id < d.id && slugify(x.title) === base);

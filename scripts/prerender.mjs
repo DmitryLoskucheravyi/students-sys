@@ -16,7 +16,7 @@ const dist = path.join(root, 'client', 'dist');
 const ssrDir = path.join(root, 'dist', 'site-ssr');
 
 const ssr = await import(pathToFileURL(path.join(ssrDir, 'ssr.js')).href);
-const { render, headTags, safeJson, robotsTxt, sitemapXml, llmsTxt, directionPath, INDEXNOW_KEY } = ssr;
+const { render, headTags, safeJson, robotsTxt, sitemapXml, llmsTxt, directionPath, INDEXNOW_KEY, SITE_DIRECTIONS } = ssr;
 
 /* ───────── Дані сайту ───────── */
 
@@ -38,11 +38,11 @@ async function getJson(url) {
 
 const api = process.env.SITE_API?.replace(/\/+$/, '');
 let site = null;
-let courses = [];
+// Напрямки (курси сайту) — у коді (client/src/site/directions.js), разом із програмами
+const courses = SITE_DIRECTIONS;
 if (api) {
   try {
-    site = await getJson(`${api}/site`);
-    courses = await Promise.all(site.directions.map((d) => getJson(`${api}/site/courses/${d.id}`)));
+    site = { ...(await getJson(`${api}/site`)), directions: SITE_DIRECTIONS };
   } catch (err) {
     console.error(`prerender: дані сайту недоступні (${err.message}). Збірку зупинено.`);
     process.exit(1);
@@ -112,11 +112,10 @@ const today = new Date().toISOString().slice(0, 10);
 const routes = [
   { url: '/', file: 'index.html', priority: '1.0', verify: verifyHome },
   { url: '/courses', file: 'courses.html', priority: '0.9' },
-  ...(site?.directions ?? []).map((d, k) => ({
-    url: directionPath(d, site.directions),
-    file: `${directionPath(d, site.directions).slice(1)}.html`,
+  ...SITE_DIRECTIONS.map((d) => ({
+    url: directionPath(d, SITE_DIRECTIONS),
+    file: `${directionPath(d, SITE_DIRECTIONS).slice(1)}.html`,
     priority: '0.8',
-    boot: { site, course: courses[k] },
   })),
   { url: '/prices', file: 'prices.html', priority: '0.8' },
   { url: '/faq', file: 'faq.html', priority: '0.7' },
@@ -139,7 +138,7 @@ for (const r of routes) {
 
 await write('sitemap.xml', sitemapXml(inSitemap));
 await write('robots.txt', robotsTxt());
-await write('llms.txt', llmsTxt(site, courses));
+await write('llms.txt', llmsTxt(site ?? { directions: SITE_DIRECTIONS }, courses));
 // Ключ IndexNow: файл з ключем у корені підтверджує, що сповіщення про нові сторінки надсилає власник сайту
 await write(`${INDEXNOW_KEY}.txt`, INDEXNOW_KEY);
 await rm(path.join(dist, '.vite'), { recursive: true, force: true });

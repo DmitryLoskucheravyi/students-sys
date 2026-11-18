@@ -4,8 +4,10 @@ import { unlink } from 'node:fs/promises';
 import type { Request, Response } from 'express';
 import multer from 'multer';
 import { type Query, type Row, q, tx } from '../../db.js';
-import { IMAGE_NAME, checkOrder, parseDirection, withCourses } from './directions.js';
 import { bad, id, idList, normalizePhone, notFound, str } from '../../lib.js';
+
+/** Назва завантаженої картинки сайту (uuid.bin). */
+const IMAGE_NAME = /^[0-9a-f-]{36}\.bin$/;
 import { UPLOAD_DIR, persistFile, removeFile } from '../../storage.js';
 import { imageMime, readHead, sendStored } from '../../files.js';
 
@@ -49,12 +51,12 @@ async function parseProject(b: any) {
   };
 }
 
-/** Картинка більше ніде не потрібна (ні в проєкті, ні в напрямку) — прибрати і з бази, і зі сховища. */
+/** Картинка більше ніде не потрібна — прибрати і з бази, і зі сховища. */
 async function dropImage(name: string | null) {
   if (!name) return;
   const [{ n }] = await q(
-    `SELECT (SELECT COUNT(*) FROM projects WHERE image = ?) + (SELECT COUNT(*) FROM directions WHERE cover = ? OR icon_image = ?) AS n`,
-    [name, name, name]
+    'SELECT COUNT(*) AS n FROM projects WHERE image = ?',
+    [name]
   );
   if (Number(n) > 0) return;
   await q('DELETE FROM site_images WHERE stored_name = ?', [name]);
@@ -105,32 +107,6 @@ async function settings(): Promise<Record<Setting, string>> {
   return out;
 }
 
-/* ───────── Напрямки ───────── */
-
-/** Курси напрямків разом, у порядку всередині напрямку. Вигляд напрямку — від першого курсу. */
-async function directionCourses(ids: number[]): Promise<Row[]> {
-  if (!ids.length) return [];
-  return q(`SELECT dc.direction_id, c.id, c.title, c.summary, c.icon, c.theme,
-                   (SELECT COUNT(*) FROM roadmap_steps s WHERE s.course_id = c.id) AS steps
-              FROM direction_courses dc JOIN courses c ON c.id = dc.course_id
-             WHERE dc.direction_id IN (?) ORDER BY dc.direction_id, dc.position, c.title`, [ids]);
-}
-
-/** Усі курси мають існувати: перевіряємо до запису, щоб не лишити напрямок без курсів. */
-async function checkCourses(t: Query, courseIds: number[]) {
-  if (!courseIds.length) return;
-  const found: Row[] = await t('SELECT id FROM courses WHERE id IN (?)', [courseIds]);
-  if (found.length !== courseIds.length) throw bad('Курс не знайдено');
-}
-
-/** Курси напрямку заново, у переданому порядку. Лише всередині транзакції. */
-async function saveDirectionCourses(t: Query, directionId: number, courseIds: number[]) {
-  await t('DELETE FROM direction_courses WHERE direction_id = ?', [directionId]);
-  if (courseIds.length) {
-    await t('INSERT INTO direction_courses (direction_id, course_id, position) VALUES ?', [courseIds.map((c, k) => [directionId, c, k])]);
-  }
-}
-
 const REVIEW_SELECT = `SELECT r.id, r.author, r.author_role, r.text, r.course_id, r.is_published, r.created_at, c.title AS course_title
   FROM reviews r LEFT JOIN courses c ON c.id = r.course_id`;
 
@@ -148,8 +124,8 @@ function parseReview(b: any) {
 @Injectable()
 export class SiteService {
   async overview() {
-    const [directions, plans, reviews, contacts, projects] = await Promise.all([
-      this.publishedDirections(),
+    // Напрямки (курси сайту) задані в коді сайту (client/src/site/directions.js), тут їх немає
+    const [plans, reviews, contacts, projects] = await Promise.all([
       q(`SELECT id, name, lessons_count, price_per_lesson, valid_days, color
            FROM plans WHERE on_site = 1 AND is_active = 1 ORDER BY lessons_count`),
       q(`${REVIEW_SELECT} WHERE r.is_published = 1 ORDER BY r.id DESC`),
@@ -158,50 +134,17 @@ export class SiteService {
     ]);
     return {
       projects: projects.map(({ is_published: _p, course_id: _c, ...x }: Row) => x),
-      directions,
       plans: plans.map((p: Row) => ({ ...p, price_per_lesson: Number(p.price_per_lesson), total: Number(p.price_per_lesson) * p.lessons_count })),
       reviews: reviews.map(({ is_published: _p, course_id: _c, ...r }: Row) => r),
       contacts,
     };
   }
 
-  /** Опубліковані напрямки, у яких є хоч один курс. */
-  private async publishedDirections() {
-    const rows: Row[] = await q('SELECT id, title, summary, cover, icon_image FROM directions WHERE is_published = 1 ORDER BY position, id');
-    const all = await directionCourses(rows.map((d) => d.id));
-    return rows.map((d) => withCourses(d, all)).filter((d) => d.courses.length > 0);
-  }
-
-  /** Сторінка напрямку: його курси з програмами (теми й підтеми) і відгуки про будь-який із курсів. */
-  async direction(idValue: unknown) {
-    const directionId = id(idValue);
-    const [row] = await q('SELECT id, title, summary, cover, icon_image FROM directions WHERE id = ? AND is_published = 1', [directionId]);
-    if (!row) throw notFound('Курс не знайдено');
-    const d = withCourses(row, await directionCourses([directionId]));
-    if (!d.courses.length) throw notFound('Курс не знайдено');
-    const courseIds = d.courses.map((c: Row) => c.id);
-    const steps: Row[] = await q('SELECT id, course_id, title, description FROM roadmap_steps WHERE course_id IN (?) ORDER BY position, id', [courseIds]);
-    const subs: Row[] = steps.length
-      ? await q(`SELECT step_id, title FROM roadmap_substeps WHERE step_id IN (?) ORDER BY position, id`, [steps.map((s) => s.id)])
-      : [];
-    return {
-      ...d,
-      courses: d.courses.map((c: Row) => ({
-        ...c,
-        steps: steps.filter((s) => s.course_id === c.id)
-          .map(({ course_id: _c, ...s }) => ({ ...s, topics: subs.filter((x) => x.step_id === s.id).map((x) => x.title) })),
-      })),
-      reviews: await q(`${REVIEW_SELECT} WHERE r.is_published = 1 AND r.course_id IN (?) ORDER BY r.id DESC`, [courseIds]),
-    };
-  }
-
-  /** Картинка сайту: лише якщо вона в опублікованому проєкті чи напрямку. */
+  /** Скрін проєкту: лише якщо він в опублікованому проєкті. */
   async image(name: string, res: Response) {
     if (!IMAGE_NAME.test(name)) throw notFound('Картинку не знайдено');
     const [img] = await q(
-      `SELECT i.* FROM site_images i WHERE i.stored_name = ? AND (
-         EXISTS (SELECT 1 FROM projects p WHERE p.image = i.stored_name AND p.is_published = 1)
-         OR EXISTS (SELECT 1 FROM directions d WHERE (d.cover = i.stored_name OR d.icon_image = i.stored_name) AND d.is_published = 1))`,
+      `SELECT i.* FROM site_images i WHERE i.stored_name = ? AND EXISTS (SELECT 1 FROM projects p WHERE p.image = i.stored_name AND p.is_published = 1)`,
       [name]
     );
     if (!img) throw notFound('Картинку не знайдено');
@@ -331,76 +274,11 @@ export class SiteAdminService {
     return { courses, plans };
   }
 
-  /** Повний список абонементів, які показувати: усе інше ховається. Курси на сайт ідуть через напрямки. */
+  /** Повний список абонементів, які показувати: усе інше ховається. */
   async setShowcase(body: any) {
     const planIds = idList(body?.plan_ids ?? [], 'Абонементи');
     await q('UPDATE plans SET on_site = (id IN (?))', [planIds.length ? planIds : [0]]);
     return this.showcase();
-  }
-
-  async directions() {
-    const rows: Row[] = await q('SELECT id, title, summary, cover, icon_image, position, is_published FROM directions ORDER BY position, id');
-    const all = await directionCourses(rows.map((d) => d.id));
-    return rows.map((d) => withCourses(d, all));
-  }
-
-  private async oneDirection(directionId: number) {
-    const [row] = await q('SELECT id, title, summary, cover, icon_image, position, is_published FROM directions WHERE id = ?', [directionId]);
-    if (!row) throw notFound();
-    return withCourses(row, await directionCourses([directionId]));
-  }
-
-  async createDirection(body: any) {
-    const { row, courseIds } = parseDirection(body ?? {});
-    await assertImage(row.cover);
-    await assertImage(row.icon_image);
-    const newId = await tx(async (t) => {
-      await checkCourses(t, courseIds);
-      const [{ next }] = await t('SELECT COALESCE(MAX(position), -1) + 1 AS next FROM directions');
-      const r = await t('INSERT INTO directions SET ?', [{ ...row, position: Number(next) }]);
-      await saveDirectionCourses(t, r.insertId, courseIds);
-      return r.insertId as number;
-    });
-    return this.oneDirection(newId);
-  }
-
-  async updateDirection(idValue: unknown, body: any) {
-    const directionId = id(idValue);
-    const cur = await this.oneDirection(directionId);
-    const b = body ?? {};
-    const { row, courseIds } = parseDirection({
-      title: cur.title, summary: cur.summary, cover: cur.cover, icon_image: cur.icon_image, is_published: cur.is_published,
-      course_ids: cur.courses.map((c: Row) => c.id), ...b,
-    });
-    await assertImage(row.cover);
-    await assertImage(row.icon_image);
-    await tx(async (t) => {
-      await checkCourses(t, courseIds);
-      await t('UPDATE directions SET ? WHERE id = ?', [row, directionId]);
-      if ('course_ids' in b) await saveDirectionCourses(t, directionId, courseIds);
-    });
-    if (cur.cover !== row.cover) await dropImage(cur.cover);
-    if (cur.icon_image !== row.icon_image) await dropImage(cur.icon_image);
-    return this.oneDirection(directionId);
-  }
-
-  /** Порядок напрямків на сайті: повний список id згори вниз. */
-  async orderDirections(body: any) {
-    const ids = idList(body?.ids ?? [], 'Напрямки');
-    await tx(async (t) => {
-      const existing: Row[] = await t('SELECT id FROM directions');
-      checkOrder(ids, existing.map((d) => d.id));
-      for (const [k, directionId] of ids.entries()) await t('UPDATE directions SET position = ? WHERE id = ?', [k, directionId]);
-    });
-    return this.directions();
-  }
-
-  async removeDirection(idValue: unknown) {
-    const directionId = id(idValue);
-    const [cur] = await q('SELECT cover, icon_image FROM directions WHERE id = ?', [directionId]);
-    await q('DELETE FROM directions WHERE id = ?', [directionId]);
-    if (cur) { await dropImage(cur.cover); await dropImage(cur.icon_image); }
-    return { ok: true };
   }
 
   settings() {

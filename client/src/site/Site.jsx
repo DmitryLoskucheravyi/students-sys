@@ -14,18 +14,22 @@ import { IconRight, IconFacebook, IconInstagram, IconTelegram, IconTiktok, IconS
 import { CoursePage, CoursesPage, FaqPage, Home, NotFound, PricesPage, PrivacyPage, ProjectsPage, ReviewsPage } from './pages.jsx';
 import { socialLinks, BootCtx, LeadCtx, SiteCtx, prettyPhone, telHref, useSite } from './ctx.js';
 import { directionPath } from './seo.js';
+import { SITE_DIRECTIONS } from './directions.js';
 import '@fontsource-variable/nunito';
 import './themes.css';
 import './site.css';
 
 /* ───────── Дані сайту: один запит на все, кешується на час відвідування ───────── */
 
+/** Напрямки — у коді (directions.js), решта — з кабінету. */
+const withDirections = (data) => (data ? { ...data, directions: SITE_DIRECTIONS } : data);
+
 function useSiteData(initial) {
-  const [state, setState] = useState({ data: initial ?? null, error: null });
+  const [state, setState] = useState({ data: withDirections(initial) ?? null, error: null });
   const load = useCallback(() => {
     setState((s) => ({ ...s, error: null }));
     // Повторне завантаження не вдалося — вже показані дані лишаються, додається лише помилка
-    api('/site').then((data) => setState({ data, error: null })).catch((error) => setState((s) => ({ data: s.data, error })));
+    api('/site').then((data) => setState({ data: withDirections(data), error: null })).catch((error) => setState((s) => ({ data: s.data, error })));
   }, []);
   useEffect(load, [load]);
   // Той самий обʼєкт, доки дані не змінились: сторінки не перемальовуються, коли відкривається форма заявки
@@ -174,7 +178,7 @@ function Socials({ className = '' }) {
 function Footer() {
   const { data } = useSite();
   const c = data?.contacts ?? {};
-  const dirs = data?.directions ?? [];
+  const dirs = SITE_DIRECTIONS;
   return (
     <footer className="s-foot">
       <div className="s-wrap s-foot-top">

@@ -75,7 +75,8 @@ function lengthAt(path, total, pt) {
   return best;
 }
 
-const HOP_MS = 420; // стрибок на наступну картку: швидко, щоб не відставати від прокрутки
+const HOP_MS = 480; // стрибок на наступну картку
+const STEP_MS = 560; // картки відкриваються не швидше за одну на крок — маскот встигає застрибнути на кожну
 const ROAD_AHEAD = 0; // дорога розкручується рівно до маскота
 
 /**
@@ -187,11 +188,21 @@ export function HeroArt() {
     if (prefersCalm()) { big = false; cat.classList.remove('is-big'); apply(items.length); layout(); return undefined; }
     let raf = 0;
     let shown = 0; // лише росте: вгору роадмап не відмотується
+    let want = 0; // скільки відкрити за прокруткою
+    let pace = 0; // таймер покрокового відкриття
+    // Прокрутка лише задає ціль, а картки відкриваються по одній у рівному темпі
+    const stepTo = () => {
+      pace = 0;
+      if (shown >= want) return;
+      shown += 1;
+      apply(shown);
+      if (shown < want) pace = setTimeout(stepTo, STEP_MS);
+    };
     const update = () => {
       raf = 0;
-      const n = Math.max(shown, measureShown(root, items.length));
-      if (n !== shown || n === 0) apply(n);
-      shown = n;
+      want = Math.max(want, measureShown(root, items.length));
+      if (shown === 0 && want === 0) { apply(0); return; }
+      if (!pace && shown < want) stepTo();
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
     const onResize = () => { cancelAnimationFrame(anim); cat.classList.remove('is-run'); layout(); onScroll(); };
@@ -202,6 +213,7 @@ export function HeroArt() {
       cancelAnimationFrame(raf);
       cancelAnimationFrame(anim);
       clearTimeout(jump);
+      clearTimeout(pace);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
     };

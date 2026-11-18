@@ -12,6 +12,8 @@ import { FEATURES, FORMAT, HERO, PAGES, STEPS } from './content.js';
 import { telHref, useBoot, useLead, useSite } from './ctx.js';
 import { FeatureArt } from './features.jsx';
 import { Bits, HeroArt, TrialPeek } from './hero.jsx';
+import { DirectionCard, DirectionSlider } from './direction.jsx';
+import { SITE_DIRECTIONS } from './directions.js';
 import { directionMeta, subtopicsWord, topicsWord } from './logic.js';
 import { Reveal } from './motion.jsx';
 import {
@@ -154,11 +156,7 @@ export function Home() {
       {error && !data && <LoadError onRetry={reload} />}
       {!data && !error && <Loading />}
 
-      {data?.directions?.length > 0 && (
-        <SliderSection title="Курси" to="/courses" more="Усі курси" label="Курси">
-          {data.directions.map((c) => <CourseCard key={c.id} c={c} />)}
-        </SliderSection>
-      )}
+      <DirectionSlider items={SITE_DIRECTIONS} />
 
       {data?.plans?.length > 0 && (
         <section className="s-wrap s-sec">
@@ -221,10 +219,16 @@ function ListPage({ page, meta, cta, list, empty, render }) {
 }
 
 export function CoursesPage() {
+  const { data } = useSite();
+  useSeo(coursesMeta(data));
   return (
-    <ListPage page={PAGES.courses} meta={coursesMeta} list={(d) => d.directions}
-      empty="Список курсів скоро зʼявиться. Залиште заявку — розкажемо, що можемо запропонувати."
-      render={(items) => <div className="s-grid">{items.map((c) => <CourseCard key={c.id} c={c} />)}</div>} />
+    <>
+      <PageHero title={PAGES.courses.title} lead={PAGES.courses.lead} />
+      <section className="s-wrap s-sec is-tight s-dir-list">
+        {SITE_DIRECTIONS.map((d) => <DirectionCard key={d.id} d={d} all={SITE_DIRECTIONS} />)}
+      </section>
+      <CtaBand />
+    </>
   );
 }
 
@@ -297,55 +301,13 @@ function Program({ course, index, total, last }) {
   );
 }
 
-const sameCourse = (course, id) => course != null && id != null && String(course.id) === String(id);
-
-/**
- * Завантажує напрямок; відповідь для попередньої адреси (швидкий перехід між курсами) відкидається.
- * initial — курс, з яким сторінку зібрано: його видно одразу, а свіжі дані тихо підтягуються з API.
- */
-function useDirection(id, initial) {
-  const [state, setState] = useState(() => ({ course: sameCourse(initial, id) ? initial : null, error: null, id }));
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    if (id == null) return undefined;
-    let current = true;
-    setState((s) => (sameCourse(s.course, id) ? s : { course: null, error: null, id }));
-    api(`/site/courses/${encodeURIComponent(id)}`)
-      .then((course) => { if (current) setState({ course, error: null, id }); })
-      // Оновлення не вдалося, а курс уже показано — лишаємо його
-      .catch((error) => { if (current) setState((s) => (sameCourse(s.course, id) ? s : { course: null, error, id })); });
-    return () => { current = false; };
-  }, [id, attempt]);
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
-  // Стан для попередньої адреси не показуємо, поки не прийде відповідь для нової
-  return state.id === id ? { course: state.course, error: state.error, retry } : { course: null, error: null, retry };
-}
-
-/**
- * Сторінка «курсу» на сайті — напрямку. Адреса — /courses/<slug з назви>; старі числові адреси /courses/3
- * переходять на slug. Прихований напрямок відповідає «не знайдено».
- */
+/** Сторінка «курсу» — напрямку з коду (directions.js). Адреса — /courses/<slug>. Невідомий — «не знайдено». */
 export function CoursePage() {
   const { slug } = useParams();
-  const { data, error: siteError, reload } = useSite();
-  const boot = useBoot();
-  const navigate = useNavigate();
-  const dirs = data?.directions;
-  const found = dirs ? findDirection(dirs, slug) : undefined;
-  const id = !dirs ? null : found ? found.id : /^\d+$/.test(slug) ? Number(slug) : null;
-  const { course, error, retry } = useDirection(id, boot.course);
-  const canonical = found ? directionSlug(found, dirs) : null;
-
-  useEffect(() => {
-    if (canonical && canonical !== slug) navigate(`/courses/${canonical}`, { replace: true });
-  }, [canonical, slug, navigate]);
-
-  if (!dirs) return siteError ? <LoadError onRetry={reload} /> : <Loading />;
-  if (id == null) return <NotFound title="Курс не знайдено" />;
-  // 404 — такого курсу немає, 400 — адреса взагалі не схожа на курс: обидва «не знайдено», а не збій
-  if (error) return error.status === 404 || error.status === 400 ? <NotFound title="Курс не знайдено" /> : <LoadError onRetry={retry} />;
-  if (!course) return <Loading />;
-  return <CourseView course={course} />;
+  const { data } = useSite();
+  const found = findDirection(SITE_DIRECTIONS, slug);
+  if (!found) return <NotFound title="Курс не знайдено" />;
+  return <CourseView course={{ ...found, reviews: data?.reviews ?? [] }} />;
 }
 
 /** Курс: крихти, шапка, програми його курсів по черзі, відгуки, інші курси. */
@@ -355,7 +317,7 @@ function CourseView({ course }) {
   const lead = useLead();
   const withSteps = course.courses.filter((c) => c.steps.length > 0);
   const meta = directionMeta(course);
-  const others = (data?.directions ?? []).filter((d) => d.id !== course.id).slice(0, 3);
+  const others = SITE_DIRECTIONS.filter((d) => d.id !== course.id).slice(0, 3);
   return (
     <>
       <section className={`s-course-hero ${themeClass(course.theme)}`}>
@@ -386,11 +348,7 @@ function CourseView({ course }) {
         </SliderSection>
       )}
 
-      {others.length > 0 && (
-        <SliderSection title="Інші курси" to="/courses" more="Усі курси" label="Інші курси">
-          {others.map((c) => <CourseCard key={c.id} c={c} />)}
-        </SliderSection>
-      )}
+      {others.length > 0 && <DirectionSlider items={others} title="Інші курси" />}
 
       <CtaBand title="Хочете на цей курс?" note={`Курс: ${course.title}`} />
     </>
