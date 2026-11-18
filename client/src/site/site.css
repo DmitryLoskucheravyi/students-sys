@@ -1604,3 +1604,10 @@
   .s-dir > .s-dir-text > .s-dir-actions { margin-top: auto; padding-top: 6px; align-self: flex-end; }
   .s-dir > .s-dir-text > :not(.s-dir-actions) { align-self: flex-start; }
 }
+/* ШІ на телефоні й планшеті: відео — знову на передньому плані, під промптом (місце є, бо картки однакової висоти) */
+@media (max-width: 899.98px) {
+  .s-dir.is-bg-dots .s-ai-bg { display: contents; }
+  .s-dir.is-bg-dots .s-ai-pic { position: absolute; z-index: 0; }
+  .s-dir.is-bg-dots .s-ai-video { position: relative; z-index: 1; top: auto; bottom: auto; left: auto; right: auto; display: block; width: min(78%, 280px);
+    margin: 22px 0 0 auto; opacity: 1; rotate: -3deg; animation: ai-float 6s ease-in-out -3s infinite; }
+}
