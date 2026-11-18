@@ -1611,3 +1611,17 @@
   .s-dir.is-bg-dots .s-ai-video { position: relative; z-index: 1; top: auto; bottom: auto; left: auto; right: auto; display: block; width: min(78%, 280px);
     margin: 22px 0 0 auto; opacity: 1; rotate: -3deg; animation: ai-float 6s ease-in-out -3s infinite; }
 }
+@media (max-width: 899.98px) {
+  /* ШІ: відео трохи нижче */
+  .s-dir.is-bg-dots .s-ai-video { margin-top: 44px; }
+  /* Backend: «Клієнт» і «api-server» — майже один під одним, під кутом, зі стрілкою між ними */
+  .s-dir.is-light .s-be-top { height: 250px; }
+  .s-dir.is-light .s-be-status { top: 6px; left: auto; right: 6%; }
+  .s-dir.is-light .s-be-client { top: 18px; left: 2%; width: 50%; max-width: 190px; rotate: -5deg; }
+  .s-dir.is-light .s-be-arrow { top: 112px; left: 30%; width: 70px; rotate: 38deg; }
+  .s-dir.is-light .s-be-api { top: 112px; left: auto; right: 2%; width: 62%; max-width: 240px; rotate: 4deg; }
+  /* Scratch: блоки нижчі */
+  .s-sc-b { padding: 7px 12px; font-size: 12.5px; }
+  .s-sc-b em { padding: 2px 8px; }
+  .s-sc-loop-end { height: 12px; }
+}
