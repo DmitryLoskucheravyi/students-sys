@@ -35,15 +35,18 @@ const KEYWORD = new Set(('const let var function def class new this self super t
  * Токени по черзі: коментар, рядок, тег HTML, число, слово, решта символів. Слово далі уточнюється:
  * ключове, керування, виклик функції (далі «(»), тип (з великої літери), змінна.
  */
-const TOKEN = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/|(?:^|(?<=\s))#(?=\s)[^\n]*|<!--[\s\S]*?-->)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|(<\/?[A-Za-z][\w-]*|\/?>)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_$][\w$]*)|(\s+|[^\sA-Za-z_$\d"'`<]+|[<"'`])/gm;
+const TOKEN = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/|(?:^|(?<=\s))#(?=\s)[^\n]*|<!--[\s\S]*?-->)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|(<\/?[A-Za-z][\w-]*|\/?>)|(\b\d+(?:\.\d+)?(?:[A-Za-z%]+)?)|([A-Za-z_$][\w$]*)|(\s+|[^\sA-Za-z_$\d"'`<]+|[<"'`])/gm;
 
 /** Підсвічує код: масив [клас, текст]. Класи hl-* фарбує CSS у палітрі VS Code. */
 export function highlight(code) {
   const out = [];
   let inTag = false;
   let m;
+  let at = 0; // до якого місця код уже розібрано: пропущене регуляркою не губиться, а йде звичайним текстом
   TOKEN.lastIndex = 0;
   while ((m = TOKEN.exec(code))) {
+    if (m.index > at) out.push(['hl-plain', code.slice(at, m.index)]);
+    at = m.index + m[0].length;
     const [all, comment, str, tag, num, word] = m;
     if (comment) out.push(['hl-comment', all]);
     else if (str) out.push([inTag ? 'hl-attr-value' : 'hl-string', all]);
@@ -62,6 +65,7 @@ export function highlight(code) {
     } else out.push(['hl-plain', all]);
     if (!all) TOKEN.lastIndex += 1;
   }
+  if (at < code.length) out.push(['hl-plain', code.slice(at)]);
   // Сусідні шматки одного класу зливаються: менше елементів у DOM.
   return out.reduce((acc, [cls, text]) => {
     const prev = acc[acc.length - 1];

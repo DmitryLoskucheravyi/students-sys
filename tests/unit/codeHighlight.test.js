@@ -76,3 +76,14 @@ test('підсвічування Python: коментар через # і def', 
   assert.equal(cls('# note'), 'hl-comment');
   assert.equal(cls('None'), 'hl-keyword');
 });
+
+test('числа з одиницями (CSS) не губляться, і жоден символ коду не зникає', () => {
+  const code = '.card {\n  padding: 10px 20px;\n  width: 1.5em; height: 100%;\n}';
+  const parts = highlight(code);
+  assert.equal(parts.map(([, t]) => t).join(''), code);
+  assert.ok(parts.some(([c, t]) => c === 'hl-number' && t === '10px'));
+  assert.ok(parts.some(([c, t]) => c === 'hl-number' && t === '100%'));
+  for (const sample of ['x = 3d6 + 0x1F;', 'a1b2 _9 $5 #fff', 'print(2**10)', '<div id=1>ok</div>']) {
+    assert.equal(highlight(sample).map(([, t]) => t).join(''), sample);
+  }
+});
