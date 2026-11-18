@@ -53,6 +53,7 @@ const PAPER = '#f1ebe1';
 // Сторінки трохи притемнені: на червоному тлі чисто білий папір світився
 const PAGE_TINT = '#efe9df';
 const RED = '#f2732c'; // акцент книжки — помаранчевий, як у маскота сайту
+const MASCOT = '#f47a2e'; // палітурка маскота сайту
 
 const PAGE_TEXT = [
   ['function grow(mind) {', '  while (curious) {', '    mind.learn();', '    mind.try();', '  }', '  return smart;', '}', '', '// be smart', 'grow(you);'],
@@ -144,15 +145,47 @@ function shadowTexture() {
   });
 }
 
-function buildBook() {
+/** Чиста сторінка маскота: папір і тінь біля корінця. */
+function blankPage(gutter) {
+  return texture(256, 366, (g, w, h) => {
+    g.fillStyle = PAPER; g.fillRect(0, 0, w, h);
+    const gx = gutter === 'left' ? 0 : w;
+    const sh = g.createLinearGradient(gx, 0, gutter === 'left' ? 48 : w - 48, 0);
+    sh.addColorStop(0, 'rgba(120, 90, 70, 0.3)'); sh.addColorStop(1, 'rgba(120, 90, 70, 0)');
+    g.fillStyle = sh; g.fillRect(0, 0, w, h);
+  });
+}
+
+/** Помаранчева обкладинка маскота сайту: тканина, темніша смуга біля корінця, світлий знак. */
+function mascotCover(front) {
+  return texture(560, 800, (g, w, h) => {
+    g.fillStyle = MASCOT; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2600; i++) {
+      g.fillStyle = `rgba(${Math.random() < 0.5 ? '255,255,255' : '120,50,10'}, ${Math.random() * 0.08})`;
+      g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+    const band = 64;
+    g.fillStyle = '#d65f1d';
+    g.fillRect(front ? 0 : w - band, 0, band, h);
+    if (!front) return;
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff4e6';
+    g.font = `800 150px ${MONO}`; g.fillText('</>', w / 2 + band / 2, h * 0.42);
+    g.font = '800 40px "Unbounded Variable", "Arial Black", sans-serif'; g.fillText('BE SMART', w / 2 + band / 2, h * 0.63);
+  });
+}
+
+function buildBook({ mascot = false } = {}) {
   const paper = new THREE.MeshStandardMaterial({ color: PAPER, roughness: 0.9 });
   const edgeU = new THREE.MeshStandardMaterial({ map: edgeTexture('u'), roughness: 0.95 });
   const edgeV = new THREE.MeshStandardMaterial({ map: edgeTexture('v'), roughness: 0.95 });
   const endpaper = new THREE.MeshStandardMaterial({ color: '#efe5d6', roughness: 0.9 });
-  const cloth = new THREE.MeshStandardMaterial({ color: '#f4efe7', roughness: 0.75 });
-  const front = new THREE.MeshStandardMaterial({ map: coverTexture(true), roughness: 0.7 });
-  const back = new THREE.MeshStandardMaterial({ map: coverTexture(false), roughness: 0.7 });
-  const spineMat = new THREE.MeshStandardMaterial({ color: RED, roughness: 0.6 });
+  const cloth = new THREE.MeshStandardMaterial({ color: mascot ? MASCOT : '#f4efe7', roughness: 0.75 });
+  const front = new THREE.MeshStandardMaterial({ map: mascot ? mascotCover(true) : coverTexture(true), roughness: 0.7 });
+  const back = new THREE.MeshStandardMaterial({ map: mascot ? mascotCover(false) : coverTexture(false), roughness: 0.7 });
+  const spineMat = new THREE.MeshStandardMaterial({ color: mascot ? '#d65f1d' : RED, roughness: 0.6 });
+  // Сторінки: у маскота чисті (на них обличчя), на заставці входу — з кодом
+  const pageMat = (lines, gutter, n, mirror) => new THREE.MeshStandardMaterial({
+    map: mascot ? blankPage(mirror ? 'right' : gutter) : pageTexture(lines, gutter, n, mirror), color: PAGE_TINT, roughness: 0.9 });
 
   const book = new THREE.Group();     // корінець у (0, 0, 0), сторінки лежать у площині XY, обличчям до камери (+z)
   const pivotZ = T / 2;               // вісь, навколо якої обертаються ліва половина й сторінки
@@ -164,7 +197,7 @@ function buildBook() {
   const blockGeo = new THREE.BoxGeometry(W, H, T / 2);
   // Порядок граней Box: +x, -x, +y, -y, +z, -z
   const rightBlock = new THREE.Mesh(blockGeo, [edgeU, paper, edgeV, edgeV,
-    new THREE.MeshStandardMaterial({ map: pageTexture(PAGE_TEXT[3], 'left', 8), color: PAGE_TINT, roughness: 0.9 }), paper]);
+    pageMat(PAGE_TEXT[3], 'left', 8), paper]);
   rightBlock.position.set(W / 2, 0, T / 4);
   book.add(backCover, rightBlock);
 
@@ -174,7 +207,7 @@ function buildBook() {
   const frontCover = new THREE.Mesh(coverGeo, [cloth, cloth, cloth, cloth, endpaper, front]);
   frontCover.position.set(-(W + O) / 2, 0, -C / 2 - pivotZ);
   const leftBlock = new THREE.Mesh(blockGeo, [paper, edgeU, edgeV, edgeV,
-    new THREE.MeshStandardMaterial({ map: pageTexture(PAGE_TEXT[0], 'right', 1), color: PAGE_TINT, roughness: 0.9 }), paper]);
+    pageMat(PAGE_TEXT[0], 'right', 1), paper]);
   leftBlock.position.set(-W / 2, 0, T / 4 - pivotZ);
   left.add(frontCover, leftBlock);
   book.add(left);
@@ -190,8 +223,10 @@ function buildBook() {
     const geo = new THREE.PlaneGeometry(W, H, SEG, 1);
     geo.translate(W / 2, 0, 0);
     const base = Float32Array.from(geo.attributes.position.array);
-    const frontMat = new THREE.MeshStandardMaterial({ map: pageTexture(PAGE_TEXT[(i + 1) % 4], 'left', 2 * i + 3), color: PAGE_TINT, roughness: 0.9, side: THREE.FrontSide });
-    const backMat = new THREE.MeshStandardMaterial({ map: pageTexture(PAGE_TEXT[(i + 2) % 4], 'right', 2 * i + 2, true), color: PAGE_TINT, roughness: 0.9, side: THREE.BackSide });
+    const frontMat = pageMat(PAGE_TEXT[(i + 1) % 4], 'left', 2 * i + 3);
+    frontMat.side = THREE.FrontSide;
+    const backMat = pageMat(PAGE_TEXT[(i + 2) % 4], 'right', 2 * i + 2, true);
+    backMat.side = THREE.BackSide;
     const g = new THREE.Group();
     g.position.z = pivotZ;
     g.add(new THREE.Mesh(geo, frontMat), new THREE.Mesh(geo, backMat));
@@ -386,4 +421,117 @@ export function mountBook(el, { still = false, startAt = performance.now() } = {
     raf = requestAnimationFrame(tick);
   }
   return () => { if (!done) { done = true; cleanup(); } };
+}
+
+
+/* ───────── Маскот сайту ───────── */
+
+const MASCOT_OPEN = 0.8; // не до кінця: стоїть розгорнута «галочкою» до глядача
+const ENTER_MS = 1900;
+const FLIP_MS = 650;
+
+/**
+ * Та сама книжка в ролі маскота сайту: на всю площу елемента, без шляху через екран.
+ * Поява як на заставці входу: закрита залітає з-за краю, крутиться й осідає на місце, розгортається.
+ * Далі стоїть розгорнута; flip() перегортає верхню сторінку туди й назад (під зміну міміки).
+ * Повертає { flip, destroy }. still: одразу розгорнута, без руху.
+ */
+export function mountMascot(el, { still = false } = {}) {
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'low-power' });
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  el.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  camera.position.set(0, 0, 14);
+  scene.add(new THREE.HemisphereLight('#ffffff', '#ece8f7', 2.1));
+  const key = new THREE.DirectionalLight('#fffaf2', 2.6);
+  key.position.set(-2, 5, 11);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight('#d9d0ff', 0.7);
+  rim.position.set(6, -3, 4);
+  scene.add(rim);
+
+  const { book, pose, dispose } = buildBook({ mascot: true });
+  const holder = new THREE.Group();
+  const turn = new THREE.Group();
+  const center = new THREE.Group();
+  center.add(book); turn.add(center); holder.add(turn);
+  scene.add(holder);
+
+  let halfH = 1;
+  const resize = () => {
+    const w = el.clientWidth || 1; const h = el.clientHeight || 1;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    halfH = camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  };
+  // Сторінки займають 62 % висоти елемента, центр книжки — на 45 % згори (під це підігнано обличчя й ручки)
+  const restY = () => (1 - 2 * 0.45) * halfH;
+  const scale = () => (0.62 * 2 * halfH) / H;
+
+  /** Кадр: e — поява 0..1, p — верхня сторінка 0..1 (0 праворуч, 1 перегорнута ліворуч). */
+  const draw = (e, p) => {
+    const v = smoother(span(e, 0.55, 0.95));
+    const o = MASCOT_OPEN * v;
+    pose(o, [p, 0, 0]);
+    center.position.x = -(W / 2) * (1 - v);
+    const [x, y, rx, ry, rz, sc] = keyed([
+      [0, 1.15, -1.3, -1.05, -1.15, -0.75, 0.55],
+      [0.42, -0.04, 0.12, -0.3, -0.2, -0.08, 1.04],
+      [0.55, 0, -0.03, -0.18, -0.06, 0.02, 1],
+      [1, 0, 0, -0.2, 0, 0, 1],
+    ], e);
+    holder.position.set(x * 2 * halfH, restY() + y * 2 * halfH, 0);
+    // Розгорнута «галочкою»: обидві половини однаково повернуті до глядача
+    turn.rotation.set(rx, ry - ((Math.PI * (1 - o)) / 2) * v, rz);
+    holder.scale.setScalar(sc * scale());
+    renderer.render(scene, camera);
+  };
+
+  let raf = 0;
+  let enter = still ? 1 : 0;
+  let page = 0;
+  let pageNow = 0;
+  const ro = new ResizeObserver(() => { resize(); draw(enter, pageNow); });
+  ro.observe(el);
+  resize();
+
+  if (still) draw(1, 0);
+  else {
+    const t0 = performance.now();
+    const tick = (now) => {
+      enter = clamp01((now - t0) / ENTER_MS);
+      draw(enter, 0);
+      if (enter < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  }
+
+  const flip = () => {
+    if (still || enter < 1) return;
+    const from = page;
+    const to = 1 - page;
+    page = to;
+    const t0 = performance.now();
+    const tick = (now) => {
+      const k = clamp01((now - t0) / FLIP_MS);
+      pageNow = lerp(from, to, smooth(k));
+      draw(1, pageNow);
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(tick);
+  };
+
+  const destroy = () => {
+    cancelAnimationFrame(raf);
+    ro.disconnect();
+    dispose();
+    renderer.dispose();
+    renderer.domElement.remove();
+  };
+  return { flip, destroy };
 }

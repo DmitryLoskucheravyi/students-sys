@@ -116,7 +116,8 @@ export function HeroArt() {
       const zoom = root.getBoundingClientRect().height / (root.offsetHeight || 1) || 1;
       // низ видимої частини: над кнопкою, що прилипла до низу екрана на телефоні
       const seen = (window.innerHeight - (isWide() ? 40 : 120) - root.getBoundingClientRect().top) / zoom;
-      const y = Math.max(h + 6, Math.min(root.offsetHeight - 6, seen));
+      // компʼютер: стоїть нижче, біля низу екрана; телефон — у межах роадмапу
+      const y = isWide() ? Math.max(h + 6, seen) : Math.max(h + 6, Math.min(root.offsetHeight - 6, seen));
       cat.style.translate = `${root.offsetWidth - w / 2 - 6}px ${y}px`;
       cat.classList.remove('is-left');
       reveal.style.strokeDashoffset = String(total); // дорога ще не почалась

@@ -1,13 +1,9 @@
 /*
- * Маскот школи — розгорнутий підручник у дусі книжки на заставці входу (book3d.js): розгорнутий «галочкою»,
- * палітурки й сторінки — рівні тверді площини з товщиною (не вигнуті, як журнал), сторінки м'яко заходять у згин.
- * Палітурка помаранчева, ручки й ніжки — прості лінії, очі — чорні крапки, рот — проста лінія.
- *
- * Половинки — окремі шари, тож обкладинка відкривається і сторінка перегортається справжнім 3D-поворотом
- * навколо корінця (CSS 3D). Поява: закрита книжка плавно залітає, стає на місце й відкривається,
- * далі обличчя, ручки й ніжки. Міміка змінюється, коли перегортається сторінка. Рухи — у site.css (.bk-*).
+ * Маскот школи — справжня 3D-книжка з заставки входу (book3d.js): помаранчева тверда палітурка, блок сторінок,
+ * чисті сторінки; стоїть розгорнута «галочкою». Ручки й ніжки — прості лінії, очі — чорні крапки, рот — проста лінія.
+ * Поява, як на вході: закрита залітає, осідає й розгортається; далі обличчя й кінцівки. Міміка — з перегортанням сторінки.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { prefersCalm } from './motion.jsx';
 
 const INK = '#1d1733';
@@ -15,55 +11,6 @@ const FACES = ['smile', 'wink', 'surprised', 'happy'];
 const FACE_EVERY = 3600; // мс між виразами
 const FLIP_HALF = 330; // вираз міняється, коли сторінка посередині
 const VB = '0 0 120 116';
-
-/* Геометрія (одна система координат 120×116 для всіх шарів). Корінець — x = 60. */
-const L = {
-  edge: 'M60 34 L14 26 L14 98 L60 106 Z', // товщина палітурки
-  board: 'M60 31 L14 23 L14 95 L60 103 Z',
-  block: 'M60 29 L18 20 L18 90 L60 99 Z', // блок сторінок
-  stripes: 'M18 86.6 L60 95.6 M18 88.2 L60 97.2 M19.2 21.5 V87',
-  page: 'M20 16 L53 22 Q58.5 23 60 27 L60 93 Q58.5 89 53 88 L20 84 Z',
-};
-const R = {
-  edge: 'M60 34 L106 26 L106 98 L60 106 Z',
-  board: 'M60 31 L106 23 L106 95 L60 103 Z',
-  block: 'M60 29 L102 20 L102 90 L60 99 Z',
-  stripes: 'M102 86.6 L60 95.6 M102 88.2 L60 97.2 M100.8 21.5 V87',
-  page: 'M100 16 L67 22 Q61.5 23 60 27 L60 93 Q61.5 89 67 88 L100 84 Z',
-};
-
-function Defs() {
-  return (
-    <defs>
-      <linearGradient id="bk-pl" gradientUnits="userSpaceOnUse" x1="20" x2="60" y1="0" y2="0">
-        <stop offset="0" stopColor="#f7f2e9" />
-        <stop offset="0.75" stopColor="#f1ebe1" />
-        <stop offset="1" stopColor="#d5c8b5" />
-      </linearGradient>
-      <linearGradient id="bk-pr" gradientUnits="userSpaceOnUse" x1="100" x2="60" y1="0" y2="0">
-        <stop offset="0" stopColor="#fbf8f2" />
-        <stop offset="0.75" stopColor="#f4efe7" />
-        <stop offset="1" stopColor="#d9ccba" />
-      </linearGradient>
-      <linearGradient id="bk-bd" x1="0" x2="0" y1="0" y2="1">
-        <stop offset="0" stopColor="#ff9450" />
-        <stop offset="1" stopColor="#f2732c" />
-      </linearGradient>
-    </defs>
-  );
-}
-
-function HalfArt({ g }) {
-  return (
-    <>
-      <path d={g.edge} fill="#c45a17" />
-      <path d={g.board} fill="url(#bk-bd)" />
-      <path d={g.block} fill="#e9dfcf" />
-      <path d={g.stripes} fill="none" stroke="#d3c5b1" strokeWidth="0.6" />
-      <path d={g.page} fill={g === L ? 'url(#bk-pl)' : 'url(#bk-pr)'} />
-    </>
-  );
-}
 
 /** Вирази обличчя. */
 function Face({ kind }) {
@@ -101,57 +48,51 @@ function Face({ kind }) {
   );
 }
 
-/** Міміка: раз на кілька секунд сторінка перегортається, і під нею вже новий вираз. */
-function useFaces() {
-  const [face, setFace] = useState(0);
-  const [flip, setFlip] = useState(0);
-  useEffect(() => {
-    if (prefersCalm()) return undefined;
-    let half = 0;
-    const t = setInterval(() => {
-      setFlip((n) => n + 1);
-      half = setTimeout(() => setFace((f) => (f + 1) % FACES.length), FLIP_HALF);
-    }, FACE_EVERY);
-    return () => { clearInterval(t); clearTimeout(half); };
-  }, []);
-  return [face, flip];
-}
-
+/**
+ * Маскот: справжня 3D-книжка з заставки входу (book3d.js, three.js вантажиться лише в браузері),
+ * поверх — обличчя, ручки й ніжки. Поява й розгортання — у book3d.js; обличчя й кінцівки зʼявляються після,
+ * коли на обгортці стоїть is-ready (CSS-затримки рахуються від нього). Міміка міняється, коли гортається сторінка.
+ */
 export function Book() {
-  const [face, flip] = useFaces();
+  const ref = useRef(null);
+  const [face, setFace] = useState(0);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const calm = prefersCalm();
+    let api = null;
+    let alive = true;
+    let timer = 0;
+    let half = 0;
+    import('../book3d.js')
+      .then(({ mountMascot }) => {
+        if (!alive) return;
+        api = mountMascot(el, { still: calm });
+        setReady(true);
+        if (calm) return;
+        timer = setInterval(() => {
+          api.flip();
+          half = setTimeout(() => setFace((f) => (f + 1) % FACES.length), FLIP_HALF);
+        }, FACE_EVERY);
+      })
+      .catch(() => { if (alive) setReady(true); }); // без WebGL: лишаються обличчя й кінцівки
+    return () => { alive = false; clearInterval(timer); clearTimeout(half); api?.destroy(); };
+  }, []);
   const limb = { fill: 'none', stroke: INK, strokeWidth: 3.2, strokeLinecap: 'round', strokeLinejoin: 'round' };
   return (
-    <div className="s-mascot-art" aria-hidden="true">
+    <div className={`s-mascot-art ${ready ? 'is-ready' : ''}`} aria-hidden="true">
       {/* ручки й ніжки — за книжкою */}
       <svg className="bk-limbs" viewBox={VB}>
-        <ellipse className="s-mascot-ground" cx="60" cy="113" rx="30" ry="3.5" />
-        <g className="s-mascot-foot is-l"><path className="bk-line" pathLength="1" d="M52 100 L49 111 L42 111" {...limb} /></g>
-        <g className="s-mascot-foot is-r"><path className="bk-line" pathLength="1" d="M68 100 L71 111 L78 111" {...limb} /></g>
-        <path className="bk-line" pathLength="1" d="M16 54 L4 69" {...limb} />
-        <g className="s-mascot-arm"><path className="bk-line" pathLength="1" d="M104 54 L116 38" {...limb} /></g>
+        <ellipse className="s-mascot-ground" cx="60" cy="113" rx="34" ry="3.5" />
+        <g className="s-mascot-foot is-l"><path className="bk-line" pathLength="1" d="M51 88 L48 111 L41 111" {...limb} /></g>
+        <g className="s-mascot-foot is-r"><path className="bk-line" pathLength="1" d="M69 88 L72 111 L79 111" {...limb} /></g>
+        <path className="bk-line" pathLength="1" d="M9 56 L-4 72" {...limb} />
+        <g className="s-mascot-arm"><path className="bk-line" pathLength="1" d="M111 56 L124 40" {...limb} /></g>
       </svg>
-      <div className="bk">
-        <svg className="bk-layer" viewBox={VB}><Defs /><HalfArt g={R} /></svg>
-        {/* ліва половина: на старті лежить на правій (книжка закрита) — видно обкладинку; потім відкривається */}
-        <div className="bk-leaf">
-          <svg className="bk-layer bk-front" viewBox={VB}><HalfArt g={L} /></svg>
-          <svg className="bk-layer bk-back" viewBox={VB}>
-            <path d={R.edge} fill="#c45a17" />
-            <path d={R.board} fill="url(#bk-bd)" />
-            <path d="M60 31 L67 29.8 L67 101.8 L60 103 Z" fill="#e5651f" />
-            <text x="85" y="62" textAnchor="middle" fontSize="11" fontWeight="900" fontFamily="ui-monospace, Consolas, monospace" fill="#fff7ec" transform="skewY(-10) translate(0 15)">{'</>'}</text>
-          </svg>
-        </div>
-        <svg className="bk-layer bk-spine" viewBox={VB}><path d="M60 27 V93" stroke="#c9bba6" strokeWidth="1" /></svg>
-        {flip > 0 && (
-          <div key={flip} className="bk-flip">
-            <svg className="bk-layer bk-front" viewBox={VB}><path d={R.page} fill="url(#bk-pr)" /></svg>
-            <svg className="bk-layer bk-back" viewBox={VB}><path d={L.page} fill="url(#bk-pl)" /></svg>
-          </div>
-        )}
-      </div>
+      <div className="bk3d" ref={ref} />
       <svg className="bk-face" viewBox={VB}>
-        <g key={flip} className={flip ? 'bk-face-flip' : ''}><Face kind={FACES[face]} /></g>
+        <g key={face} className="bk-face-in"><Face kind={FACES[face]} /></g>
       </svg>
     </div>
   );
