@@ -167,7 +167,7 @@ export function Home() {
         </section>
       )}
 
-      <section className="s-wrap s-sec">
+      <section className="s-wrap s-sec s-faq-sec">
         <SectionHead title="Часті питання" to="/faq" more="Усі питання" />
         <FaqList items={faqItems(data).slice(0, 4)} />
       </section>
