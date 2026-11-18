@@ -155,8 +155,8 @@ with sync_playwright() as pw:
     check("вчителю керування сайтом закрите", api(tc, "GET", "/site-admin/leads").status == 403 and t.locator(".rail-nav a", has_text="Сайт").count() == 0)
     tc.close()
 
-    # Палітра: сайт фіолетовий, кабінет лишається червоним, рядок браузера не червоний
-    check("кабінет не перефарбовано", m.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--red-fill').trim().toLowerCase()") == "#d6112b")
+    # Палітра: і сайт, і кабінет фіолетові; рядок браузера не червоний
+    check("кабінет у тій самій фіолетовій палітрі, що й сайт", m.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--red-fill').trim().toLowerCase()") == "#2f2172")
     g.goto(BASE); g.wait_for_load_state("networkidle")
     check("сайт фіолетовий", g.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--red-fill').trim()") == "#2f2172")
     check("рядок браузера не червоний", g.evaluate("document.querySelector('meta[name=theme-color]').content").lower() != "#d6112b")

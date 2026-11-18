@@ -52,7 +52,7 @@ const MONO = '"Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace';
 const PAPER = '#f1ebe1';
 // Сторінки трохи притемнені: на червоному тлі чисто білий папір світився
 const PAGE_TINT = '#efe9df';
-const RED = '#d6152f';
+const RED = '#f2732c'; // акцент книжки — помаранчевий, як у маскота сайту
 
 const PAGE_TEXT = [
   ['function grow(mind) {', '  while (curious) {', '    mind.learn();', '    mind.try();', '  }', '  return smart;', '}', '', '// be smart', 'grow(you);'],
@@ -262,11 +262,11 @@ export function mountBook(el, { still = false, startAt = performance.now() } = {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
   camera.position.set(0, 0, 14);
-  scene.add(new THREE.HemisphereLight('#ffffff', '#f3dcd8', 1.4));
+  scene.add(new THREE.HemisphereLight('#ffffff', '#e2dcf3', 1.4));
   const key = new THREE.DirectionalLight('#fff6ec', 2.4);
   key.position.set(-4, 6, 9);
   scene.add(key);
-  const rim = new THREE.DirectionalLight('#ffd0d6', 0.8);
+  const rim = new THREE.DirectionalLight('#d9d0ff', 0.8);
   rim.position.set(6, -3, 4);
   scene.add(rim);
 

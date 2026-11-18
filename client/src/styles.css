@@ -5,24 +5,24 @@
 :root {
   color-scheme: light;
   --paper: #ffffff;
-  --wash: #fbf6f6;
+  --wash: #f5f0e9;
   --raise: #ffffff;
-  --ink: #1f1114;
-  --muted: #6e5e62;
-  --line: #eadfe0;
-  --grid: #f4e9ea;
-  --grid-strong: #e7d4d7;
-  --red: #d6112b;
-  --red-fill: #d6112b;
-  --red-hover: #b60d23;
-  --red-soft: #fdecee;
+  --ink: #17151e;
+  --muted: #615d6e;
+  --line: #e7e1d8;
+  --grid: #efeae3;
+  --grid-strong: #ddd5ca;
+  --red: #2f2172;
+  --red-fill: #2f2172;
+  --red-hover: #241859;
+  --red-soft: #efebff;
   --on-red: #ffffff;
-  --rail: #d6112b;
-  --rail-deep: #b60d23;
-  --road-bed: #eadcde;
-  --chart-bar: #d6112b;
-  --ok-soft: #f1ecec;
-  --shadow: 0 18px 50px -14px rgb(84 14 26 / 0.28);
+  --rail: #2f2172;
+  --rail-deep: #241859;
+  --road-bed: #e4ddd3;
+  --chart-bar: #2f2172;
+  --ok-soft: #f1ece5;
+  --shadow: 0 18px 50px -14px rgb(23 21 30 / 0.28);
   --display: 'Unbounded Variable', 'Arial Black', sans-serif;
   --body: 'Onest Variable', system-ui, sans-serif;
   --ia: var(--red);
@@ -47,15 +47,15 @@
   --line: #2a2f38;
   --grid: #1a1d23;
   --grid-strong: #2b3039;
-  --red: #ff6177;
-  --red-fill: #e5304a;
-  --red-hover: #f0455e;
-  --red-soft: #3a1c25;
+  --red: #b3a4ff;
+  --red-fill: #6d5ae0;
+  --red-hover: #7d6bec;
+  --red-soft: #251f3f;
   --rail: #16191f;
   --rail-deep: #232832;
   --rail-active: #262b35;
   --road-bed: #2a2f38;
-  --chart-bar: #ff6177;
+  --chart-bar: #9d8bff;
   --ok-soft: #242830;
   --shadow: 0 18px 50px -14px rgb(0 0 0 / 0.7);
   --left-ok-bg: #12301f;
@@ -69,13 +69,13 @@
 :root[data-theme='dark'] .rail-nav { box-shadow: inset 0 1px 0 var(--line); }
 :root[data-theme='dark'] .rail-nav a.active { background: var(--rail-active); color: var(--ink); }
 :root[data-theme='dark'] .avatar:not(.avatar-red) { background: var(--red-fill); color: #fff; }
-/* Заняття в розкладі: мʼяка червона заливка зі смужкою зліва замість суцільного червоного */
-:root[data-theme='dark'] .block.is-weekly { background: #3b1a24; color: var(--ink); box-shadow: inset 3px 0 0 var(--red-fill); }
+/* Заняття в розкладі: мʼяка фіолетова заливка зі смужкою зліва замість суцільного червоного */
+:root[data-theme='dark'] .block.is-weekly { background: #2a2350; color: var(--ink); box-shadow: inset 3px 0 0 var(--red-fill); }
 :root[data-theme='dark'] .block.is-weekly .block-meta svg { color: var(--red); opacity: 1; }
-:root[data-theme='dark'] .week-col.is-today { background-color: rgb(255 97 119 / 0.06); }
-:root[data-theme='dark'] .swatch-weekly { background: #3b1a24; box-shadow: inset 3px 0 0 var(--red-fill); }
-/* Екран входу лишається фірмово червоним і в темній темі */
-:root[data-theme='dark'] .login-art, :root[data-theme='dark'] .login-flow { background-color: #b90f27; }
+:root[data-theme='dark'] .week-col.is-today { background-color: rgb(157 139 255 / 0.07); }
+:root[data-theme='dark'] .swatch-weekly { background: #2a2350; box-shadow: inset 3px 0 0 var(--red-fill); }
+/* Екран входу лишається фірмово фіолетовим і в темній темі */
+:root[data-theme='dark'] .login-art, :root[data-theme='dark'] .login-flow { background-color: #2a1d66; }
 @media (min-width: 900px) {
   :root[data-theme='dark'] .rail, :root[data-theme='dark'] .rail-nav { box-shadow: inset -1px 0 0 var(--line); }
 }
@@ -169,7 +169,7 @@ img { display: block; max-width: 100%; }
 .avatar {
   flex: none; display: grid; place-items: center;
   width: 36px; height: 36px; border-radius: 50%;
-  background: #fff; color: #b60d23; font-weight: 700; font-size: 13px;
+  background: #fff; color: var(--red-hover); font-weight: 700; font-size: 13px;
 }
 .avatar-red { background: var(--red-soft); color: var(--red); }
 /* Людина в тексті: аватарка поруч з ім'ям. Ініціали без картинки — на м'якому тлі теми */
@@ -239,7 +239,7 @@ img { display: block; max-width: 100%; }
 .btn-wide { width: 100%; }
 .btn-primary, .btn-danger { background: var(--red-fill); color: var(--on-red); --ia: currentColor; }
 .btn-ghost { border: 1.5px solid var(--line); }
-.btn-onred { background: #fff; color: #b60d23; }
+.btn-onred { background: #fff; color: var(--red); }
 .icon-btn { display: inline-grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 8px; }
 .icon-btn:disabled { opacity: 0.3; }
 
@@ -626,7 +626,7 @@ img { display: block; max-width: 100%; }
 .requests { margin-bottom: 20px; padding: 14px 14px 6px; background: var(--red-soft); border-radius: 10px; }
 .requests h2 { font-weight: 600; font-size: 15.5px; margin-bottom: 4px; }
 .request { display: flex; flex-direction: column; gap: 10px; padding: 10px 0; }
-.request + .request { border-top: 1px solid rgb(214 17 43 / 0.2); }
+.request + .request { border-top: 1px solid color-mix(in srgb, var(--red) 20%, transparent); }
 .request-info { display: grid; text-align: left; font-size: 14px; min-width: 0; }
 .request-info strong { font-weight: 600; }
 .request-info small { color: var(--muted); }
@@ -1512,7 +1512,7 @@ button.stop:active { transform: scale(0.94); }
 .sub-state.is-off { --state-bg: var(--wash); --state-ink: var(--muted); box-shadow: inset 0 0 0 1px var(--grid-strong); }
 /* Найближче заняття учня: виділене кільцем, на нього стає фокус */
 .block.is-next { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--red); z-index: 3; animation: next-pulse 1.6s var(--ease) 2; }
-@keyframes next-pulse { 50% { box-shadow: 0 0 0 2px var(--paper), 0 0 0 9px rgb(214 17 43 / 0.25); } }
+@keyframes next-pulse { 50% { box-shadow: 0 0 0 2px var(--paper), 0 0 0 9px color-mix(in srgb, var(--red-fill) 25%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .block.is-next { animation: none; } }
 /* Теми курсу: перевизначають акценти всередині картки чи сторінки курсу */
 .ct-typed, .ct-snake, .ct-web, .ct-git, .ct-php, .ct-sql, .ct-next { --on-red: #fff; }
