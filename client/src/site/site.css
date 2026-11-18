@@ -1580,3 +1580,27 @@
   .s-sc-stage { top: auto; bottom: -80px; left: -90px; right: auto; width: 220px; opacity: 0.14; }
   .s-dir-deco.is-play .is-blk { display: none; }
 }
+
+/* Книжки в кутках: без розгортання — погойдуються й кліпають, кожна у своєму темпі */
+.lb .lb-cover, .lb .lb-flip { animation: none !important; }
+.lb { animation: lb-bob var(--lb-t, 7s) var(--lb-d, 0s) ease-in-out infinite; }
+@keyframes lb-bob { 0%, 100% { translate: 0 0; rotate: 0deg; } 30% { translate: 0 -5px; rotate: -3deg; } 60% { translate: 0 1px; rotate: 2deg; } }
+.lb.is-still { animation: none; }
+.lb-eyes { transform-box: fill-box; transform-origin: center; animation: lb-blink 4.6s var(--lb-d, 0s) infinite; }
+@keyframes lb-blink { 0%, 90%, 100% { transform: scaleY(1); } 94% { transform: scaleY(0.12); } }
+@media (prefers-reduced-motion: reduce) { .lb, .lb-eyes { animation: none; } }
+
+/* Однакова висота карток: у слайдері — за найвищою, на сторінці курсів (компʼютер) — теж */
+.s-dir-slide { display: grid; }
+.s-dir-slide > .s-dir { height: 100%; }
+@media (min-width: 900px) {
+  .s-dir-list { grid-auto-rows: 1fr; }
+  .s-dir { min-height: 440px; }
+}
+/* Телефон і планшет: картка — колонка, кнопки завжди в самому низу (у слайдері всі картки однакової висоти) */
+@media (max-width: 899.98px) {
+  .s-dir { display: flex; flex-direction: column; gap: 10px; }
+  .s-dir > .s-dir-text > * { flex: none; }
+  .s-dir > .s-dir-text > .s-dir-actions { margin-top: auto; padding-top: 6px; align-self: flex-end; }
+  .s-dir > .s-dir-text > :not(.s-dir-actions) { align-self: flex-start; }
+}

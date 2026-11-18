@@ -19,8 +19,7 @@ function CoverFace({ face }) {
     return (
       <>
         <rect x="13" y="23" width="34" height="11" rx="5.5" fill="#1d1733" />
-        <rect x="16" y="25.5" width="11" height="3" rx="1.5" fill="#6d5ae0" />
-        <rect x="33" y="25.5" width="11" height="3" rx="1.5" fill="#6d5ae0" />
+        <g className="lb-eyes"><rect x="16" y="25.5" width="11" height="3" rx="1.5" fill="#6d5ae0" /><rect x="33" y="25.5" width="11" height="3" rx="1.5" fill="#6d5ae0" /></g>
         <path d="M24 43 Q30 47 36 43" fill="none" stroke="#1d1733" strokeWidth="2.4" strokeLinecap="round" />
       </>
     );
@@ -29,14 +28,14 @@ function CoverFace({ face }) {
     return (
       <>
         <ellipse cx="22" cy="26" rx="6" ry="7" fill="#fff" /><ellipse cx="38" cy="26" rx="6" ry="7" fill="#fff" />
-        <circle cx="23" cy="27" r="3.2" fill="#1d1733" /><circle cx="39" cy="27" r="3.2" fill="#1d1733" />
+        <g className="lb-eyes"><circle cx="23" cy="27" r="3.2" fill="#1d1733" /><circle cx="39" cy="27" r="3.2" fill="#1d1733" /></g>
         <path d="M22 40 Q30 52 38 40 Z" fill="#1d1733" />
       </>
     );
   }
   return (
     <>
-      <circle cx="24" cy="30" r="3.6" fill="#1d1733" /><circle cx="40" cy="30" r="3.6" fill="#1d1733" />
+      <g className="lb-eyes"><circle cx="24" cy="30" r="3.6" fill="#1d1733" /><circle cx="40" cy="30" r="3.6" fill="#1d1733" /></g>
       <circle cx="19" cy="39" r="3.2" fill="#ff8fa3" opacity="0.65" /><circle cx="45" cy="39" r="3.2" fill="#ff8fa3" opacity="0.65" />
       <path d="M26 38 Q32 44 38 38" fill="none" stroke="#1d1733" strokeWidth="2.4" strokeLinecap="round" />
     </>
@@ -44,9 +43,8 @@ function CoverFace({ face }) {
 }
 
 /**
- * Книжка-маскот у кутку картки, як на заставці входу: обкладинка в 3D повертається навколо корінця,
- * сторінка перегортається туди й назад, книжка закривається. Кожна — у своєму темпі й зі своїм зсувом,
- * щоб не рухались синхронно. face: 'smile' | 'cool' | 'happy'.
+ * Книжка-маскот у кутку картки: закрита, легенько погойдується й кліпає.
+ * Кожна — у своєму темпі й зі своїм зсувом, щоб не рухались синхронно. face: 'smile' | 'cool' | 'happy'.
  */
 function LoopBook({ face = 'smile', className = '' }) {
   const [pace] = useState(() => ({ '--lb-t': `${(6.5 + Math.random() * 2.5).toFixed(2)}s`, '--lb-d': `${(-Math.random() * 8).toFixed(2)}s` }));
