@@ -1687,3 +1687,27 @@
 /* Заголовки всіх карток — виразним Unbounded */
 .s-dir .s-dir-title { font-family: var(--display); font-weight: 800; letter-spacing: -0.05em; }
 .s-dir .s-dir-title em { font-family: var(--display); letter-spacing: -0.05em; }
+
+/* ───────── Свої кольори для світлих карток, щоб не були однакові ─────────
+   Backend — мʼятний, ШІ — рожевий, Компʼютерна грамотність — небесна, Scratch — сонячна */
+.s-dir.is-light:not(.is-bg-dots):not(.is-bg-keys):not(.is-bg-play) { --dir-a: #0d7a4f; --dir-a-hover: #0a6340; background-color: #ddf4e8;
+  background-image: linear-gradient(rgb(13 122 79 / 0.07) 1px, transparent 1px), linear-gradient(90deg, rgb(13 122 79 / 0.07) 1px, transparent 1px); }
+.s-dir.is-bg-dots { --dir-a: #b8326e; --dir-a-hover: #9c2a5d; background-color: #ffe4ef; background-image: radial-gradient(rgb(184 50 110 / 0.16) 1.2px, transparent 1.4px); }
+.s-dir.is-bg-keys { --dir-a: #1f5fbf; --dir-a-hover: #194f9f; background: #e2f0ff; }
+.s-dir.is-bg-play { --dir-a: #7a3fd1; --dir-a-hover: #6532b3; background: #fff1bf; }
+.s-dir.is-light .s-dir-title em { color: var(--dir-a, var(--red)); }
+.s-dir.is-light .s-dir-badge:not(.is-plain) { background: var(--dir-a, #17151e); }
+.s-dir.is-light .s-dir-feats li:last-child { background: var(--dir-a, #2f2172); }
+.s-dir.is-light .s-dir-feats svg { stroke: var(--dir-a, #2f2172); }
+.s-dir.is-light .s-dir-feats li:last-child svg { stroke: #fff; }
+.s-dir.is-light .btn.s-dir-go { background: var(--dir-a, var(--red-fill)); }
+.s-dir.is-light .btn.s-dir-more { color: var(--dir-a, var(--red-fill)); box-shadow: inset 0 0 0 2px var(--dir-a, var(--red-fill)); }
+@media (hover: hover) {
+  .s-dir.is-light .btn.s-dir-go:hover { background: var(--dir-a-hover, var(--red-hover)); }
+  .s-dir.is-light .btn.s-dir-more:hover { background: color-mix(in srgb, var(--dir-a, #2f2172) 8%, transparent); }
+}
+/* декор під нові кольори */
+.s-dir-deco.is-ai .is-star::before { color: rgb(184 50 110 / 0.18); }
+.s-dir-deco.is-ai .is-ring { border-color: rgb(184 50 110 / 0.3); }
+.s-dir-deco.is-play .is-circle { background: #ffe07a; }
+.s-dir.is-bg-keys .s-dir-deco.is-keys i { background: rgb(255 255 255 / 0.6); }

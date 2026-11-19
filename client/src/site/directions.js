@@ -134,9 +134,8 @@ export const SITE_DIRECTIONS = [
   {
     id: 'backend',
     slug: 'backend',
-    title: 'Backend, бази даних і ООП',
-    titleMain: 'Backend,',
-    titleAccent: 'бази даних і ООП',
+    title: 'Backend',
+    titleMain: 'Backend',
     badge: 'Новий напрям',
     summary: 'Те, що працює «під капотом» сайтів і застосунків: сервер, API, дані та код, який легко розвивати.',
     features: [['Сервер', 'API, запити, авторизація', 'server'], ['Бази даних', 'SQL, таблиці, звʼязки', 'db'], ['ООП', 'класи, обʼєкти, спадкування', 'oop']],
@@ -145,7 +144,7 @@ export const SITE_DIRECTIONS = [
     icon: 'db',
     theme: null,
     steps: BE_STEPS.length,
-    courses: [{ id: 'backend', title: 'Backend, бази даних і ООП', steps: BE_STEPS }],
+    courses: [{ id: 'backend', title: 'Backend', steps: BE_STEPS }],
   },
   {
     id: 'ai',
@@ -169,10 +168,11 @@ export const SITE_DIRECTIONS = [
     id: 'pc',
     slug: 'kompiuterna-hramotnist',
     title: 'Комп’ютерна грамотність',
-    kicker: 'Комп’ютерна грамотність',
-    titleMain: 'Комп’ютер —',
-    titleAccent: 'це просто!',
+    kicker: 'Комп’ютер — це просто!',
+    titleMain: 'Комп’ютерна',
+    titleAccent: 'грамотність',
     badge: 'Для дітей',
+    badgePlain: true, // стриманий, не яскравий
     summary: 'Знайомимося з комп’ютером крок за кроком, у грі та без стресу.',
     features: [['Друкуємо наосліп', '', 'keyboard'], ['Файли й папки', '', 'folder'], ['Безпечний інтернет', '', 'shield']],
     art: 'pc',
@@ -186,10 +186,9 @@ export const SITE_DIRECTIONS = [
   {
     id: 'scratch',
     slug: 'scratch',
-    title: 'Програмуємо граючись',
-    titleMain: 'Програмуємо',
-    titleAccent: 'граючись',
-    badge: 'Scratch',
+    title: 'Scratch: програмуємо граючись',
+    titleMain: 'Scratch',
+    badge: 'Програмуємо граючись',
     badgePlain: true, // білий бейдж з обводкою
     summary: 'Складаємо програми з кольорових блоків, як конструктор, і створюємо власні ігри та мультики.',
     features: [['Блоки й алгоритми', '', 'blocks'], ['Свої ігри', '', 'gamepad'], ['Мультики й анімація', '', 'film']],
@@ -200,6 +199,6 @@ export const SITE_DIRECTIONS = [
     icon: 'blocks',
     theme: null,
     steps: SCRATCH_STEPS.length,
-    courses: [{ id: 'scratch', title: 'Програмуємо граючись', steps: SCRATCH_STEPS }],
+    courses: [{ id: 'scratch', title: 'Scratch: програмуємо граючись', steps: SCRATCH_STEPS }],
   },
 ];
