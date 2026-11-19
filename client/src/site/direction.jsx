@@ -384,7 +384,7 @@ function Features({ items }) {
   }, [items.length]);
   return (
     <ul className="s-dir-feats" ref={ref}>
-      {items.map(([t, x, icon], k) => <li key={t} className={k === on ? 'is-on' : ''}>{icon && FEAT_ICON[icon]}<b>{t}</b>{x}</li>)}
+      {items.map(([t, x, icon], k) => <li key={t} className={k === on ? 'is-on' : ''}>{icon && FEAT_ICON[icon]}<b>{t}</b>{x && <span className="s-dir-feat-x">{x}</span>}</li>)}
     </ul>
   );
 }
@@ -406,7 +406,7 @@ export function DirectionCard({ d, all }) {
         )}
         {d.kicker && <span className="s-dir-kicker">{d.kicker}</span>}
         {d.wrap && <span className="s-dir-wrap" aria-hidden="true">{d.wrap[0]}</span>}
-        <h3 className="s-dir-title">{d.titleMain ?? d.title}{d.titleAccent && <> <em>{d.titleAccent}</em></>}</h3>
+        <h3 className="s-dir-title"><span className="s-dir-title-in">{d.titleMain ?? d.title}{d.titleAccent && <> <em>{d.titleAccent}</em></>}</span></h3>
         {d.wrap && <span className="s-dir-wrap" aria-hidden="true">{d.wrap[1]}</span>}
         {d.summary && <p className="s-dir-lead">{d.summary}</p>}
         {d.chips?.length > 0 && (

@@ -1755,3 +1755,34 @@
 @keyframes be-flow-x { to { background-position: 12px 0; } }
 @keyframes be-flow-y { to { background-position: 0 12px; } }
 @media (prefers-reduced-motion: reduce) { .s-dir-art.is-be .s-be-arrow, .s-dir-art.is-be .s-be-link, .s-dir-art.is-be .s-be-down { animation: none; } }
+
+/* Компʼютерна грамотність: заголовок в один рядок — розмір під ширину картки.
+   На вузькому телефоні й на вузькому десктопі (900–1199, колонка тексту ~350px) — два рядки, інакше шрифт був би дрібним */
+@media (min-width: 600px) and (max-width: 899.98px), (min-width: 1200px) {
+  .s-dir.is-bg-keys .s-dir-title { container-type: inline-size; align-self: stretch; width: 100%; }
+  .s-dir.is-bg-keys .s-dir-title-in { display: block; white-space: nowrap; font-size: min(54px, calc(100cqi / 16.6)); }
+}
+/* Телефон і планшет: ілюстрація — шар під текстом (флекс-елемент із z-index малювався поверх карток-переваг і кнопок,
+   і фон просвічував крізь них) */
+@media (max-width: 899.98px) {
+  .s-dir.s-dir > .s-dir-art { z-index: 0; }
+  .s-dir.s-dir .s-dir-feats, .s-dir.s-dir .s-dir-actions { position: relative; z-index: 2; }
+}
+/* Python на телефоні й планшеті: без декоративних рядків «<>» — інакше ця картка найвища і всі інші тягнуться за нею (порожнеча над кнопками) */
+@media (max-width: 899.98px) { .s-dir.is-py .s-dir-wrap { display: none; } }
+@media (max-width: 599.98px) { .s-dir.is-py .s-dir-codeline { display: none; } }
+/* Планшет: картки-переваги компактні — іконка й назва в рядок, без опису (картки нижчі, менше порожнечі над кнопками) */
+@media (min-width: 600px) and (max-width: 899.98px) {
+  .s-dir.s-dir .s-dir-feats li { grid-template-columns: auto 1fr; align-items: center; align-content: center; gap: 8px; min-height: 0; padding: 10px 12px; }
+  .s-dir.s-dir .s-dir-feats svg { margin: 0; }
+  .s-dir.s-dir .s-dir-feat-x { display: none; }
+}
+/* Контурна «Детальніше» не прозора — фонова ілюстрація крізь неї не просвічує */
+.s-dir.is-light .btn.s-dir-more { background-color: #fff; }
+.s-dir.is-dark .btn.s-dir-more { background-color: #1d1933; }
+.s-dir.is-py .btn.s-dir-more { background-color: #2c2370; }
+@media (hover: hover) {
+  .s-dir.is-light .btn.s-dir-more:hover { background-color: #f6f4fb; }
+  .s-dir.is-dark .btn.s-dir-more:hover { background-color: #2a2548; }
+  .s-dir.is-py .btn.s-dir-more:hover { background-color: #382e85; }
+}
