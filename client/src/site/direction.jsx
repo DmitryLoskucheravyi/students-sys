@@ -222,6 +222,7 @@ function BackendArt() {
         <p><span><em className="is-pub">+</em> enroll()</span><span><em className="is-pub">+</em> getProgress()</span></p>
       </div>
       <span className="s-be-down" />
+      <span className="s-be-link" />
       <div className="s-be-db"><span>students</span></div>
       <code className="s-be-sql"><u>SELECT</u> name <u>FROM</u> students{'\n'}<u>WHERE</u> level = <b>'pro'</b>;</code>
       </div>

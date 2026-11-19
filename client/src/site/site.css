@@ -1712,3 +1712,46 @@
 .s-dir-deco.is-ai .is-ring { border-color: rgb(184 50 110 / 0.3); }
 .s-dir-deco.is-play .is-circle { background: #ffe07a; }
 .s-dir.is-bg-keys .s-dir-deco.is-keys i { background: rgb(255 255 255 / 0.6); }
+
+/* ───────── Backend на десктопі: охайна схема ─────────
+   Клієнт → api-server ↓ база ← class Student, під ними SQL. Стрілки — тонкі лінії з «пакетами», що біжать. */
+.s-be-link { display: none; }
+@media (min-width: 900px) {
+  .s-dir-art.is-be { justify-self: center; width: 100%; max-width: 580px; min-height: 0; height: 360px; }
+  .s-dir-art.is-be .s-be-client { top: 22px; left: 0; width: 31%; max-width: none; rotate: -2deg; }
+  .s-dir-art.is-be .s-be-api { top: 0; right: 0; width: 41%; max-width: none; }
+  .s-dir-art.is-be .s-be-class { top: 140px; left: 3%; width: 36%; max-width: none; rotate: -3deg; }
+  .s-dir-art.is-be .s-be-db { top: 196px; right: 7.5%; width: 26%; max-width: none; }
+  .s-dir-art.is-be .s-be-sql { left: auto; right: 0; bottom: 0; }
+  /* книжка — у вільному куті під class Student */
+  .s-dir-art.is-be .s-dir-book.is-happy { top: auto; right: auto; left: 4%; bottom: -12px; }
+  /* статус відповіді — акуратна пігулка під стрілкою */
+  .s-dir-art.is-be .s-be-status { top: 74px; left: 45%; translate: -50% 0; padding: 3px 9px; border-radius: 999px; background: #fff; color: #0d7a4f;
+    font-size: 11px; white-space: nowrap; box-shadow: 0 0 0 1.5px rgb(13 122 79 / 0.35); }
+  /* стрілки */
+  .s-dir-art.is-be .s-be-arrow, .s-dir-art.is-be .s-be-link, .s-dir-art.is-be .s-be-down { display: block; position: absolute; border: 0; rotate: none;
+    --wire: #2f2172; }
+  .s-dir-art.is-be .s-be-arrow { top: 60px; left: calc(31% + 10px); width: calc(28% - 26px); height: 2px; }
+  .s-dir-art.is-be .s-be-link { top: 240px; left: calc(39% + 10px); width: calc(26.5% - 24px); height: 2px; }
+  .s-dir-art.is-be .s-be-arrow, .s-dir-art.is-be .s-be-link {
+    background: repeating-linear-gradient(90deg, var(--wire) 0 7px, transparent 7px 12px); background-size: 12px 2px; animation: be-flow-x 0.9s linear infinite; }
+  .s-dir-art.is-be .s-be-down { top: 132px; right: calc(20.5% - 1px); width: 2px; height: 52px;
+    background: repeating-linear-gradient(180deg, var(--wire) 0 7px, transparent 7px 12px); background-size: 2px 12px; animation: be-flow-y 0.9s linear infinite; }
+  /* наконечник — рівний «шеврон» із двох ліній */
+  .s-dir-art.is-be .s-be-arrow::after, .s-dir-art.is-be .s-be-link::after, .s-dir-art.is-be .s-be-down::after {
+    content: ''; position: absolute; width: 9px; height: 9px; border: solid var(--wire); border-width: 2px 2px 0 0; border-radius: 1px; }
+  .s-dir-art.is-be .s-be-arrow::after, .s-dir-art.is-be .s-be-link::after { left: auto; right: 0; top: -4.5px; bottom: auto; rotate: 45deg; }
+  .s-dir-art.is-be .s-be-down::after { left: -4.5px; right: auto; top: auto; bottom: 0; rotate: 135deg; }
+  /* точка-початок кожної стрілки */
+  .s-dir-art.is-be .s-be-arrow::before, .s-dir-art.is-be .s-be-link::before, .s-dir-art.is-be .s-be-down::before {
+    content: ''; position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--wire); }
+  .s-dir-art.is-be .s-be-arrow::before, .s-dir-art.is-be .s-be-link::before { left: -3px; top: -2.5px; }
+  .s-dir-art.is-be .s-be-down::before { top: -3px; left: -2.5px; }
+}
+@media (min-width: 900px) and (max-width: 1099.98px) {
+  /* вузько: пігулці статусу між блоками не вистачає місця */
+  .s-dir-art.is-be .s-be-status { display: none; }
+}
+@keyframes be-flow-x { to { background-position: 12px 0; } }
+@keyframes be-flow-y { to { background-position: 0 12px; } }
+@media (prefers-reduced-motion: reduce) { .s-dir-art.is-be .s-be-arrow, .s-dir-art.is-be .s-be-link, .s-dir-art.is-be .s-be-down { animation: none; } }
