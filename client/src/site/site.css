@@ -1684,9 +1684,10 @@
   .s-dir.is-light .btn.s-dir-more:hover { background: rgb(47 33 114 / 0.08); }
   .s-dir.is-dark .btn.s-dir-go:hover { background: #c6baff; }
 }
-/* Заголовки всіх карток — виразним Unbounded */
-.s-dir .s-dir-title { font-family: var(--display); font-weight: 800; letter-spacing: -0.05em; }
-.s-dir .s-dir-title em { font-family: var(--display); letter-spacing: -0.05em; }
+/* Заголовки всіх карток — Montserrat Alternates: виразні округлі альтернативні літери */
+.s-dir { --dir-font: 'Montserrat Alternates', var(--display); }
+.s-dir .s-dir-title { font-family: var(--dir-font); font-weight: 800; letter-spacing: -0.035em; }
+.s-dir .s-dir-title em { font-family: var(--dir-font); font-weight: 800; letter-spacing: -0.035em; }
 
 /* ───────── Свої кольори для світлих карток, щоб не були однакові ─────────
    Backend — мʼятний, ШІ — рожевий, Компʼютерна грамотність — небесна, Scratch — сонячна */
