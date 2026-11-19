@@ -1625,3 +1625,65 @@
   .s-sc-b em { padding: 2px 8px; }
   .s-sc-loop-end { height: 12px; }
 }
+/* Python на телефоні й планшеті: термінал — фоном у нижньому лівому куті */
+@media (max-width: 899.98px) {
+  .s-dir.is-py .s-dir-term { position: absolute; z-index: 0; left: -60px; bottom: 70px; width: 240px; max-width: none; opacity: 0.16; rotate: -6deg; pointer-events: none; }
+}
+@media (max-width: 899.98px) {
+  /* Frontend з нуля: вікно коду, «Привіт!» і книжка — фоном по кутах */
+  .s-dir:not([class*='is-']) > .s-dir-art { position: static; min-height: 0; padding: 0; margin: 0; }
+  .s-dir:not([class*='is-']) .s-dir-code { position: absolute; z-index: 0; left: -70px; bottom: 74px; width: 280px; margin: 0; opacity: 0.16; rotate: -6deg; }
+  .s-dir:not([class*='is-']) .s-dir-page { z-index: 0; left: auto; right: -40px; bottom: auto; top: 46%; opacity: 0.22; rotate: 8deg; }
+  .s-dir:not([class*='is-']) .s-dir-book { z-index: 0; top: 14px; right: 14px; opacity: 0.35; }
+  /* Frontend PRO: вікно коду — фоном унизу ліворуч; теги й «<Course />» лишаються */
+  .s-dir.is-dark > .s-dir-art.is-pro { min-height: 110px; padding: 46px 0 0; }
+  .s-dir.is-dark .s-dir-art.is-pro .s-dir-code { position: absolute; z-index: 0; top: auto; left: -60px; bottom: -150px; width: 290px; opacity: 0.16; rotate: -6deg; }
+  .s-dir.is-dark .s-dir-comp { bottom: auto; top: 58px; right: 4px; }
+}
+
+/* ───────── Телефон і планшет: картки легкі — спереду лише текст і кнопки, ілюстрація — фоном по кутах ─────────
+   (компʼютер не змінюється). Ці правила останні й перекривають попередні мобільні. */
+@media (max-width: 899.98px) {
+  .s-dir > .s-dir-art { position: static; min-height: 0; padding: 0; margin: 0; }
+  .s-dir > .s-dir-art > *, .s-dir > .s-dir-art .s-be-top > *, .s-dir > .s-dir-art .s-be-rest > *, .s-dir > .s-dir-art .s-ai-bg > *, .s-dir > .s-dir-art .s-pc-bg > * {
+    pointer-events: none; }
+  .s-dir .s-be-top, .s-dir .s-be-rest, .s-dir .s-ai-bg, .s-dir .s-pc-bg { display: contents; }
+  .s-dir > .s-dir-text > * { position: relative; z-index: 1; }
+
+  /* PRO: теги й книжки немає, «<Course />» — праворуч посередині фоном */
+  .s-dir-tag { display: none; }
+  .s-dir.is-dark > .s-dir-art.is-pro { min-height: 0; padding: 0; }
+  .s-dir.is-dark .s-dir-comp { position: absolute; z-index: 0; top: 52%; right: -24px; bottom: auto; opacity: 0.22; rotate: 6deg; }
+
+  /* Backend: клієнт — унизу ліворуч, сервер — праворуч посередині, клас — угорі праворуч */
+  .s-dir.is-light .s-be-top { height: auto; }
+  .s-dir.is-light .s-be-client { position: absolute; z-index: 0; top: auto; bottom: 80px; left: -40px; width: 180px; opacity: 0.18; rotate: -6deg; }
+  .s-dir.is-light .s-be-api { position: absolute; z-index: 0; top: 50%; bottom: auto; left: auto; right: -50px; width: 220px; opacity: 0.16; rotate: 5deg; }
+  .s-dir.is-light .s-be-arrow, .s-dir.is-light .s-be-status { display: none; }
+
+  /* ШІ: промпт — праворуч посередині, відео — унизу ліворуч, картинка — угорі праворуч */
+  .s-dir.is-bg-dots .s-ai-prompt { position: absolute; z-index: 0; top: 54%; right: -40px; left: auto; width: 250px; max-width: none; opacity: 0.22; rotate: 4deg; }
+  .s-dir.is-bg-dots .s-ai-video { position: absolute; z-index: 0; top: auto; bottom: 70px; left: -60px; right: auto; width: 200px; margin: 0; opacity: 0.18; rotate: -6deg; animation: none; }
+
+  /* Компʼютерна грамотність: монітор — унизу праворуч, клавіатура — угорі праворуч */
+  .s-dir.is-bg-keys .s-pc-screen { position: absolute; z-index: 0; right: -60px; bottom: 70px; width: 260px; margin: 0; opacity: 0.16; rotate: 5deg; }
+
+  /* Програмуємо граючись: блоки — унизу ліворуч; «стрибнути!», курсор і сцена приховані */
+  .s-dir-art.is-scratch .s-sc-stack { position: absolute; z-index: 0; left: -30px; bottom: 74px; width: 260px; opacity: 0.18; rotate: -5deg; }
+  .s-sc-drag, .s-sc-cursor, .s-sc-stage { display: none; }
+
+  /* Python: термінал і змійка вже фоном; знак — угорі праворуч */
+}
+
+/* Кнопки «Записатися» без помаранчевого: світлі картки — фіолетова, «Детальніше» — фіолетовий контур; темна — бузкова */
+.s-dir.is-light .btn.s-dir-go { background: var(--red-fill); color: #fff; }
+.s-dir.is-light .btn.s-dir-more { background: transparent; color: var(--red-fill); box-shadow: inset 0 0 0 2px var(--red-fill); }
+.s-dir.is-dark .btn.s-dir-go { background: #b3a4ff; color: #17151e; }
+@media (hover: hover) {
+  .s-dir.is-light .btn.s-dir-go:hover { background: var(--red-hover); }
+  .s-dir.is-light .btn.s-dir-more:hover { background: rgb(47 33 114 / 0.08); }
+  .s-dir.is-dark .btn.s-dir-go:hover { background: #c6baff; }
+}
+/* Заголовки всіх карток — виразним Unbounded */
+.s-dir .s-dir-title { font-family: var(--display); font-weight: 800; letter-spacing: -0.05em; }
+.s-dir .s-dir-title em { font-family: var(--display); letter-spacing: -0.05em; }
