@@ -2,7 +2,9 @@
  * Напрямки сайту — у коді, не в кабінеті: картка, чипи й програма задані тут.
  * Форма та сама, що колись приходила з API (seo.js, сторінка курсу, пререндер працюють із нею без змін):
  * { id, slug, title, summary, courses: [{ id, title, steps: [{ id, title, description, topics }] }], steps }.
- * Новий напрямок — новий обʼєкт у SITE_DIRECTIONS (і, за потреби, своя ілюстрація в DirectionArt).
+ * Картка (course-card.jsx) бере звідси: ages, level, titleMain/titleAccent, summary (опис від «ти», про результат),
+ * path (3 кроки: два — що вивчиш, третій — результат), look (кольори картки), art (ілюстрація), face (маскот), isNew.
+ * Порядок — за віком, від молодших до старших. Новий напрямок — новий обʼєкт тут і, за потреби, своя сцена в course-art.jsx.
  */
 
 const FRONTEND_STEPS = [
@@ -82,104 +84,29 @@ const SCRATCH_STEPS = [
     topics: ['Ідея й план', 'Створення', 'Тестування', 'Показ друзям'] },
 ];
 
+export const LEVELS = { start: 'Старт', next: 'Для продовження' };
+
+/*
+ * look: bg — тло картки, accent — колір курсу (чип віку, уточнення в назві, кнопка, посилання, результат),
+ * ink — текст, muted — опис, onAccent — текст на акценті, dark — темна картка (дорослий рівень).
+ * Пари текст/тло перевірені на контраст ≥ 4.5:1.
+ */
 export const SITE_DIRECTIONS = [
-  {
-    id: 'frontend',
-    slug: 'frontend',
-    title: 'Frontend з нуля',
-    titleMain: 'Frontend',
-    titleAccent: 'з нуля',
-    summary: 'Вчимося створювати сайти: HTML, CSS, JavaScript і сучасний фронтенд!',
-    chips: ['HTML', 'CSS', 'JavaScript', 'Сайт'],
-    art: 'frontend',
-    icon: 'web',
-    theme: null,
-    steps: FRONTEND_STEPS.length,
-    courses: [{ id: 'frontend', title: 'Frontend з нуля', steps: FRONTEND_STEPS }],
-  },
-  {
-    id: 'frontend-pro',
-    slug: 'frontend-pro',
-    title: 'Frontend PRO',
-    titleMain: 'Frontend',
-    titleAccent: 'PRO',
-    badge: 'Поглиблений курс',
-    summary: 'Пишемо сучасні застосунки на React, TypeScript і Next.js — так, як працюють у реальних командах.',
-    features: [['React', 'компоненти, хуки, стан'], ['TypeScript', 'типи без болю й помилок'], ['Next.js', 'роутинг, SSR, деплой']],
-    art: 'pro',
-    look: 'dark', // темна картка, ілюстрація ліворуч
-    icon: 'web',
-    theme: null,
-    steps: PRO_STEPS.length,
-    courses: [{ id: 'frontend-pro', title: 'Frontend PRO', steps: PRO_STEPS }],
-  },
-  {
-    id: 'python',
-    slug: 'python',
-    title: 'Python з нуля',
-    titleMain: 'Python',
-    titleAccent: 'з нуля',
-    badge: 'Новий напрям',
-    badgeNote: '.py',
-    wrap: ['>>> print(', ')'], // заголовок «обгорнутий» у виклик print
-    summary: 'Перша справжня мова програмування: від першого рядка коду до власних ігор і програм.',
-    codeLine: ['теми', ['змінні', 'цикли', 'функції', 'ігри']],
-    art: 'python',
-    look: 'py', // фіолетова картка з рядками Python-коду на тлі, жовтий акцент
-    icon: 'py',
-    theme: null,
-    steps: PY_STEPS.length,
-    courses: [{ id: 'python', title: 'Python з нуля', steps: PY_STEPS }],
-  },
-  {
-    id: 'backend',
-    slug: 'backend',
-    title: 'Backend',
-    titleMain: 'Backend',
-    badge: 'Новий напрям',
-    summary: 'Те, що працює «під капотом» сайтів і застосунків: сервер, API, дані та код, який легко розвивати.',
-    features: [['Сервер', 'API, запити, авторизація', 'server'], ['Бази даних', 'SQL, таблиці, звʼязки', 'db'], ['ООП', 'класи, обʼєкти, спадкування', 'oop']],
-    art: 'backend',
-    look: 'light', // світла персикова картка в клітинку
-    icon: 'db',
-    theme: null,
-    steps: BE_STEPS.length,
-    courses: [{ id: 'backend', title: 'Backend', steps: BE_STEPS }],
-  },
-  {
-    id: 'ai',
-    slug: 'ai',
-    title: 'ШІ з нуля',
-    titleMain: 'ШІ',
-    titleAccent: 'з нуля',
-    badge: 'Новий напрям',
-    summary: 'Знайомимося зі штучним інтелектом і вчимося створювати фото та відео за текстовим описом.',
-    features: [['Як працює ШІ', 'промпти й чат-боти', 'idea'], ['Фото з тексту', 'ілюстрації, постери', 'image'], ['Відео з тексту', 'короткі ролики', 'video']],
-    art: 'ai',
-    look: 'light',
-    bg: 'dots', // бузкове тло в крапку
-    artLeft: true,
-    icon: 'ai',
-    theme: null,
-    steps: AI_STEPS.length,
-    courses: [{ id: 'ai', title: 'ШІ з нуля', steps: AI_STEPS }],
-  },
   {
     id: 'pc',
     slug: 'kompiuterna-hramotnist',
     title: 'Комп’ютерна грамотність',
-    kicker: 'Комп’ютер — це просто!',
     titleMain: 'Комп’ютерна',
     titleAccent: 'грамотність',
-    badge: 'Для дітей',
-    badgePlain: true, // стриманий, не яскравий
-    summary: 'Знайомимося з комп’ютером крок за кроком, у грі та без стресу.',
-    features: [['Друкуємо наосліп', '', 'keyboard'], ['Файли й папки', '', 'folder'], ['Безпечний інтернет', '', 'shield']],
+    ages: [6, 9],
+    level: 'start',
+    summary: 'Навчишся друкувати, зберігати свої малюнки й безпечно гуляти інтернетом — у грі.',
+    path: [['keyboard', 'Друкую сам'], ['folder', 'Файли й папки'], ['shield-check', 'Безпечний інтернет']],
+    cta: 'Записати дитину', // картку для 6–9 часто читають батьки
+    look: { bg: '#E4EEFC', accent: '#1F5FC4', ink: '#13203B', muted: '#3A4763', onAccent: '#fff' },
     art: 'pc',
-    look: 'light',
-    bg: 'keys', // кремове тло з клавішами-декором
+    face: 'happy',
     icon: 'blocks',
-    theme: null,
     steps: PC_STEPS.length,
     courses: [{ id: 'pc', title: 'Комп’ютерна грамотність', steps: PC_STEPS }],
   },
@@ -188,17 +115,111 @@ export const SITE_DIRECTIONS = [
     slug: 'scratch',
     title: 'Scratch: програмуємо граючись',
     titleMain: 'Scratch',
-    badge: 'Програмуємо граючись',
-    badgePlain: true, // білий бейдж з обводкою
-    summary: 'Складаємо програми з кольорових блоків, як конструктор, і створюємо власні ігри та мультики.',
-    features: [['Блоки й алгоритми', '', 'blocks'], ['Свої ігри', '', 'gamepad'], ['Мультики й анімація', '', 'film']],
+    ages: [7, 11],
+    level: 'start',
+    summary: 'Складай програму з кольорових блоків, як конструктор, — і твій герой оживе.',
+    path: [['puzzle', 'Блоки й алгоритми'], ['clapperboard', 'Мультики'], ['gamepad-2', 'Своя гра']],
+    look: { bg: '#FFF1C7', accent: '#7B3FD1', ink: '#2A1B3D', muted: '#54452F', onAccent: '#fff' },
     art: 'scratch',
-    look: 'light',
-    bg: 'play', // кремове тло з бузковим колом і кольоровими фігурами
-    artLeft: true,
+    face: 'happy',
     icon: 'blocks',
-    theme: null,
     steps: SCRATCH_STEPS.length,
     courses: [{ id: 'scratch', title: 'Scratch: програмуємо граючись', steps: SCRATCH_STEPS }],
   },
+  {
+    id: 'ai',
+    slug: 'ai',
+    title: 'ШІ з нуля',
+    titleMain: 'ШІ',
+    titleAccent: 'з нуля',
+    ages: [9, 14],
+    level: 'start',
+    summary: 'Розберешся, як «думає» штучний інтелект, і навчишся створювати картинки й відео за своїм описом.',
+    path: [['lightbulb', 'Як працює ШІ'], ['image', 'Картинки з тексту'], ['clapperboard', 'Свій мультфільм']],
+    look: { bg: '#FDE6EF', accent: '#B8336A', ink: '#2B1622', muted: '#4A3A44', onAccent: '#fff' },
+    art: 'ai',
+    face: 'happy',
+    icon: 'ai',
+    steps: AI_STEPS.length,
+    courses: [{ id: 'ai', title: 'ШІ з нуля', steps: AI_STEPS }],
+  },
+  {
+    id: 'python',
+    slug: 'python',
+    title: 'Python з нуля',
+    titleMain: 'Python',
+    titleAccent: 'з нуля',
+    ages: [10, 15],
+    level: 'start',
+    summary: 'Перша справжня мова програмування: від свого першого рядка до своєї гри.',
+    path: [['repeat', 'Змінні й цикли'], ['braces', 'Функції'], ['gamepad-2', 'Гра на Python']],
+    look: { bg: '#2E2A8C', bg2: '#4B2A8C', accent: '#FFD43B', ink: '#FFFFFF', muted: '#DCD8F7', onAccent: '#1D1733', dark: true },
+    art: 'python',
+    face: 'calm',
+    icon: 'py',
+    steps: PY_STEPS.length,
+    courses: [{ id: 'python', title: 'Python з нуля', steps: PY_STEPS }],
+  },
+  {
+    id: 'frontend',
+    slug: 'frontend',
+    title: 'Frontend з нуля',
+    titleMain: 'Frontend',
+    titleAccent: 'з нуля',
+    ages: [11, 16],
+    level: 'start',
+    summary: 'Зробиш свій перший сайт і скинеш друзям посилання на нього.',
+    path: [['file-code', 'HTML і CSS'], ['mouse-pointer-click', 'JavaScript'], ['globe', 'Свій сайт']],
+    look: { bg: '#EEE8FF', accent: '#2D2A6E', ink: '#17151E', muted: '#4B4663', onAccent: '#fff' },
+    art: 'frontend',
+    face: 'calm',
+    icon: 'web',
+    steps: FRONTEND_STEPS.length,
+    courses: [{ id: 'frontend', title: 'Frontend з нуля', steps: FRONTEND_STEPS }],
+  },
+  {
+    id: 'backend',
+    slug: 'backend',
+    title: 'Backend',
+    titleMain: 'Backend',
+    ages: [14, 18],
+    level: 'next',
+    summary: 'Те, що працює «під капотом»: напишеш сервер і базу даних для свого застосунку.',
+    path: [['server', 'Сервер і API'], ['database', 'Бази даних'], ['plug', 'Свій API-сервіс']],
+    look: { bg: '#E3F5EC', accent: '#0E7A4F', ink: '#0F261C', muted: '#37503F', onAccent: '#fff' },
+    art: 'backend',
+    face: 'calm',
+    icon: 'db',
+    steps: BE_STEPS.length,
+    courses: [{ id: 'backend', title: 'Backend', steps: BE_STEPS }],
+  },
+  {
+    id: 'frontend-pro',
+    slug: 'frontend-pro',
+    title: 'Frontend PRO',
+    titleMain: 'Frontend',
+    titleAccent: 'PRO',
+    ages: [14, 18],
+    level: 'next',
+    note: 'Після Frontend з нуля або зі знанням JS',
+    summary: 'Пишеш застосунки на React, TypeScript і Next.js — так, як у справжніх командах.',
+    path: [['atom', 'React і Next.js'], ['shield-check', 'TypeScript'], ['briefcase', 'Проєкт у портфоліо']],
+    look: { bg: '#15131D', accent: '#B9A6FF', ink: '#F5F0E9', muted: '#CBC5D8', onAccent: '#15131D', dark: true },
+    art: 'pro',
+    face: 'cool',
+    icon: 'web',
+    steps: PRO_STEPS.length,
+    courses: [{ id: 'frontend-pro', title: 'Frontend PRO', steps: PRO_STEPS }],
+  },
 ];
+
+/** «6–9 років» */
+export const agesLabel = ([a, b]) => `${a}–${b} років`;
+/** Вікові фільтри над картками; курс підходить, якщо його вік перетинається з діапазоном. */
+export const AGE_FILTERS = [
+  { id: '', label: 'Всі' },
+  { id: '6-9', label: '6–9', range: [6, 9] },
+  { id: '10-13', label: '10–13', range: [10, 13] },
+  { id: '14-18', label: '14–18', range: [14, 18] },
+];
+export const fitsAge = (d, f) => !f?.range || (d.ages[0] <= f.range[1] && d.ages[1] >= f.range[0]);

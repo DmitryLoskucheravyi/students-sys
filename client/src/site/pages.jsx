@@ -12,7 +12,7 @@ import { FEATURES, FORMAT, HERO, PAGES, STEPS } from './content.js';
 import { telHref, useBoot, useLead, useSite } from './ctx.js';
 import { FeatureArt } from './features.jsx';
 import { Bits, HeroArt, TrialPeek } from './hero.jsx';
-import { DirectionCard, DirectionSlider } from './direction.jsx';
+import { CourseList, DirectionSlider } from './direction.jsx';
 import { SITE_DIRECTIONS } from './directions.js';
 import { directionMeta, subtopicsWord, topicsWord } from './logic.js';
 import { Reveal } from './motion.jsx';
@@ -224,8 +224,8 @@ export function CoursesPage() {
   return (
     <>
       <PageHero title={PAGES.courses.title} lead={PAGES.courses.lead} />
-      <section className="s-wrap s-sec is-tight s-dir-list">
-        {SITE_DIRECTIONS.map((d) => <DirectionCard key={d.id} d={d} all={SITE_DIRECTIONS} />)}
+      <section className="s-wrap s-sec is-tight cc-sec">
+        <CourseList items={SITE_DIRECTIONS} />
       </section>
       <CtaBand />
     </>

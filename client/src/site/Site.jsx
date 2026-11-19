@@ -16,8 +16,6 @@ import { socialLinks, BootCtx, LeadCtx, SiteCtx, prettyPhone, telHref, useSite }
 import { directionPath } from './seo.js';
 import { SITE_DIRECTIONS } from './directions.js';
 import '@fontsource-variable/nunito';
-import '@fontsource/montserrat-alternates/latin-800.css';
-import '@fontsource/montserrat-alternates/cyrillic-800.css';
 import './themes.css';
 import './site.css';
 
