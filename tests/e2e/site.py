@@ -24,6 +24,10 @@ def login(p, u, pw):
     p.get_by_label("Логін").fill(u); p.locator("input[type=password]").fill(pw)
     p.get_by_role("button", name="Увійти").click(); p.wait_for_selector(".rail"); p.wait_for_load_state("networkidle")
 
+def course_card(p):
+    # За точною назвою: «Frontend з нуля» є ще й у рядку-умові картки Frontend PRO
+    return p.locator(".cc").filter(has=p.locator(".cc-title", has_text=re.compile(r"^Frontend з нуля$")))
+
 def shot(p, n, full=False):
     p.wait_for_timeout(500); p.screenshot(path=str(OUT / f"{n}.png"), full_page=full)
 
@@ -164,7 +168,7 @@ with sync_playwright() as pw:
     check("фільтр за віком — у адресі", "age=10-13" in g.url, g.url)
     g.locator(".cc-filter").get_by_role("button", name="Усі курси").click()
     expect(g.locator(".cc-fold:not(.is-out)")).to_have_count(7)
-    g.locator(".cc", has_text=course_name).get_by_role("link", name="Програма курсу").click(); g.wait_for_load_state("networkidle")
+    course_card(g).get_by_role("link", name="Програма курсу").click(); g.wait_for_load_state("networkidle")
     expect(g.locator("h1", has_text=course_name)).to_be_visible()
     check("сторінка курсу з програмою", g.locator(".s-program > li").count() >= 1)
     check("назва вкладки — курс", course_name in g.title())
@@ -222,7 +226,7 @@ with sync_playwright() as pw:
     check("у повідомленні ім'я, телефон, екранований текст", msgs and "Марко Петренко" in msgs[0]["text"] and "+380677654321" in msgs[0]["text"] and "&lt;b&gt;Python&lt;/b&gt;" in msgs[0]["text"])
     g.get_by_role("button", name="Готово").click()
     # Заявка з курсу підставляє курс у «Додатково»
-    g.goto(f"{BASE}/courses"); g.locator(".cc", has_text=course_name).get_by_role("link", name="Програма курсу").click(); g.wait_for_load_state("networkidle")
+    g.goto(f"{BASE}/courses"); course_card(g).get_by_role("link", name="Програма курсу").click(); g.wait_for_load_state("networkidle")
     g.get_by_role("button", name="Записатись на курс").click()
     check("заявка з курсу підставляє курс", g.get_by_role("dialog").get_by_label("Додатково").input_value() == f"Курс: {course_name}")
     g.keyboard.press("Escape")
