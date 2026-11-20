@@ -317,7 +317,12 @@ function CourseView({ course }) {
   const lead = useLead();
   const withSteps = course.courses.filter((c) => c.steps.length > 0);
   const meta = directionMeta(course);
-  const others = SITE_DIRECTIONS.filter((d) => d.id !== course.id).slice(0, 3);
+  // Інші курси — найближчі за віком: після Frontend PRO радимо Backend і Frontend, а не Scratch
+  const mid = (d) => (d.ages[0] + d.ages[1]) / 2;
+  const others = SITE_DIRECTIONS.filter((d) => d.id !== course.id)
+    .map((d, k) => ({ d, k, gap: Math.abs(mid(d) - mid(course)) }))
+    .sort((a, b) => a.gap - b.gap || a.k - b.k).slice(0, 3)
+    .sort((a, b) => a.k - b.k).map((x) => x.d);
   return (
     <>
       <section className={`s-course-hero ${themeClass(course.theme)}`}>
