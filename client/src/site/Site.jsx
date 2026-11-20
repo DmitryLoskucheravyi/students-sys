@@ -1,6 +1,6 @@
 /*
  * Сайт школи: головна з превʼю, курси, ціни, відгуки. Курси, ціни, відгуки й контакти — з кабінету наживо.
- * «Записатись» відкриває форму заявки; заявка йде менеджеру в кабінет і, якщо налаштовано, у Telegram.
+ * «Записати дитину» відкриває форму заявки; заявка йде менеджеру в кабінет і, якщо налаштовано, у Telegram.
  * Під час збірки сторінки рендеряться заздалегідь (ssr.jsx, scripts/prerender.mjs): пошуковики й ШІ-боти
  * одразу отримують увесь текст. Браузер бере зібрані дані зі сторінки (#site-boot) і тихо оновлює їх з API.
  */
@@ -135,7 +135,7 @@ function Header({ onLead }) {
           {NAV.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
           <a href="/cabinet" className="s-nav-cabinet"><IconUser size={18} />Для учнів</a>
         </nav>
-        <Button className="s-head-cta" onClick={() => onLead()}>Записатись</Button>
+        <Button className="s-head-cta" onClick={() => onLead()}>Записати<span className="s-head-cta-x"> дитину</span></Button>
         <IconButton className="s-burger" label={menu ? 'Закрити меню' : 'Меню'} aria-expanded={menu} aria-controls="s-menu" onClick={() => setMenu(!menu)}>
           {menu ? <IconClose /> : <IconMenu />}
         </IconButton>
@@ -150,7 +150,7 @@ function Header({ onLead }) {
             <a href="/cabinet" className="s-menu-cabinet"><IconUser size={20} />Для учнів</a>
           </nav>
           <Socials className="is-menu" />
-          <Button className="btn-wide" onClick={() => { setMenu(false); onLead(); }}>Записатись</Button>
+          <Button className="btn-wide" onClick={() => { setMenu(false); onLead(); }}>Записати дитину</Button>
         </div>
       )}
     </>

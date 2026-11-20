@@ -20,6 +20,9 @@
 .bs-logo.is-site { color: var(--red); font-size: 17px; }
 .s-nav { display: none; }
 .s-head-cta { height: 42px; padding: 0 16px; border-radius: 12px; font-size: 14.5px; }
+/* «Записати дитину»; на вузьких телефонах — «Записати», щоб кнопка не налазила на бургер */
+.s-head-cta-x { display: none; }
+@media (min-width: 400px) { .s-head-cta-x { display: inline; } }
 .s-burger { width: 44px; height: 44px; border-radius: 12px; color: var(--ink); }
 .s-menu {
   position: fixed; inset: var(--head) 0 0; z-index: 29; display: flex; flex-direction: column; gap: 24px; padding: 20px 16px calc(24px + env(safe-area-inset-bottom));

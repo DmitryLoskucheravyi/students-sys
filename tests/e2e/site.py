@@ -134,8 +134,12 @@ with sync_playwright() as pw:
     g.goto(BASE); g.wait_for_load_state("networkidle")
     check("тема сайту світла навіть із темною системною", g.evaluate("document.documentElement.dataset.theme") == "light")
     expect(g.locator(".cc")).to_have_count(7)
-    check("курси сайту — напрямки з коду, від молодших до старших", "Комп’ютерна грамотність" in g.locator(".cc").first.inner_text() and "Frontend PRO" in g.locator(".cc").last.inner_text())
-    check("картка: вік, рівень і 3 кроки", "6–9 років" in g.locator(".cc-age").first.inner_text() and g.locator(".cc").first.locator(".cc-path li").count() == 3)
+    check("курси сайту — напрямки з коду, від молодших до старших", "Комп’ютерна грамотність" in g.locator(".cc").first.inner_text() and "Backend" in g.locator(".cc").last.inner_text())
+    first = g.locator(".cc").first
+    check("картка: вік, «З нуля» і 3 чипи з результатом", "6–9 років" in first.locator(".cc-age").inner_text() and "З нуля" in first.locator(".cc-level").inner_text()
+          and first.locator(".cc-chips li").count() == 3 and "Результат: безпечний інтернет" in first.locator(".cc-chip.is-result").inner_text())
+    check("кнопка картки — «Записати дитину» з назвою курсу", first.get_by_role("button", name="Записати дитину на курс Комп’ютерна грамотність").count() == 1)
+    check("передумова лише в курсах «Продовження»", g.locator(".cc-pre").count() == 2 and "знає основи програмування" in g.locator(".cc").last.inner_text())
     check("слайдер: перша стрілка вимкнена, друга — ні", g.locator(".cc-sec .s-pill-arrow").first.is_disabled() and not g.locator(".cc-sec .s-pill-arrow").nth(1).is_disabled())
     check("превʼю двох абонементів", g.locator(".s-ticket").count() == 2)
     check("на сайті лише опублікований відгук", g.locator(".s-review").count() == 1 and "Олена Тест" in g.locator(".s-review").inner_text() and "Прихований" not in g.content())
@@ -209,7 +213,7 @@ with sync_playwright() as pw:
     # 4. Заявка: форма, «або», «Зателефонувати», Telegram
     tg_messages(clear=True)
     g.goto(BASE); g.wait_for_load_state("networkidle")
-    g.locator(".s-head").get_by_role("button", name="Записатись").click()
+    g.locator(".s-head").get_by_role("button", name="Записати").click()
     d = g.get_by_role("dialog", name="Запис", exact=True)
     check("у формі ім'я, телефон і необов'язкове «Додатково»", d.get_by_label("Ім'я").is_visible() and d.get_by_label("Телефон").is_visible() and d.get_by_label("Додатково").is_visible())
     check("під формою «або» і «Зателефонувати»", d.locator(".or-line").inner_text().strip() == "або" and d.locator("a.call-btn[href='tel:+380671234567']").count() == 1)
