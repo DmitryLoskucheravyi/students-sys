@@ -165,9 +165,17 @@ export function Home() {
         </section>
       )}
 
-      <section className="s-wrap s-sec s-faq-sec">
-        <SectionHead title="Часті питання" to="/faq" more="Усі питання" />
-        <FaqList items={faqItems(data).slice(0, 4)} />
+      <section className="s-wrap s-sec">
+        <SectionHead title="Як почати" />
+        <ol className="s-steps">
+          {STEPS.map((s, i) => (
+            <li key={s.title}>
+              <span className="s-step-n">{i + 1}</span>
+              <h3>{s.title}</h3>
+              <p>{s.text}</p>
+            </li>
+          ))}
+        </ol>
       </section>
 
       {data?.projects?.length > 0 && (
@@ -183,17 +191,9 @@ export function Home() {
         </SliderSection>
       )}
 
-      <section className="s-wrap s-sec">
-        <SectionHead title="Як почати" />
-        <ol className="s-steps">
-          {STEPS.map((s, i) => (
-            <li key={s.title}>
-              <span className="s-step-n">{i + 1}</span>
-              <h3>{s.title}</h3>
-              <p>{s.text}</p>
-            </li>
-          ))}
-        </ol>
+      <section className="s-wrap s-sec s-faq-sec">
+        <SectionHead title="Часті питання" to="/faq" more="Усі питання" />
+        <FaqList items={faqItems(data).slice(0, 4)} />
       </section>
 
       <CtaBand />
