@@ -8,7 +8,8 @@ import { useSearchParams } from 'react-router-dom';
 import { api, uploadForm, useData } from '../api.js';
 import { CourseIcon } from '../courseLook.jsx';
 import { dateTimeShort, lessonsWord, money } from '../fmt.js';
-import { Button, Checkbox, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageTools, Segmented, Select, Status, Textarea, useAction, useUI } from '../ui.jsx';
+import { Button, Checkbox, Empty, ErrorNote, IconButton, Input, Loader, Modal, PageTools, PhoneInput, Segmented, Select, Status, Textarea, useAction, useUI } from '../ui.jsx';
+import { phoneForSave } from '../phone.js';
 import { IconBell, IconEdit, IconExternal, IconImage, IconPhone, IconPlus, IconQuote, IconRestore, IconTick, IconTrash } from '../icons.jsx';
 
 const TABS = [
@@ -331,13 +332,13 @@ function ContactsForm({ initial, onSaved }) {
   const set = (k) => (e) => setV({ ...v, [k]: e.target.value });
   const submit = async (e) => {
     e.preventDefault();
-    const r = await run(() => api('/site-admin/settings', { method: 'PUT', body: v }), 'Контакти збережено');
+    const r = await run(() => api('/site-admin/settings', { method: 'PUT', body: { ...v, phone: phoneForSave(v.phone) } }), 'Контакти збережено');
     if (r) { setV(r); onSaved(); }
   };
   return (
     <form className="form contacts-form" onSubmit={submit}>
       <div className="form-row">
-        <Input label="Телефон" hint="Для кнопки «Зателефонувати»" type="tel" inputMode="tel" placeholder="+380 67 123 45 67" value={v.phone} onChange={set('phone')} />
+        <PhoneInput hint="Для кнопки «Зателефонувати»" value={v.phone} onChange={(phone) => setV({ ...v, phone })} />
         <Input label="Email" type="email" value={v.email} onChange={set('email')} />
       </div>
       <div className="form-row">

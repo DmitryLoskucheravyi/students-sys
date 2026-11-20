@@ -106,7 +106,7 @@ function FormatChapter({ n }) {
         })}
         <div className="s-format-cta">
           <p>Не знаєте, що обрати? Підкажемо на пробному занятті.</p>
-          <Button className="s-format-btn" onClick={() => lead()} icon={<IconRight size={18} />}>Записатися</Button>
+          <Button className="s-format-btn" onClick={() => lead()} icon={<IconRight size={18} />}>Записатись</Button>
         </div>
       </Reveal>
     </section>

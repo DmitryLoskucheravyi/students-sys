@@ -9,7 +9,8 @@ import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-
 import { api } from '../api.js';
 import BsLogo from '../BsLogo.jsx';
 import { RouteBoundary } from '../ErrorBoundary.jsx';
-import { Button, IconButton, Input, Modal, Textarea } from '../ui.jsx';
+import { Button, IconButton, Input, Modal, PhoneInput, Textarea } from '../ui.jsx';
+import { UA_PREFIX, phoneForSave } from '../phone.js';
 import { IconRight, IconFacebook, IconInstagram, IconTelegram, IconTiktok, IconSpark, IconClose, IconMenu, IconPhone, IconSend, IconTick, IconUser } from '../icons.jsx';
 import { CoursePage, CoursesPage, FaqPage, Home, NotFound, PricesPage, PrivacyPage, ProjectsPage, ReviewsPage } from './pages.jsx';
 import { socialLinks, BootCtx, LeadCtx, SiteCtx, prettyPhone, telHref, useSite } from './ctx.js';
@@ -40,7 +41,7 @@ function useSiteData(initial) {
 
 function LeadModal({ note: initialNote, phone, onClose }) {
   const [name, setName] = useState('');
-  const [tel, setTel] = useState('');
+  const [tel, setTel] = useState(UA_PREFIX);
   const [note, setNote] = useState(initialNote ?? '');
   const [trap, setTrap] = useState('');
   const [busy, setBusy] = useState(false);
@@ -52,7 +53,7 @@ function LeadModal({ note: initialNote, phone, onClose }) {
     setBusy(true);
     setError('');
     try {
-      await api('/site/leads', { method: 'POST', body: { name, phone: tel, note, website: trap } });
+      await api('/site/leads', { method: 'POST', body: { name, phone: phoneForSave(tel), note, website: trap } });
       setDone(true);
     } catch (err) {
       setError(err.message);
@@ -74,8 +75,7 @@ function LeadModal({ note: initialNote, phone, onClose }) {
       ) : (
         <form className="lead-form" onSubmit={submit}>
           <Input label="Ім'я" autoComplete="name" maxLength={80} required value={name} onChange={(e) => setName(e.target.value)} />
-          <Input label="Телефон" type="tel" inputMode="tel" autoComplete="tel" maxLength={24} required placeholder="+380 __ ___ __ __"
-            value={tel} onChange={(e) => setTel(e.target.value)} />
+          <PhoneInput required value={tel} onChange={setTel} />
           <Textarea label="Додатково" hint="Необов'язково" rows={3} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
           {/* Пастка для ботів: людина цього поля не бачить */}
           <div className="lead-trap" aria-hidden="true">

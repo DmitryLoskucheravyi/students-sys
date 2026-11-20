@@ -53,13 +53,16 @@ const dist = path.join(ROOT, 'client', 'dist');
 if (existsSync(dist)) {
   const APP_SHELL = /^\/(cabinet|q|courses)(\/|$)|^\/(homework|lessons|people|stats|subscriptions|subscription|profile|tests|quizzes)(\/|$)/;
   app.use(express.static(dist, { redirect: false }));
+  // Шлях — відносно root: з абсолютним шляхом send не віддає файл, якщо десь вище є тека з крапкою
+  // (наприклад, репозиторій у .claude/worktrees/...), і замість сторінки виходить JSON 404.
+  const send = (res: express.Response, file: string, status = 200) => res.status(status).sendFile(path.relative(dist, file), { root: dist });
   http.get(/^(?!\/api).*/, (req, res) => {
     let page = '';
     try { page = path.join(dist, `${decodeURIComponent(req.path).replace(/\/+$/, '') || '/index'}.html`); } catch { /* битий %-код */ }
-    if (page.startsWith(dist + path.sep) && existsSync(page)) return res.sendFile(page);
-    if (APP_SHELL.test(req.path)) return res.sendFile(path.join(dist, existsSync(path.join(dist, 'app.html')) ? 'app.html' : 'index.html'));
+    if (page.startsWith(dist + path.sep) && existsSync(page)) return send(res, page);
+    if (APP_SHELL.test(req.path)) return send(res, path.join(dist, existsSync(path.join(dist, 'app.html')) ? 'app.html' : 'index.html'));
     const notFound = path.join(dist, '404.html');
-    return existsSync(notFound) ? res.status(404).sendFile(notFound) : res.sendFile(path.join(dist, 'index.html'));
+    return existsSync(notFound) ? send(res, notFound, 404) : send(res, path.join(dist, 'index.html'));
   });
 }
 

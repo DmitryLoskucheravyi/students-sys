@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { type Query, type Row, q, tx } from '../../db.js';
-import { bad, conflict, id, notFound, str } from '../../lib.js';
+import { bad, conflict, id, normalizePhone, notFound, str } from '../../lib.js';
+
+/** Телефон людини — необовʼязковий; якщо є, зберігаємо як «+380…», як і в заявках. */
+const optionalPhone = (v: unknown): string | null => {
+  const s = str(v, 'Телефон', { max: 30, required: false });
+  return s ? normalizePhone(s) : null;
+};
 import { parseAvatar } from '../../avatars.js';
 import { hashPassword, validatePassword } from '../../common/auth.js';
 
@@ -92,7 +98,7 @@ export class UsersService {
     if (!['teacher', 'student'].includes(role)) throw bad('Роль: вчитель або учень');
     const name = str(body.name, "Ім'я", { max: 120 });
     const login = parseLogin(body.login);
-    const phone = str(body.phone, 'Телефон', { max: 30, required: false });
+    const phone = optionalPhone(body.phone);
     const password = validatePassword(body.password);
     const avatar = parseAvatar(body.avatar) ?? null;
     const rooms = role === 'teacher' ? parseRooms(body.rooms) ?? [] : [];
@@ -114,7 +120,7 @@ export class UsersService {
     const u = await managed(idValue);
     b = b ?? {};
     const name = b.name !== undefined ? str(b.name, "Ім'я", { max: 120 }) : u.name;
-    const phone = b.phone !== undefined ? str(b.phone, 'Телефон', { max: 30, required: false }) : u.phone;
+    const phone = b.phone !== undefined ? optionalPhone(b.phone) : u.phone;
     const login = b.login !== undefined ? parseLogin(b.login) : u.login;
     if (login !== u.login) await assertLoginFree(login, u.id);
     const rooms = parseRooms(b.rooms);

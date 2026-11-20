@@ -60,6 +60,7 @@ test('normalizePhone: український номер без коду, між�
   assert.equal(normalizePhone('(067) 765-43-21'), '+380677654321');
   assert.equal(normalizePhone('+380 67 123 45 67'), '+380671234567');
   assert.equal(normalizePhone('+48 512 345 678'), '+48512345678');
+  assert.equal(normalizePhone('67 123 45 67'), '+380671234567'); // без нуля — все одно український
   rejects(() => normalizePhone('12345'));
   rejects(() => normalizePhone(''));
   rejects(() => normalizePhone('067 123 45 67 ext'));

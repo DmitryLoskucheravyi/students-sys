@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api.js';
 import { ThemeButton, useAuth } from '../session.jsx';
 import { Button, PageHead, PasswordInput, useAction } from '../ui.jsx';
+import { formatPhone } from '../phone.js';
 import { IconLogout } from '../icons.jsx';
 import { Avatar, AvatarPicker } from '../avatars.jsx';
 
@@ -31,7 +32,7 @@ export default function Profile() {
         <Avatar user={user} size={64} />
         <div>
           <PageHead title={user.name} />
-          <p className="muted small">Логін: {user.login}{user.phone ? `, ${user.phone}` : ''}</p>
+          <p className="muted small">Логін: {user.login}{user.phone ? `, ${formatPhone(user.phone)}` : ''}</p>
         </div>
       </div>
       <section className="profile-form profile-avatar" aria-busy={savingAvatar}>

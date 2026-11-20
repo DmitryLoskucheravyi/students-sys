@@ -1,3 +1,4 @@
+import { UA_PREFIX, formatPhone, nextPhone, phoneProblem } from './phone.js';
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useIsMobile } from './session.jsx';
@@ -100,6 +101,30 @@ export function Field({ label, hint, children, id }) {
 export function Input({ label, hint, ...p }) {
   const id = useId();
   return <Field label={label} hint={hint} id={id}><input id={id} className="input" {...p} /></Field>;
+}
+/**
+ * Телефон: «+38 » уже стоїть, номер форматується під час введення (phone.js). onChange отримує рядок.
+ * Неповний номер браузер не дасть надіслати — підкаже, скільки цифр треба.
+ */
+export function PhoneInput({ label = 'Телефон', hint, value, onChange, required = false, ...p }) {
+  const id = useId();
+  const ref = useRef(null);
+  const shown = formatPhone(value);
+  useEffect(() => { ref.current?.setCustomValidity(phoneProblem(shown, required)); }, [shown, required]);
+  // Курсор не стає всередину «+38 »: інакше цифра вставиться в префікс і номер зламається («+3» + «6» + «8» → «+368…»)
+  // Перевіряємо й у самому кадрі: якщо поле тим часом виділили (Tab виділяє весь вміст), виділення не чіпаємо,
+  // інакше новий номер дописався б у кінець замість заміни.
+  const inPrefix = (el) => el.value.startsWith(UA_PREFIX) && el.selectionStart === el.selectionEnd && el.selectionStart < UA_PREFIX.length;
+  const keepOutOfPrefix = (e) => {
+    const el = e.currentTarget;
+    if (inPrefix(el)) requestAnimationFrame(() => { if (document.activeElement === el && inPrefix(el)) { const n = el.value.length; el.setSelectionRange(n, n); } });
+  };
+  return (
+    <Field label={label} hint={hint} id={id}>
+      <input id={id} ref={ref} className="input" type="tel" inputMode="tel" autoComplete="tel" maxLength={20} required={required}
+        value={shown} onChange={(e) => onChange(nextPhone(shown, e.target.value))} onFocus={keepOutOfPrefix} onClick={keepOutOfPrefix} onKeyUp={keepOutOfPrefix} {...p} />
+    </Field>
+  );
 }
 export function Textarea({ label, hint, rows = 3, ...p }) {
   const id = useId();

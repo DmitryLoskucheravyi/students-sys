@@ -25,11 +25,24 @@ const ICONS = {
 
 /* ───────── 3D: чи можна, завантаження, один Canvas на секцію ───────── */
 
+/** Чи є WebGL2 — перевіряємо один раз і одразу звільняємо пробний контекст (браузер тримає їх обмежено, ~16). */
+let webgl2 = null;
+function hasWebGL2() {
+  if (webgl2 == null) {
+    try {
+      const gl = document.createElement('canvas').getContext('webgl2');
+      webgl2 = Boolean(gl);
+      gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    } catch { webgl2 = false; }
+  }
+  return webgl2;
+}
+
 function canUse3D() {
   if (typeof window === 'undefined' || prefersCalm()) return false;
   if (navigator.connection?.saveData) return false;
   if ((navigator.hardwareConcurrency || 4) <= 2) return false;
-  try { return Boolean(document.createElement('canvas').getContext('webgl2')); } catch { return false; }
+  return hasWebGL2();
 }
 
 let scenesPromise = null;
@@ -52,10 +65,10 @@ function useScenes() {
 const SceneCtx = createContext(null);
 
 /**
- * Обгортка секції з одним Canvas. fixed — Canvas на весь екран (вертикальний список);
- * інакше — поверх самої доріжки слайдера, тож сусідні слайди за її краєм не малюються.
+ * Обгортка секції з одним Canvas поверх неї (absolute): поверх доріжки слайдера — тож сусідні слайди за її
+ * краєм не малюються — або поверх усього списку. Скролиться разом із картками, без запізнення.
  */
-function SceneHost({ fixed, scrollRef, className = '', children }) {
+function SceneHost({ scrollRef, className = '', children }) {
   const host = useRef(null);
   const mod = useScenes();
   const [active, setActive] = useState(false);
@@ -69,7 +82,7 @@ function SceneHost({ fixed, scrollRef, className = '', children }) {
   return (
     <div ref={host} className={`cc-host ${className}`}>
       <SceneCtx.Provider value={mod}>{children}</SceneCtx.Provider>
-      {mod && <mod.SceneCanvas eventSource={host} active={active} fixed={fixed} scrollEl={scrollRef} />}
+      {mod && <mod.SceneCanvas eventSource={host} active={active} scrollEl={scrollRef} />}
     </div>
   );
 }
@@ -216,7 +229,7 @@ export function CourseList({ items }) {
         ))}
       </div>
       <p className="sr-only" aria-live="polite">{age.range ? `${shown} ${coursesWord(shown)} для віку ${age.label} років` : ''}</p>
-      <SceneHost fixed className="cc-list">
+      <SceneHost className="cc-list">
         {items.map((d, k) => <Fold key={d.id} show={fitsAge(d, age)}><CourseCard d={d} all={items} eager={k === 0} /></Fold>)}
       </SceneHost>
     </>

@@ -105,5 +105,7 @@ export function normalizePhone(v: unknown): string {
   const digits = raw.replace(/\D/g, '');
   if (digits.length < 9 || digits.length > 15 || /[^\d\s()+\-.]/.test(raw)) throw bad('Перевірте номер телефону');
   if (digits.length === 10 && digits.startsWith('0')) return `+38${digits}`;
+  // «67 123 45 67» — український номер без нуля; без цього вийшло б «+671234567» (чужа країна)
+  if (digits.length === 9 && !raw.startsWith('+')) return `+380${digits}`;
   return `+${digits}`;
 }
