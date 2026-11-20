@@ -84,8 +84,11 @@
 .cc-fold[hidden] { display: none; }
 
 /* слайдер: на телефоні й планшеті — по одній, на десктопі — 3 картки в ряд */
-.s-dir-track { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; column-gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory;
-  scrollbar-width: none; overscroll-behavior-x: contain; margin: -8px 0 -24px; padding: 8px 0 24px; }
+.s-dir-track { display: grid; grid-auto-flow: column; grid-auto-columns: 100%; column-gap: var(--gut); /* = полю: сусідні слайди не визирають у поле */ overflow-x: auto; scroll-snap-type: x mandatory;
+  scrollbar-width: none; overscroll-behavior-x: contain;
+  /* overflow-x: auto обрізає й по вертикалі, тож даємо тіні картки місце (до ~70 px знизу при наведенні) і з боків —
+     на ширину поля сторінки; карти лишаються на місці завдяки відʼємним полям, прилипання — завдяки scroll-padding */
+  margin: -24px calc(-1 * var(--gut)) -72px; padding: 24px var(--gut) 72px; scroll-padding-inline: var(--gut); }
 .s-dir-track::-webkit-scrollbar { display: none; }
 .s-dir-slide { display: grid; min-width: 0; scroll-snap-align: start; }
 .s-dir-nav { display: flex; gap: 10px; }

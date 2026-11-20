@@ -255,9 +255,12 @@ export function PillArrow({ left, label, disabled, onClick }) {
 function measure(el) {
   const first = el.firstElementChild;
   if (!first) return { step: el.clientWidth || 1, per: 1 };
-  const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+  const cs = getComputedStyle(el);
+  const gap = parseFloat(cs.columnGap) || 0;
   const step = first.getBoundingClientRect().width + gap;
-  return { step, per: Math.max(1, Math.round((el.clientWidth + gap) / step)) };
+  // ширина без бічних полів (вони — запас для тіні карток)
+  const inner = el.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+  return { step, per: Math.max(1, Math.round((inner + gap) / step)) };
 }
 
 /** Курси слайдером (головна, «Інші курси»). Гортається стрілками по одному або пальцем (scroll-snap). */
